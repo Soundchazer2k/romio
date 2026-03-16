@@ -1,0 +1,146 @@
+[
+  {
+    "system": "daphne",
+    "extension": "daphne",
+    "emulator": "hypseus",
+    "frontend": null,
+    "support": { "deprecated": { "replacement": "hypseus" } },
+    "notes": "The .daphne extension was replaced by .hypseus when Hypseus Singe replaced Daphne. Files with .daphne are silently rejected. Safe to rename — content unchanged.",
+    "sinceVersion": null
+  },
+  {
+    "system": "gamecube",
+    "extension": "rvz",
+    "emulator": "dolphin",
+    "frontend": null,
+    "support": "supported",
+    "notes": ".rvz is Dolphin's own compression format. Fully supported by Dolphin standalone.",
+    "sinceVersion": "5.0"
+  },
+  {
+    "system": "gamecube",
+    "extension": "rvz",
+    "emulator": "lr-dolphin",
+    "frontend": null,
+    "support": { "unsupported": { "reason": ".rvz is a Dolphin-specific format. lr-dolphin requires .iso, .gcz, or .ciso. Convert or use Dolphin standalone." } },
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "wii",
+    "extension": "rvz",
+    "emulator": "dolphin",
+    "frontend": null,
+    "support": "supported",
+    "notes": ".rvz supported by Dolphin standalone for Wii.",
+    "sinceVersion": null
+  },
+  {
+    "system": "xbox360",
+    "extension": "iso",
+    "emulator": "xenia",
+    "frontend": null,
+    "support": { "conditional": { "condition": "Must be XISO-formatted. Standard ISO rips (e.g. from DVD decryption tools without XISO conversion) will NOT load. Visually identical extension — verify with extract-xiso or xdvdfs." } },
+    "notes": "Standard ISO ≠ XISO. Always verify Xbox 360 ISOs are properly formatted before import.",
+    "sinceVersion": null
+  },
+  {
+    "system": "xbox360",
+    "extension": "iso",
+    "emulator": "xenia-canary",
+    "frontend": null,
+    "support": { "conditional": { "condition": "Must be XISO-formatted. Same requirement as base Xenia." } },
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "wiiu",
+    "extension": "wua",
+    "emulator": "cemu",
+    "frontend": null,
+    "support": "supported",
+    "notes": ".wua bundles base game + updates + DLC in one file. Preferred format for Cemu — avoids separate keys.txt requirement for game content.",
+    "sinceVersion": null
+  },
+  {
+    "system": "wiiu",
+    "extension": "wud",
+    "emulator": "cemu",
+    "frontend": null,
+    "support": { "conditional": { "condition": "Requires keys.txt with valid title keys for decryption." } },
+    "notes": "Use .wua instead when possible.",
+    "sinceVersion": null
+  },
+  {
+    "system": "wiiu",
+    "extension": "wux",
+    "emulator": "cemu",
+    "frontend": null,
+    "support": { "conditional": { "condition": "Compressed .wud — same key requirement as .wud." } },
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "ps1",
+    "extension": "chd",
+    "emulator": "duckstation",
+    "frontend": null,
+    "support": "supported",
+    "notes": ".chd supported by DuckStation for PS1 disc images.",
+    "sinceVersion": null
+  },
+  {
+    "system": "ps1",
+    "extension": "chd",
+    "emulator": "lr-beetle-psx",
+    "frontend": null,
+    "support": "supported",
+    "notes": ".chd supported by Beetle PSX.",
+    "sinceVersion": null
+  },
+  {
+    "system": "ps2",
+    "extension": "chd",
+    "emulator": "pcsx2",
+    "frontend": null,
+    "support": "supported",
+    "notes": ".chd supported by PCSX2 nightly builds. Verify your PCSX2 version supports CHD.",
+    "sinceVersion": "1.7"
+  },
+  {
+    "system": "dreamcast",
+    "extension": "chd",
+    "emulator": "flycast",
+    "frontend": null,
+    "support": "supported",
+    "notes": ".chd is the preferred format for Dreamcast in Flycast.",
+    "sinceVersion": null
+  },
+  {
+    "system": "saturn",
+    "extension": "chd",
+    "emulator": "lr-beetle-saturn",
+    "frontend": null,
+    "support": "supported",
+    "notes": ".chd supported by Beetle Saturn.",
+    "sinceVersion": null
+  },
+  {
+    "system": "switch",
+    "extension": "nsp",
+    "emulator": "citron",
+    "frontend": null,
+    "support": { "conditional": { "condition": "Requires prod.keys + title.keys. Keys are console-specific and cannot be shared between installations." } },
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "switch",
+    "extension": "xci",
+    "emulator": "citron",
+    "frontend": null,
+    "support": { "conditional": { "condition": "Requires prod.keys + title.keys." } },
+    "notes": null,
+    "sinceVersion": null
+  }
+]

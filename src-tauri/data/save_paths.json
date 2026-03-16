@@ -1,0 +1,82 @@
+[
+  {
+    "emulator": "rpcs3",
+    "frontend": "retrobat",
+    "versionFrom": null,
+    "versionTo": null,
+    "oldPathPattern": "emulators/rpcs3/dev_hdd0",
+    "newPathPattern": "saves/ps3/rpcs3/hdd_0",
+    "trigger": "RetroBat major version upgrade",
+    "notes": "RPCS3 dev_hdd0 folder moved to the centralized saves directory. Contains all PS3 game saves, trophies, and user data. Cut/paste when upgrading — do not just copy."
+  },
+  {
+    "emulator": "ppsspp",
+    "frontend": "retrobat",
+    "versionFrom": null,
+    "versionTo": null,
+    "oldPathPattern": "emulators/ppsspp/memstick",
+    "newPathPattern": "saves/psp",
+    "trigger": "RetroBat major version upgrade",
+    "notes": "PPSSPP memstick folder moved to centralized saves."
+  },
+  {
+    "emulator": "cemu",
+    "frontend": "retrobat",
+    "versionFrom": null,
+    "versionTo": null,
+    "oldPathPattern": "emulators/cemu/mlc01",
+    "newPathPattern": "saves/wiiu/cemu/mlc01",
+    "trigger": "RetroBat major version upgrade",
+    "notes": "Cemu MLC (main library content) folder moved. Contains Wii U save data and installed content."
+  },
+  {
+    "emulator": "xenia",
+    "frontend": "retrobat",
+    "versionFrom": null,
+    "versionTo": null,
+    "oldPathPattern": "emulators/xenia/content",
+    "newPathPattern": "saves/xbox360/xenia",
+    "trigger": "RetroBat major version upgrade",
+    "notes": "Xenia content path moved. Contains Xbox 360 save data."
+  },
+  {
+    "emulator": "xenia-canary",
+    "frontend": "retrobat",
+    "versionFrom": null,
+    "versionTo": null,
+    "oldPathPattern": "emulators/xenia-canary/content",
+    "newPathPattern": "saves/xbox360/xenia",
+    "trigger": "RetroBat major version upgrade",
+    "notes": "Xenia Canary content path moved."
+  },
+  {
+    "emulator": "ryujinx",
+    "frontend": "retrobat",
+    "versionFrom": null,
+    "versionTo": null,
+    "oldPathPattern": "AppData/Roaming/Ryujinx",
+    "newPathPattern": "saves/switch/ryujinx",
+    "trigger": "RetroBat major version upgrade",
+    "notes": "Ryujinx and forks (Ryubing) portable path moved to centralized saves. Contains Switch save data."
+  },
+  {
+    "emulator": "vita3k",
+    "frontend": "retrobat",
+    "versionFrom": null,
+    "versionTo": null,
+    "oldPathPattern": "emulators/vita3k",
+    "newPathPattern": "saves/psvita/vita3k",
+    "trigger": "RetroBat update or manual path change",
+    "notes": "Vita3K content path default changed. Custom path can still be set in Vita3K settings."
+  },
+  {
+    "emulator": "pcsx2",
+    "frontend": null,
+    "versionFrom": "1.x",
+    "versionTo": "2.x",
+    "oldPathPattern": "Documents/PCSX2",
+    "newPathPattern": "Documents/PCSX2",
+    "trigger": "PCSX2 migration from wx to Qt build",
+    "notes": "PCSX2 Qt uses a different internal directory structure than the legacy wx builds. Save file locations within Documents/PCSX2 changed — check memcards/ subfolder."
+  }
+]

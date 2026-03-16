@@ -1,0 +1,81 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Romio global styles ──────────────────────────────────────────────────── */
+
+:root {
+  --font-sans: "Nunito", "DM Sans", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", Consolas, monospace;
+
+  /* Romio brand tokens */
+  --romio-black:   #1C1C1E;
+  --romio-cream:   #F5F0E8;
+  --romio-red:     #E03030;
+  --romio-green:   #4A8C5C;
+  --romio-gray:    #8A8A8A;
+  --romio-bg:      #0F0F11;
+  --romio-surface: #1C1C1E;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background: var(--romio-bg);
+  color: var(--romio-cream);
+  font-family: var(--font-sans);
+}
+
+/* Subtle scanline texture on the app background */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.03) 2px,
+    rgba(0, 0, 0, 0.03) 4px
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Monospace text for file paths and hashes */
+.path-text, .hash-text, code, pre {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  letter-spacing: 0.01em;
+}
+
+/* Validation state colors as CSS classes */
+.state-valid    { color: #4A8C5C; }
+.state-warning  { color: #C47C1A; }
+.state-error    { color: #E03030; }
+.state-advisory { color: #6B7280; }
+.state-info     { color: #3B82F6; }
+
+.bg-state-valid    { background-color: rgba(74, 140, 92, 0.15); }
+.bg-state-warning  { background-color: rgba(196, 124, 26, 0.15); }
+.bg-state-error    { background-color: rgba(224, 48, 48, 0.15); }
+.bg-state-advisory { background-color: rgba(107, 114, 128, 0.1); }
+
+/* Custom scrollbar — matches the dark theme */
+::-webkit-scrollbar       { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #2E2E32; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #3E3E44; }
+
+/* Tauri drag region for custom titlebar */
+[data-tauri-drag-region] {
+  -webkit-app-region: drag;
+  user-select: none;
+}

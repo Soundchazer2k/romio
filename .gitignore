@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+target/
+
+# Tauri generated icons (regenerate with: pnpm tauri icon <source.png>)
+icons/
+
+# Generated schema (produced by tauri-build)
+src-tauri/gen/
+
+# Local env / secrets
+.env
+.env.local
+
+# Editor
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Analysis artifacts (not part of the project source)
+codebase_analysis.md
