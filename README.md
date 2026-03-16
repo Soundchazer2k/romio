@@ -1,7 +1,7 @@
 # Romio
 
 <p align="center">
-  <img src="src/assets/romio/romio_welcome.png" alt="Romio mascot" width="180" />
+  <img src="public/romio/romio_welcome.png" alt="Romio mascot" width="180" />
 </p>
 
 <p align="center">
@@ -10,9 +10,9 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/your-org/romio/releases"><img alt="Latest Release" src="https://img.shields.io/github/v/release/your-org/romio?style=flat-square&color=4A8C5C" /></a>
+  <a href="https://github.com/Soundchazer2k/romio/releases"><img alt="Latest Release" src="https://img.shields.io/github/v/release/Soundchazer2k/romio?style=flat-square&color=4A8C5C" /></a>
   <a href="LICENSE"><img alt="License: GPL-3.0" src="https://img.shields.io/badge/license-GPL--3.0-E03030?style=flat-square" /></a>
-  <a href="https://github.com/your-org/romio/actions"><img alt="Build" src="https://img.shields.io/github/actions/workflow/status/your-org/romio/build.yml?style=flat-square" /></a>
+  <a href="https://github.com/Soundchazer2k/romio/actions"><img alt="Build" src="https://img.shields.io/github/actions/workflow/status/Soundchazer2k/romio/build.yml?style=flat-square" /></a>
 </p>
 
 ---
@@ -33,7 +33,7 @@ Romio catches these problems **before** they bite you.
 
 ## Download
 
-Get the installer for your platform from the [Releases page](https://github.com/your-org/romio/releases).
+Get the installer for your platform from the [Releases page](https://github.com/Soundchazer2k/romio/releases).
 
 | Platform | Installer |
 |---|---|
@@ -70,7 +70,7 @@ No dependencies to install. No terminal required. Just download and run.
 
 ```bash
 # Prerequisites: Rust 1.75+, Node 20+, pnpm
-git clone https://github.com/your-org/romio
+git clone https://github.com/Soundchazer2k/romio
 cd romio
 pnpm install
 pnpm tauri dev
