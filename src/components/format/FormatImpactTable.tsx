@@ -34,9 +34,9 @@ export function FormatImpactTable({ extension, system, rules }: Props) {
         Impact across emulators
       </p>
       <div className="space-y-1">
-        {relevant.map((rule, i) => (
+        {relevant.map((rule) => (
           <div
-            key={i}
+            key={`${rule.emulator}-${rule.extension}-${rule.system}`}
             className="flex items-center gap-3 px-2.5 py-1.5 rounded-lg bg-black/20
                        border border-border text-xs"
           >

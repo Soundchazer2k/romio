@@ -27,6 +27,7 @@ export function FormatFixPlanModal({ fixes, onClose }: Props) {
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
         className="w-full max-w-lg bg-romio-surface border border-border rounded-2xl
                    shadow-romio p-6 space-y-5 mx-4 max-h-[80vh] flex flex-col"
       >

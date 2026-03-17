@@ -72,7 +72,8 @@ export function FormatScreen() {
       const systemFolders = systemEntries.filter((e) => e.isDirectory);
 
       for (const sysEntry of systemFolders) {
-        const systemId   = sysEntry.name;
+        const systemId = sysEntry.name;
+        if (!systemId) continue;
         const systemPath = joinPath(libraryPath, systemId);
 
         // Determine emulator for this system
@@ -220,12 +221,14 @@ export function FormatScreen() {
       </AnimatePresence>
 
       {/* Fix plan modal */}
-      {planOpen && (
-        <FormatFixPlanModal
-          fixes={stagedFixes}
-          onClose={() => setPlanOpen(false)}
-        />
-      )}
+      <AnimatePresence>
+        {planOpen && (
+          <FormatFixPlanModal
+            fixes={stagedFixes}
+            onClose={() => setPlanOpen(false)}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Reference drawer */}
       <FormatReferenceDrawer

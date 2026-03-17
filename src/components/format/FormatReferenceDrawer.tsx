@@ -24,9 +24,9 @@ export function FormatReferenceDrawer({ open, rules, onClose }: Props) {
   const filtered = rules.filter((r) => {
     const q = search.toLowerCase();
     return (
-      r.system.includes(q)    ||
-      r.extension.includes(q) ||
-      r.emulator.includes(q)
+      r.system.toLowerCase().includes(q)    ||
+      r.extension.toLowerCase().includes(q) ||
+      r.emulator.toLowerCase().includes(q)
     );
   });
 
