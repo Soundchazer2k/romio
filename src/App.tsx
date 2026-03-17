@@ -10,6 +10,7 @@ import { ProjectsScreen }   from "@/components/dashboard/ProjectsScreen";
 import { PreflightScreen }  from "@/components/preflight/PreflightScreen";
 import { DashboardScreen }  from "@/components/dashboard/DashboardScreen";
 import { BiosScreen }       from "@/components/bios/BiosScreen";
+import { FormatScreen }    from "@/components/format/FormatScreen";
 import { SavesScreen }      from "@/components/saves/SavesScreen";
 
 // Layout
@@ -22,7 +23,7 @@ const SCREENS: Record<Screen, React.ComponentType> = {
   preflight:  PreflightScreen,
   dashboard:  DashboardScreen,
   bios:       BiosScreen,
-  format:     () => <PlaceholderScreen name="Format Compatibility" />,
+  format:     FormatScreen,
   multidisc:  () => <PlaceholderScreen name="Multi-Disc Toolkit" />,
   scummvm:    () => <PlaceholderScreen name="ScummVM Workspace" />,
   installed:  () => <PlaceholderScreen name="Installed Titles" />,
