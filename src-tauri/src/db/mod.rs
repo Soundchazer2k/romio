@@ -5,6 +5,7 @@ pub mod projects;
 pub mod bios;
 pub mod format;
 pub mod save;
+pub mod emulator;
 
 use anyhow::Result;
 use rusqlite::Connection;
