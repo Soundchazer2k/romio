@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
-import type { BiosValidationState, FindingSeverity, SaveMigrationState } from "@/types";
+import type {
+  BiosValidationState, FindingSeverity, SaveMigrationState,
+  FormatCompatibilityState, FormatSupport, FormatCheckResult, FormatSystemGroup,
+} from "@/types";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -73,4 +76,54 @@ export function truncatePath(path: string, maxLen = 60): string {
   const parts = path.split(sep);
   if (parts.length <= 2) return "…" + sep + parts[parts.length - 1];
   return "…" + sep + parts.slice(-2).join(sep);
+}
+
+// ── Format state helpers ───────────────────────────────────────────────────────
+
+export function formatStateColor(state: FormatCompatibilityState): string {
+  switch (state) {
+    case "Compatible":         return "text-romio-green";
+    case "FormatDeprecated":   return "text-amber-400";
+    case "FormatIncompatible": return "text-romio-red";
+    case "Unknown":            return "text-romio-gray";
+    case "NotApplicable":      return "text-romio-gray opacity-50";
+  }
+}
+
+export function formatStateBg(state: FormatCompatibilityState): string {
+  switch (state) {
+    case "Compatible":         return "bg-romio-green/10";
+    case "FormatDeprecated":   return "bg-amber-400/10";
+    case "FormatIncompatible": return "bg-romio-red/10";
+    case "Unknown":            return "bg-black/10";
+    case "NotApplicable":      return "";
+  }
+}
+
+export function formatStateLabel(state: FormatCompatibilityState): string {
+  switch (state) {
+    case "Compatible":         return "Compatible";
+    case "FormatDeprecated":   return "Deprecated";
+    case "FormatIncompatible": return "Incompatible";
+    case "Unknown":            return "Unknown";
+    case "NotApplicable":      return "N/A";
+  }
+}
+
+export function formatSupportLabel(support: FormatSupport): string {
+  if (support === "supported") return "Supported";
+  if ("deprecated"  in support) return `Deprecated → .${support.deprecated.replacement}`;
+  if ("unsupported" in support) return "Unsupported";
+  if ("conditional" in support) return "Conditional";
+  return "Unknown";
+}
+
+export function groupResultsBySystem(results: FormatCheckResult[]): FormatSystemGroup[] {
+  const map = new Map<string, FormatCheckResult[]>();
+  for (const r of results) {
+    const key = r.system ?? "unknown";
+    if (!map.has(key)) map.set(key, []);
+    map.get(key)!.push(r);
+  }
+  return Array.from(map.entries()).map(([system, results]) => ({ system, results }));
 }
