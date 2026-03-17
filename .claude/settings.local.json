@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(analyze-codebase:analyze-codebase)",
+      "Skill(analyze-codebase:analyze-codebase:*)",
+      "Bash(rustc --version)",
+      "Bash(cargo --version)",
+      "Bash(pnpm --version)",
+      "Bash(cargo check:*)",
+      "Bash(pnpm tauri:*)",
+      "Bash(netstat -ano)",
+      "Bash(node -e \"const net=require\\(''net''\\);const s=net.createServer\\(\\);s.listen\\(1420,''127.0.0.1'',\\(\\)=>{console.log\\(''ok''\\);s.close\\(\\)}\\).on\\(''error'',\\(e\\)=>console.log\\(''error:'',e.message\\)\\)\")",
+      "Bash(netsh interface:*)",
+      "Bash(node -e \"const net=require\\(''net''\\);const s=net.createServer\\(\\);s.listen\\(1444,''127.0.0.1'',\\(\\)=>{console.log\\(''port 1444 ok''\\);s.close\\(\\)}\\).on\\(''error'',\\(e\\)=>console.log\\(''error:'',e.message\\)\\)\")",
+      "Bash(gh auth:*)"
+    ]
+  }
+}
