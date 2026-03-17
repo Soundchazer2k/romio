@@ -213,3 +213,62 @@ export interface FrontendInfo {
   name: string;
   tier: number;
 }
+
+// ── Format compatibility ──────────────────────────────────────────────────────
+
+export type FormatSupport =
+  | "supported"
+  | { deprecated:   { replacement: string } }
+  | { unsupported:  { reason: string } }
+  | { conditional:  { condition: string } };
+
+export type FormatFixType = "rename" | "convert" | "redump";
+
+export interface FormatRule {
+  system:       string;
+  extension:    string;
+  emulator:     string;
+  frontend?:    string | null;
+  support:      FormatSupport;
+  notes?:       string;
+  sinceVersion?: string | null;
+}
+
+export interface FormatFixAction {
+  actionType:   FormatFixType;
+  description:  string;
+  safe:         boolean;
+  newFilename?: string;
+}
+
+export interface FormatCheckResult {
+  path:       string;
+  extension:  string;
+  system?:    string;
+  emulator?:  string;
+  state:      FormatCompatibilityState;
+  notes?:     string;
+  fixAction?: FormatFixAction;
+}
+
+// Client-side only — not from Rust
+export interface FormatSystemGroup {
+  system:  string;
+  results: FormatCheckResult[];
+}
+
+export interface StagedFix {
+  result: FormatCheckResult;
+  fix:    FormatFixAction;
+}
+
+// ── Emulator matrix ────────────────────────────────────────────────────────────
+
+export interface EmulatorMatrixEntry {
+  system:       string;
+  recommended:  string;
+  alternatives: string[];
+  status:       string;
+  biosRequired: boolean;
+  notes?:       string | null;
+}
