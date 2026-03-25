@@ -1,0 +1,18 @@
+{
+  "servers": [
+    {
+      "name": "Tauri (full app — Vite + Rust)",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["tauri", "dev"],
+      "port": 1444,
+      "description": "Starts both the Vite frontend (port 1444) and the Rust Tauri backend. Use this for normal development."
+    },
+    {
+      "name": "Vite only (frontend preview)",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["dev"],
+      "port": 1444,
+      "description": "Starts only the Vite dev server on port 1444. Useful for pure UI work without the Rust backend."
+    }
+  ]
+}
