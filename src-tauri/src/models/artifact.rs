@@ -61,7 +61,7 @@ impl Default for BiosValidationState {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[serde(rename_all = "PascalCase")]
 pub enum FormatCompatibilityState {
     Compatible,
     FormatIncompatible,

@@ -9,3 +9,4 @@ pub mod project;
 pub mod save;
 pub mod host;
 pub mod format;
+pub mod emulator;

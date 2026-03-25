@@ -18,6 +18,7 @@ export default {
           green:    "#4A8C5C",   // floppy disk / success / valid
           gray:     "#8A8A8A",   // side panel / neutral
           "gray-dark": "#2C2C2E", // secondary surface
+          surface:  "#1C1C1E",   // card / panel surface (mirrors --romio-surface)
         },
         // Semantic aliases
         background: {

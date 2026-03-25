@@ -25,3 +25,7 @@ Thumbs.db
 
 # Analysis artifacts (not part of the project source)
 codebase_analysis.md
+
+# Playwright test output
+test-results/
+playwright-report/

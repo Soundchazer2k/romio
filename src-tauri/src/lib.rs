@@ -78,6 +78,9 @@ pub fn run() {
             // Rollback / operation log
             commands::rollback::get_operation_log,
             commands::rollback::rollback_operation,
+
+            // Emulator matrix
+            commands::emulator::get_emulator_matrix,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Romio");

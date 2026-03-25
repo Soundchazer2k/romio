@@ -13,3 +13,4 @@ pub mod scummvm;
 pub mod installed;
 pub mod export;
 pub mod rollback;
+pub mod emulator;

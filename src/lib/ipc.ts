@@ -9,6 +9,7 @@ import type {
   HostEnvironmentReport,
   SaveRoot, MigrationPlan, SaveCheckpoint,
   FrontendInfo,
+  FormatRule, FormatCheckResult, EmulatorMatrixEntry,
 } from "@/types";
 
 // ── Project ───────────────────────────────────────────────────────────────────
@@ -36,9 +37,10 @@ export const ipc = {
   getBiosStatus:    (projectId: string)               => invoke<BiosSystemResult[]>("get_bios_status", { projectId }),
 
   // Format
-  checkFormat:      (path: string, system: string, emulator: string, frontend: string) =>
-                      invoke("check_format_compatibility", { path, system, emulator, frontend }),
-  getFormatMatrix:  ()                                => invoke("get_format_matrix"),
+  checkFormat:       (path: string, system: string, emulator: string, frontend: string) =>
+                       invoke<FormatCheckResult>("check_format_compatibility", { path, system, emulator, frontend }),
+  getFormatMatrix:   ()                                => invoke<FormatRule[]>("get_format_matrix"),
+  getEmulatorMatrix: ()                                => invoke<EmulatorMatrixEntry[]>("get_emulator_matrix"),
 
   // Save migration
   discoverSaveRoots:   (frontendRoot: string)         => invoke<SaveRoot[]>("discover_save_roots", { frontendRoot }),
