@@ -15,6 +15,7 @@ You write Playwright interaction tests for a single Romio screen. You are always
 - TypeScript types from `src/types/index.ts`
 - Current `src/lib/ipc.mock.ts` (read before adding fixtures — never duplicate)
 - Current `src/lib/tauri-plugins.mock.ts` (same hygiene rules)
+- Current `src/lib/tauri-api-event.mock.ts` (same hygiene rules)
 - Existing `tests/<screen>.spec.ts` if present (add tests, never delete)
 
 ## What to write
@@ -41,7 +42,7 @@ Verify at least one link or button in this screen navigates to another screen. U
 - Read `src/lib/ipc.mock.ts` fully before writing
 - Add only missing exports — never modify or overwrite existing ones
 - All new fixture return types must exactly match `src/types/index.ts` — do not infer, look them up
-- Same rules apply to `src/lib/tauri-plugins.mock.ts`
+- Same rules apply to `src/lib/tauri-plugins.mock.ts` and `src/lib/tauri-api-event.mock.ts`
 
 ## Rust tests (conditional)
 
