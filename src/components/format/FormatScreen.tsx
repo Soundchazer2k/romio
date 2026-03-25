@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { readDir } from "@tauri-apps/plugin-fs";
-import { FileSearch, HelpCircle, ShieldCheck } from "lucide-react";
+import { FileSearch, HelpCircle } from "lucide-react";
 import { useAppStore } from "@/stores";
 import { ipc } from "@/lib/ipc";
 import type {
@@ -89,17 +89,18 @@ export function FormatScreen() {
           continue; // skip unreadable dirs
         }
 
-        const files = fileEntries.filter((e) => e.isFile);
+        const files = fileEntries.filter((e) => e.isFile && !!e.name);
 
         for (const file of files) {
-          const filePath = joinPath(systemPath, file.name);
+          const name = file.name!;
+          const filePath = joinPath(systemPath, name);
           try {
             const result = await ipc.checkFormat(filePath, systemId, emu, frontend);
             allResults.push(result);
           } catch {
             // Per-file error: push Unknown result
-            const ext = file.name.includes(".")
-              ? file.name.split(".").pop() ?? ""
+            const ext = name.includes(".")
+              ? name.split(".").pop() ?? ""
               : "";
             allResults.push({
               path:      filePath,
@@ -204,7 +205,7 @@ export function FormatScreen() {
       {/* Empty state */}
       {!hasResults && !isScanning && !scanError && (
         <div className="text-center py-16 text-romio-gray space-y-2">
-          <ShieldCheck className="w-10 h-10 mx-auto opacity-30" />
+          <FileSearch className="w-10 h-10 mx-auto opacity-30" />
           <p>Run a scan to check your library</p>
         </div>
       )}

@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
-import { Shield, ChevronDown, ChevronRight, ExternalLink, Copy } from "lucide-react";
+import { Shield, ChevronDown, ChevronRight, ExternalLink, Copy, FolderOpen } from "lucide-react";
 import { useAppStore } from "@/stores";
 import { ipc } from "@/lib/ipc";
 import type { BiosSystemResult, BiosEntryResult, BiosValidationState } from "@/types";
@@ -48,30 +48,40 @@ export function BiosScreen() {
       </div>
 
       {/* Config row */}
-      <div className="flex gap-3 flex-wrap">
+      <div className="flex gap-3 flex-wrap items-end">
         <div className="flex-1 min-w-48 space-y-1">
-          <label className="text-xs text-romio-gray uppercase tracking-wider">BIOS directory</label>
-          <input
-            value={biosRoot}
-            onChange={(e) => setBiosRoot(e.target.value)}
-            placeholder="/path/to/bios"
-            className="w-full px-3 py-2 rounded-lg bg-black/30 border border-border
-                       text-sm font-mono text-romio-cream placeholder:text-romio-gray/40
-                       focus:outline-none focus:border-romio-green/40"
-          />
+          <label className="text-xs font-medium text-romio-gray/70 uppercase tracking-widest">BIOS directory</label>
+          <div className="relative flex items-center w-full">
+            <div className="absolute left-0 flex items-center h-full pl-3 pr-2.5
+                            border-r border-white/10 pointer-events-none">
+              <FolderOpen className="w-4 h-4 text-romio-gray/50" />
+            </div>
+            <input
+              value={biosRoot}
+              onChange={(e) => setBiosRoot(e.target.value)}
+              placeholder="/path/to/bios"
+              className="w-full pl-11 pr-3 py-2 rounded-lg bg-romio-surface border border-white/10
+                         text-sm font-mono text-romio-cream placeholder:text-romio-gray/40
+                         focus:outline-none focus:border-romio-green/40"
+            />
+          </div>
         </div>
         <div className="space-y-1">
-          <label className="text-xs text-romio-gray uppercase tracking-wider">Frontend</label>
-          <select
-            value={selectedFrontend}
-            onChange={(e) => setSelectedFrontend(e.target.value)}
-            className="px-3 py-2 rounded-lg bg-black/30 border border-border text-sm
-                       text-romio-cream focus:outline-none focus:border-romio-green/40"
-          >
-            {(activeProject?.targetFrontends ?? ["esde"]).map((f) => (
-              <option key={f} value={f}>{f}</option>
-            ))}
-          </select>
+          <label className="text-xs font-medium text-romio-gray/70 uppercase tracking-widest">Frontend</label>
+          <div className="relative">
+            <select
+              value={selectedFrontend}
+              onChange={(e) => setSelectedFrontend(e.target.value)}
+              className="appearance-none px-3 py-2 pr-8 rounded-lg bg-romio-surface border border-white/10
+                         text-sm text-romio-cream focus:outline-none focus:border-romio-green/40"
+            >
+              {(activeProject?.targetFrontends ?? ["esde"]).map((f) => (
+                <option key={f} value={f}>{f}</option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5
+                                    text-romio-gray/60 pointer-events-none" />
+          </div>
         </div>
       </div>
 

@@ -49,8 +49,8 @@ export function FormatFixPlanModal({ fixes, onClose }: Props) {
 
         {/* Fixes list */}
         <div className="flex-1 overflow-y-auto space-y-2 min-h-0">
-          {fixes.map((staged, i) => (
-            <div key={i}
+          {fixes.map((staged) => (
+            <div key={staged.result.path}
               className={cn(
                 "px-3 py-2.5 rounded-lg border text-xs",
                 staged.fix.safe

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0
 import { open } from "@tauri-apps/plugin-dialog";
-import { FolderOpen } from "lucide-react";
+import { FolderOpen, ChevronDown } from "lucide-react";
 import type { EmulatorMatrixEntry } from "@/types";
 import { useAppStore } from "@/stores";
 
@@ -38,19 +38,19 @@ export function FormatConfigBar({
     <div className="flex gap-3 flex-wrap items-end">
       {/* Library path */}
       <div className="flex-1 min-w-48 space-y-1">
-        <label className="text-xs text-romio-gray uppercase tracking-wider">Library root</label>
+        <label className="text-xs font-medium text-romio-gray/70 uppercase tracking-widest">Library root</label>
         <div className="flex gap-2">
           <input
             value={path}
             onChange={(e) => onPathChange(e.target.value)}
             placeholder="/path/to/roms"
-            className="flex-1 px-3 py-2 rounded-lg bg-black/30 border border-border
+            className="flex-1 px-3 py-2 rounded-lg bg-romio-surface border border-white/10
                        text-sm font-mono text-romio-cream placeholder:text-romio-gray/40
                        focus:outline-none focus:border-romio-green/40"
           />
           <button
             onClick={browse}
-            className="px-3 py-2 rounded-lg bg-black/30 border border-border
+            className="px-3 py-2 rounded-lg bg-romio-surface border border-white/10
                        text-romio-gray hover:text-romio-cream hover:bg-white/5 transition-colors"
             title="Browse"
           >
@@ -61,28 +61,36 @@ export function FormatConfigBar({
 
       {/* Frontend select */}
       <div className="space-y-1">
-        <label className="text-xs text-romio-gray uppercase tracking-wider">Frontend</label>
-        <select
-          value={frontend}
-          onChange={(e) => onFrontendChange(e.target.value)}
-          className="px-3 py-2 rounded-lg bg-black/30 border border-border text-sm
-                     text-romio-cream focus:outline-none focus:border-romio-green/40"
-        >
-          {frontends.map((f) => <option key={f} value={f}>{f}</option>)}
-        </select>
+        <label className="text-xs font-medium text-romio-gray/70 uppercase tracking-widest">Frontend</label>
+        <div className="relative">
+          <select
+            value={frontend}
+            onChange={(e) => onFrontendChange(e.target.value)}
+            className="appearance-none px-3 py-2 pr-8 rounded-lg bg-romio-surface border border-white/10
+                       text-sm text-romio-cream focus:outline-none focus:border-romio-green/40"
+          >
+            {frontends.map((f) => <option key={f} value={f}>{f}</option>)}
+          </select>
+          <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5
+                                  text-romio-gray/60 pointer-events-none" />
+        </div>
       </div>
 
       {/* Emulator select */}
       <div className="space-y-1">
-        <label className="text-xs text-romio-gray uppercase tracking-wider">Emulator</label>
-        <select
-          value={emulator}
-          onChange={(e) => onEmulatorChange(e.target.value)}
-          className="px-3 py-2 rounded-lg bg-black/30 border border-border text-sm
-                     text-romio-cream focus:outline-none focus:border-romio-green/40"
-        >
-          {emulators.map((e) => <option key={e} value={e}>{e}</option>)}
-        </select>
+        <label className="text-xs font-medium text-romio-gray/70 uppercase tracking-widest">Emulator</label>
+        <div className="relative">
+          <select
+            value={emulator}
+            onChange={(e) => onEmulatorChange(e.target.value)}
+            className="appearance-none px-3 py-2 pr-8 rounded-lg bg-romio-surface border border-white/10
+                       text-sm text-romio-cream focus:outline-none focus:border-romio-green/40"
+          >
+            {emulators.map((e) => <option key={e} value={e}>{e}</option>)}
+          </select>
+          <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5
+                                  text-romio-gray/60 pointer-events-none" />
+        </div>
       </div>
 
       {/* Scan button */}
