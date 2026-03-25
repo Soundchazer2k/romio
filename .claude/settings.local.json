@@ -23,7 +23,8 @@
       "Bash(pnpm add:*)",
       "Bash(pnpm exec:*)",
       "Bash(mkdir -p \"H:/Vibe Coding/Romio/.claude/agents\")",
-      "Bash(mkdir -p \"H:/Vibe Coding/Romio/.claude/skills/test-feature\")"
+      "Bash(mkdir -p \"H:/Vibe Coding/Romio/.claude/skills/test-feature\")",
+      "Bash(gh pr:*)"
     ]
   }
 }
