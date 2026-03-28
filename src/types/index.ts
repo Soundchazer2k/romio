@@ -178,6 +178,16 @@ export interface MigrationPlan {
   steps:           MigrationStep[];
 }
 
+export interface SaveCheckpoint {
+  id:          string;
+  emulator:    string;
+  sourcePath:  string;
+  archivePath: string;
+  createdAt:   string;
+  fileCount:   number;
+  sizeBytes:   number;
+}
+
 // ── Scan ──────────────────────────────────────────────────────────────────────
 
 export type ScanPhase = "enumerating" | "hashing" | "classifying" | "complete";

@@ -7,7 +7,7 @@ import type {
   Project, CreateProjectRequest,
   BiosSystemResult, BiosRule,
   HostEnvironmentReport,
-  SaveRoot, MigrationPlan,
+  SaveRoot, MigrationPlan, SaveCheckpoint,
   FrontendInfo,
   FormatRule, FormatCheckResult, EmulatorMatrixEntry,
 } from "@/types";
@@ -222,8 +222,15 @@ export const ipc = {
   ): Promise<MigrationPlan> => FIXTURE_MIGRATION_PLAN,
   executeMigration: async (_plan: MigrationPlan): Promise<void> =>
     undefined,
-  createSaveCheckpoint: async (_source: string, _emulator: string): Promise<void> =>
-    undefined,
+  createSaveCheckpoint: async (_source: string, _emulator: string): Promise<SaveCheckpoint> => ({
+    id:          "mock-checkpoint-1",
+    emulator:    _emulator,
+    sourcePath:  _source,
+    archivePath: "/tmp/checkpoint.tar.gz",
+    createdAt:   "2026-03-28T00:00:00Z",
+    fileCount:   42,
+    sizeBytes:   1048576,
+  }),
 
   // Multi-disc (placeholder screens — minimal stubs)
   detectMultiDisc: async (_root: string) => [],
