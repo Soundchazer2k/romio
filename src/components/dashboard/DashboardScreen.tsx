@@ -7,7 +7,7 @@ import { ipc } from "@/lib/ipc";
 import { cn } from "@/lib/utils";
 
 export function DashboardScreen() {
-  const { activeProject, setScreen, setRomioState } = useAppStore();
+  const { activeProject, setActiveProject, setScreen, setRomioState } = useAppStore();
   const { isScanning, setScanning, progress } = useScanStore();
 
   const scanMut = useMutation({
@@ -17,9 +17,14 @@ export function DashboardScreen() {
       setRomioState("processing");
       await ipc.scanLibrary(activeProject.id, activeProject.libraryRoots);
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       setScanning(false);
       setRomioState("pondering");
+      // Re-fetch project so scanStats and lastScannedAt reflect persisted data.
+      if (activeProject) {
+        const updated = await ipc.getProject(activeProject.id);
+        setActiveProject(updated);
+      }
     },
     onError: () => {
       setScanning(false);

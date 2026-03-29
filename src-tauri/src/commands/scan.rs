@@ -40,6 +40,11 @@ pub async fn scan_library(
 
     let artifacts = result.map_err(|e| e.to_string())?;
 
+    // If the scan was cancelled, discard partial results — do not persist.
+    if cancel_flag().load(Ordering::Relaxed) {
+        return Ok(());
+    }
+
     // Persist artifacts (replaces any prior scan for this project)
     crate::db::artifacts::save_batch(&project_id, &artifacts)
         .map_err(|e| format!("Failed to persist artifacts: {e}"))?;
