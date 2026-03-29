@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0
 import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { Save, AlertTriangle, ArrowRight, ShieldCheck, Link2 } from "lucide-react";
 import { useAppStore } from "@/stores";
@@ -9,7 +9,7 @@ import type { SaveRoot, MigrationPlan } from "@/types";
 import { cn, formatBytes, migrationStateLabel } from "@/lib/utils";
 
 export function SavesScreen() {
-  const { activeProject, setRomioState } = useAppStore();
+  const { setRomioState } = useAppStore();
   const [frontendRoot, setFrontendRoot] = useState("");
   const [selectedPlan, setSelectedPlan] = useState<MigrationPlan | null>(null);
   const [confirmed, setConfirmed] = useState(false);
@@ -21,7 +21,6 @@ export function SavesScreen() {
   });
 
   const atRisk = roots.filter((r) => r.migrationState === "migration_needed");
-  const conflicts = roots.filter((r) => r.migrationState === "conflict_detected");
 
   // Update Romio state based on findings
   if (atRisk.length > 0)    setRomioState("difficult_save");
