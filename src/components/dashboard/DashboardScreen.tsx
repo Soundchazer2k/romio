@@ -1,12 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0
-import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { Play, AlertTriangle, XCircle, Info, CheckCircle2 } from "lucide-react";
-import { listen } from "@tauri-apps/api/event";
 import { useAppStore, useScanStore } from "@/stores";
 import { ipc } from "@/lib/ipc";
-import type { ScanProgress } from "@/types";
 import { cn } from "@/lib/utils";
 
 export function DashboardScreen() {

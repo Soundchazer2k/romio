@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Shield, ChevronDown, ChevronRight, ExternalLink, Copy, FolderOpen } from "lucide-react";
 import { useAppStore } from "@/stores";
 import { ipc } from "@/lib/ipc";
-import type { BiosSystemResult, BiosEntryResult, BiosValidationState } from "@/types";
+import type { BiosSystemResult, BiosEntryResult } from "@/types";
 import { cn, biosStateColor, biosStateBg, biosStateLabel, truncatePath } from "@/lib/utils";
 
 // All systems that may have BIOS requirements
@@ -204,7 +204,7 @@ function SystemStatusBadge({ result }: { result: BiosSystemResult }) {
 }
 
 function BiosEntryRow({ entry }: { entry: BiosEntryResult }) {
-  const [copied, setCopied] = useState(false);
+  const [_copied, setCopied] = useState(false);
 
   function copyMd5() {
     if (entry.foundMd5) {

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0
 import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { Save, AlertTriangle, ArrowRight, ShieldCheck, Link2 } from "lucide-react";
 import { useAppStore } from "@/stores";
@@ -9,7 +9,7 @@ import type { SaveRoot, MigrationPlan } from "@/types";
 import { cn, formatBytes, migrationStateLabel } from "@/lib/utils";
 
 export function SavesScreen() {
-  const { activeProject, setRomioState } = useAppStore();
+  const { setRomioState } = useAppStore();
   const [frontendRoot, setFrontendRoot] = useState("");
   const [selectedPlan, setSelectedPlan] = useState<MigrationPlan | null>(null);
   const [confirmed, setConfirmed] = useState(false);
@@ -21,7 +21,6 @@ export function SavesScreen() {
   });
 
   const atRisk = roots.filter((r) => r.migrationState === "migration_needed");
-  const conflicts = roots.filter((r) => r.migrationState === "conflict_detected");
 
   // Update Romio state based on findings
   if (atRisk.length > 0)    setRomioState("difficult_save");
@@ -122,10 +121,6 @@ export function SavesScreen() {
           onClose={() => { setSelectedPlan(null); setConfirmed(false); }}
           confirmed={confirmed}
           onConfirm={() => setConfirmed(true)}
-          onExecute={async () => {
-            await ipc.executeMigration(selectedPlan);
-            setSelectedPlan(null);
-          }}
         />
       )}
     </div>
@@ -219,12 +214,11 @@ function MigrationStateBadge({ state }: { state: SaveRoot["migrationState"] }) {
   );
 }
 
-function MigrationPlanModal({ plan, onClose, confirmed, onConfirm, onExecute }: {
+function MigrationPlanModal({ plan, onClose, confirmed, onConfirm }: {
   plan:      MigrationPlan;
   onClose:   () => void;
   confirmed: boolean;
   onConfirm: () => void;
-  onExecute: () => void;
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
@@ -301,17 +295,15 @@ function MigrationPlanModal({ plan, onClose, confirmed, onConfirm, onExecute }: 
           <button onClick={onClose}
             className="flex-1 px-4 py-2 rounded-lg text-sm text-romio-gray
                        border border-border hover:bg-white/5 transition-colors">
-            Cancel
+            Close
           </button>
-          <button
-            onClick={onExecute}
-            disabled={!confirmed}
-            className="flex-1 px-4 py-2 rounded-lg text-sm font-semibold
-                       bg-amber-600 text-white hover:bg-amber-500
-                       disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-          >
-            Execute Migration
-          </button>
+          <div className="flex-1 flex flex-col items-center justify-center px-4 py-2
+                          rounded-lg border border-border bg-black/10 text-center">
+            <span className="text-xs font-semibold text-romio-gray">Execute Migration</span>
+            <span className="text-xs text-romio-gray/50 mt-0.5">
+              Coming soon — plan review only
+            </span>
+          </div>
         </div>
       </motion.div>
     </div>

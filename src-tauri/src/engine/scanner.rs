@@ -158,3 +158,116 @@ fn classify_file(path: &Path) -> Option<Artifact> {
         scanned_at:           chrono::Utc::now(),
     })
 }
+
+/// Derive project-level stats from a completed scan's artifact list.
+pub fn derive_scan_stats(artifacts: &[crate::models::artifact::Artifact]) -> crate::models::project::ScanStats {
+    use crate::models::artifact::{ArtifactType, FindingSeverity};
+
+    let total_files      = artifacts.len() as u64;
+    let classified       = artifacts.iter()
+        .filter(|a| a.artifact_type != ArtifactType::Unknown)
+        .count() as u64;
+
+    let mut blocking_issues = 0u32;
+    let mut errors          = 0u32;
+    let mut warnings        = 0u32;
+    let mut advisories      = 0u32;
+
+    for artifact in artifacts {
+        for finding in &artifact.validation_findings {
+            match finding.severity {
+                FindingSeverity::Blocking => blocking_issues += 1,
+                FindingSeverity::Error    => errors += 1,
+                FindingSeverity::Warning  => warnings += 1,
+                FindingSeverity::Advisory => advisories += 1,
+                FindingSeverity::Info     => {}
+            }
+        }
+    }
+
+    crate::models::project::ScanStats {
+        total_files,
+        classified,
+        blocking_issues,
+        errors,
+        warnings,
+        advisories,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::artifact::{
+        Artifact, ArtifactType, BiosValidationState, FormatCompatibilityState,
+        ScanVisibility, ExportStatus, FindingSeverity, ValidationFinding,
+    };
+
+    fn stub_artifact(artifact_type: ArtifactType) -> Artifact {
+        Artifact {
+            id:                    uuid::Uuid::new_v4(),
+            artifact_type,
+            source_path:           "/test/file.zip".into(),
+            normalized_path:       "/test/file.zip".into(),
+            md5_hash:              None,
+            file_size:             Some(1024),
+            detected_system:       None,
+            detected_format:       Some("zip".into()),
+            bios_state:            BiosValidationState::NotApplicable,
+            format_state:          FormatCompatibilityState::NotApplicable,
+            frontend_tags:         vec![],
+            scan_visibility:       ScanVisibility::Visible,
+            title_id:              None,
+            export_status:         ExportStatus::NotExported,
+            validation_findings:   vec![],
+            save_root_association: None,
+            notes:                 None,
+            scanned_at:            chrono::Utc::now(),
+        }
+    }
+
+    #[test]
+    fn test_derive_stats_empty() {
+        let stats = derive_scan_stats(&[]);
+        assert_eq!(stats.total_files, 0);
+        assert_eq!(stats.classified, 0);
+        assert_eq!(stats.blocking_issues, 0);
+    }
+
+    #[test]
+    fn test_derive_stats_counts_classified() {
+        let artifacts = vec![
+            stub_artifact(ArtifactType::Rom),
+            stub_artifact(ArtifactType::Unknown),
+            stub_artifact(ArtifactType::Bios),
+        ];
+        let stats = derive_scan_stats(&artifacts);
+        assert_eq!(stats.total_files, 3);
+        assert_eq!(stats.classified, 2);  // Unknown is not classified
+    }
+
+    #[test]
+    fn test_derive_stats_aggregates_findings() {
+        let mut artifact = stub_artifact(ArtifactType::Rom);
+        artifact.validation_findings = vec![
+            ValidationFinding {
+                severity:           FindingSeverity::Blocking,
+                issue_type:         "test".into(),
+                description:        "blocking issue".into(),
+                recommended_action: None,
+                auto_fixable:       false,
+            },
+            ValidationFinding {
+                severity:           FindingSeverity::Warning,
+                issue_type:         "test".into(),
+                description:        "warning".into(),
+                recommended_action: None,
+                auto_fixable:       false,
+            },
+        ];
+        let stats = derive_scan_stats(&[artifact]);
+        assert_eq!(stats.blocking_issues, 1);
+        assert_eq!(stats.warnings, 1);
+        assert_eq!(stats.errors, 0);
+    }
+}

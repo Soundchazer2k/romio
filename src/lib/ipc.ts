@@ -49,7 +49,7 @@ export const ipc = {
                           invoke<MigrationPlan>("create_migration_plan", { source, destination, emulator }),
   executeMigration:    (plan: MigrationPlan)          => invoke<void>("execute_migration", { plan }),
   createSaveCheckpoint:(source: string, emulator: string) =>
-                          invoke<void>("create_save_checkpoint", { source, emulator }),
+                          invoke<SaveCheckpoint>("create_save_checkpoint", { source, emulator }),
 
   // Multi-disc
   detectMultiDisc:  (root: string)                    => invoke("detect_multidisc_sets", { root }),

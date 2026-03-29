@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0
-import { Menu, PanelLeft } from "lucide-react";
+import { PanelLeft } from "lucide-react";
 import { useAppStore } from "@/stores";
 import { useScanStore } from "@/stores";
 

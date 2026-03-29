@@ -90,7 +90,7 @@ export function FormatSystemRow({
   );
 }
 
-function SystemBadge({ issueCount, hasRed, hasAmber }: {
+function SystemBadge({ issueCount, hasRed, hasAmber: _hasAmber }: {
   issueCount: number; hasRed: boolean; hasAmber: boolean;
 }) {
   if (issueCount === 0) {
