@@ -6,6 +6,7 @@ pub mod bios;
 pub mod format;
 pub mod save;
 pub mod emulator;
+pub mod artifacts;
 
 use anyhow::Result;
 use rusqlite::Connection;
@@ -26,6 +27,7 @@ pub fn init(app_dir: &Path) -> Result<()> {
 
 fn run_migrations(conn: &Connection) -> Result<()> {
     conn.execute_batch(include_str!("migrations/001_initial.sql"))?;
+    conn.execute_batch(include_str!("migrations/002_scan_stats.sql"))?;
     Ok(())
 }
 
