@@ -1,7 +1,7 @@
 # BIOS Status Persistence and Dashboard Integration — Design Spec
 
 **Date:** 2026-03-29
-**Status:** Approved (rev 2 — post spec-review fixes)
+**Status:** Approved (rev 3 — P1/P2 user review fixes)
 **Scope:** Rust backend + SQLite schema + TypeScript frontend
 
 ---
@@ -67,6 +67,32 @@ On the frontend:
 ALTER TABLE projects ADD COLUMN IF NOT EXISTS bios_root              TEXT;
 ALTER TABLE projects ADD COLUMN IF NOT EXISTS bios_results           TEXT;
 ALTER TABLE projects ADD COLUMN IF NOT EXISTS bios_last_validated_at TEXT;
+```
+
+### `BiosSystemResult` model change (`models/bios.rs`)
+
+Add `errored: bool` to the existing struct:
+
+```rust
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BiosSystemResult {
+    pub system:   String,
+    pub entries:  Vec<BiosEntryResult>,
+    pub blocking: bool,
+    pub errored:  bool,  // true if validation failed for this system; entries may be incomplete
+}
+```
+
+`#[serde(default)]` is NOT needed — the field is explicit and always serialized. Existing callers of `validate_system_bios` (the `validate_bios` command) always receive `errored: false`; only `run_sweep` produces `errored: true`. Update the TS type accordingly:
+
+```ts
+export interface BiosSystemResult {
+  system:   string;
+  entries:  BiosEntryResult[];
+  blocking: boolean;
+  errored:  boolean;   // true if this system's validation failed during sweep
+}
 ```
 
 ### Rust `Project` model additions (`models/project.rs`)
@@ -164,6 +190,8 @@ pub struct BiosSweepConfig {
 
 `emulator_prefs` is populated directly from `project.emulator_prefs` (the full map, unfiltered) at both call sites — `revalidate_bios` and `scan_library`. The engine resolves per-system by key lookup, falling back to `BiosSystemDef.default_emulator`.
 
+**Key convention:** `emulator_prefs` keys are **short BIOS system IDs** matching `BIOS_SYSTEMS[].id` — e.g., `"ps1"`, `"ps2"`, `"saturn"`. This matches `emulator_matrix.json`'s `system` field convention. The existing mock fixture uses the wrong format (`"Sony - PlayStation"` — EmulationStation long name); that fixture must be corrected as part of this work. No mapping layer is added to the engine — the canonical key format is the short ID everywhere.
+
 ### `run_sweep` signature
 
 `run_sweep` takes `config` by **reference** (`&BiosSweepConfig`) — it must not take ownership, so `config.frontend` remains accessible after the call for error logging at the call site.
@@ -181,10 +209,12 @@ Rules are **injected from the command layer**, not fetched inside the engine. Th
 
 Iterates `BIOS_SYSTEMS`. For each system:
 1. Resolves emulator: `config.emulator_prefs.get(system.id).map(String::as_str).unwrap_or(system.default_emulator)`
-2. Filters rules: `all_rules.iter().filter(|r| r.system == system.id)`
-3. If no rules exist for this system, push a non-blocking `BiosSystemResult { system: system.id.to_string(), entries: vec![], blocking: false }` and continue. The `system` field is populated from `system.id` directly — **not** from `rules.first()` which would yield empty string.
+2. Filters rules: `all_rules.iter().filter(|r| r.system == system.id).collect::<Vec<_>>()`
+3. If no rules exist for this system, push `BiosSystemResult { system: system.id.to_string(), entries: vec![], blocking: false, errored: false }` and continue. No rules = system is not in the database = not applicable, not an error.
 4. Calls `bios_validator::validate_system_bios(bios_root, filtered_rules, frontend, emulator)`
-5. If validation **errors** for one system: log the error, push the non-blocking fallback result, continue. One system error does not abort the sweep.
+5. If validation **errors** for one system: log the error, push `BiosSystemResult { system: system.id.to_string(), entries: vec![], blocking: false, errored: true }` and continue. This marks the system as "validation failed" without aborting the sweep.
+
+**`errored: true` is never silent.** The dashboard badge and `BiosScreen` both treat it as a non-green state (see Section 4).
 
 Returns the full result set — all 12 canonical systems present in every call.
 
@@ -255,7 +285,7 @@ Tauri serializes this to camelCase via `#[serde(rename_all = "camelCase")]`, mat
 7. Call `db::projects::update_bios_results(&project_id, results)`
 8. Return fresh `BiosStatusResponse` — one round-trip, caller does not need a second fetch for BIOS state
 
-After this call, the **frontend must also call `ipc.getProject(projectId)` and update `activeProject`** so that `biosResults` and `biosLastValidatedAt` are reflected in the full project state (dashboard badge, etc.).
+This is **one round-trip for BIOS state** — `revalidateBios` returns the fresh `BiosStatusResponse` directly. A **second round-trip** (`ipc.getProject` → `setActiveProject`) is still required to refresh the full `Project` object in Zustand so the dashboard badge and other consumers that read from `activeProject.biosResults` see the updated data. The two round-trips are intentional: BIOS state is returned immediately so the `BiosScreen` can render without waiting for a full project reload, and the project refresh updates shared state for all other consumers.
 
 ### `set_bios_root(project_id: String, bios_root: Option<String>) -> Result<(), String>`
 
@@ -340,17 +370,40 @@ setBiosRoot:    (projectId: string, biosRoot: string | null) =>
 
 ### `src/lib/ipc.mock.ts` — add mock implementations
 
+**Replace** the existing `getBiosStatus` binding (returns `BiosSystemResult[]`) with:
+
 ```ts
 getBiosStatus:  (_projectId: string) => Promise.resolve({
                   configured: false, validated: false, results: [], lastValidatedAt: undefined
-                }),
+                } satisfies BiosStatusResponse),
 revalidateBios: (_projectId: string) => Promise.resolve({
-                  configured: true, validated: true, results: [], lastValidatedAt: new Date().toISOString()
-                }),
-setBiosRoot:    (_projectId: string, _biosRoot: string | null) => Promise.resolve(),
+                  configured: true, validated: true,
+                  results: [], lastValidatedAt: new Date().toISOString()
+                } satisfies BiosStatusResponse),
+setBiosRoot:    (_projectId: string, _biosRoot: string | null) =>
+                  Promise.resolve(),
 ```
 
-Remove the old `getBiosStatus` mock binding that returned `BiosSystemResult[]`.
+**Also fix `FIXTURE_PROJECT.emulatorPrefs`** — change the key from the EmulationStation long name to the canonical short BIOS system ID:
+
+```ts
+// Before (wrong):
+emulatorPrefs: { "Sony - PlayStation": "duckstation" },
+
+// After (correct):
+emulatorPrefs: { "ps1": "duckstation" },
+```
+
+**Add `errored: false`** to `FIXTURE_BIOS_RESULT` to match the updated type:
+
+```ts
+const FIXTURE_BIOS_RESULT: BiosSystemResult = {
+  system: "ps1",   // also fix: was "psx", canonical id is "ps1"
+  entries: [ ... ],
+  blocking: true,
+  errored: false,
+};
+```
 
 ### `DashboardScreen.tsx` — BIOS action card upgrade
 
@@ -370,18 +423,20 @@ function biosBadge(project: Project): { label: string; color: "gray" | "amber" |
   if (!project.biosResults)  return { label: "Not validated",  color: "gray" };
 
   const results = project.biosResults;
+  const erroredCount  = results.filter(r => r.errored).length;
   const blockingCount = results.filter(r => r.blocking).length;
   const missingCount  = results.flatMap(r => r.entries)
                                .filter(e => e.state === "MISSING_REQUIRED" || e.state === "MISSING_OPTIONAL")
                                .length;
 
-  if (blockingCount > 0) return { label: `${blockingCount} blocking`, color: "red" };
-  if (missingCount  > 0) return { label: `${missingCount} missing`,   color: "amber" };
+  if (blockingCount > 0) return { label: `${blockingCount} blocking`,           color: "red"   };
+  if (erroredCount  > 0) return { label: `${erroredCount} systems incomplete`,  color: "amber" };
+  if (missingCount  > 0) return { label: `${missingCount} missing`,             color: "amber" };
   return { label: "All valid", color: "green" };
 }
 ```
 
-"Missing" means `MISSING_REQUIRED` or `MISSING_OPTIONAL` only. `PRESENT_WRONG_PATH` and `PRESENT_HASH_MISMATCH` are not counted as missing — they surface on the BIOS screen.
+Priority order: blocking (red) → errored systems (amber) → missing files (amber) → all valid (green). `errored: true` is never collapsed into green. "Missing" means `MISSING_REQUIRED` or `MISSING_OPTIONAL` only. `PRESENT_WRONG_PATH` and `PRESENT_HASH_MISMATCH` surface on the BIOS screen but do not affect the badge.
 
 No new queries on the dashboard — badge reads from `activeProject` in Zustand. The existing `ipc.getProject()` refresh after scan already delivers `biosResults`.
 
@@ -466,6 +521,7 @@ No new queries on the dashboard — badge reads from `activeProject` in Zustand.
 | `src-tauri/src/db/migrations/003_bios.sql` | New — three ALTER TABLE statements |
 | `src-tauri/src/db/mod.rs` | Add migration 003 call in `run_migrations` |
 | `src-tauri/src/models/project.rs` | Add three fields to `Project` |
+| `src-tauri/src/models/bios.rs` | Add `errored: bool` to `BiosSystemResult` |
 | `src-tauri/src/db/projects.rs` | Add `update_bios_results`, `update_bios_root`; update `get`/`list`/`create` |
 | `src-tauri/src/engine/bios_sweep.rs` | New — `BiosSystemDef`, `BIOS_SYSTEMS`, `BiosSweepConfig`, `run_sweep`, 3 tests |
 | `src-tauri/src/engine/mod.rs` | Add `pub mod bios_sweep;` |
@@ -473,7 +529,7 @@ No new queries on the dashboard — badge reads from `activeProject` in Zustand.
 | `src-tauri/src/commands/scan.rs` | Add scan-end BIOS sweep block after `update_scan_completion` (line 54–55) |
 | `src-tauri/src/commands/bios.rs` | Add `resolve_primary_frontend` as `pub fn` (non-command helper, called by `scan.rs` as `crate::commands::bios::resolve_primary_frontend`) |
 | `src-tauri/src/lib.rs` | Register `revalidate_bios` and `set_bios_root` commands |
-| `src/types/index.ts` | Add `Project` fields; add `BiosStatusResponse` (with `validated: boolean`) |
+| `src/types/index.ts` | Add `errored: boolean` to `BiosSystemResult`; add `Project` fields; add `BiosStatusResponse` |
 | `src/lib/ipc.ts` | Replace `getBiosStatus` binding; add `revalidateBios`, `setBiosRoot` |
 | `src/lib/ipc.mock.ts` | Replace `getBiosStatus` mock; add `revalidateBios`, `setBiosRoot` mocks |
 | `src/components/dashboard/DashboardScreen.tsx` | Add `badge` prop to `ActionCard`; wire `biosBadge()` to BIOS card |
