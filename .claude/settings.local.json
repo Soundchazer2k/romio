@@ -24,7 +24,14 @@
       "Bash(pnpm exec:*)",
       "Bash(mkdir -p \"H:/Vibe Coding/Romio/.claude/agents\")",
       "Bash(mkdir -p \"H:/Vibe Coding/Romio/.claude/skills/test-feature\")",
-      "Bash(gh pr:*)"
+      "Bash(gh pr:*)",
+      "mcp__MCP_DOCKER__read_file",
+      "Bash(pkill -f \"vitest\")",
+      "mcp__MCP_DOCKER__list_directory",
+      "mcp__MCP_DOCKER__start_process",
+      "mcp__MCP_DOCKER__interact_with_process",
+      "Bash(node -e \":*)",
+      "Bash(pnpm tsc:*)"
     ]
   }
 }
