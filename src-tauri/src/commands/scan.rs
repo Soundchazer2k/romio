@@ -14,6 +14,7 @@ fn cancel_flag() -> &'static Arc<AtomicBool> {
 static SCAN_RUNNING: AtomicBool = AtomicBool::new(false);
 
 /// Start a library scan. Emits progress events to the frontend.
+/// On completion, persists artifacts and updates project scan stats.
 #[tauri::command]
 pub async fn scan_library(
     app:        AppHandle,
@@ -23,7 +24,7 @@ pub async fn scan_library(
     cancel_flag().store(false, Ordering::Relaxed);
     SCAN_RUNNING.store(true, Ordering::Relaxed);
 
-    let cancel = Arc::clone(cancel_flag());
+    let cancel     = Arc::clone(cancel_flag());
     let root_paths: Vec<std::path::PathBuf> =
         roots.iter().map(std::path::PathBuf::from).collect();
 
@@ -37,7 +38,17 @@ pub async fn scan_library(
 
     SCAN_RUNNING.store(false, Ordering::Relaxed);
 
-    result.map_err(|e| e.to_string())?;
+    let artifacts = result.map_err(|e| e.to_string())?;
+
+    // Persist artifacts (replaces any prior scan for this project)
+    crate::db::artifacts::save_batch(&project_id, &artifacts)
+        .map_err(|e| format!("Failed to persist artifacts: {e}"))?;
+
+    // Derive stats and stamp last_scanned_at
+    let stats = crate::engine::scanner::derive_scan_stats(&artifacts);
+    crate::db::projects::update_scan_completion(&project_id, stats)
+        .map_err(|e| format!("Failed to update scan stats: {e}"))?;
+
     Ok(())
 }
 
