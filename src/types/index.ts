@@ -83,6 +83,7 @@ export interface BiosSystemResult {
   system:   string;
   entries:  BiosEntryResult[];
   blocking: boolean;
+  errored:  boolean;
 }
 
 // ── Project ───────────────────────────────────────────────────────────────────
