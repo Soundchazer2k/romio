@@ -106,6 +106,16 @@ export interface Project {
   createdAt:        string;
   lastScannedAt?:   string;
   scanStats?:       ScanStats;
+  biosRoot?:            string;
+  biosResults?:         BiosSystemResult[];
+  biosLastValidatedAt?: string;
+}
+
+export interface BiosStatusResponse {
+  configured:       boolean;
+  validated:        boolean;
+  results:          BiosSystemResult[];
+  lastValidatedAt?: string;
 }
 
 export interface CreateProjectRequest {
