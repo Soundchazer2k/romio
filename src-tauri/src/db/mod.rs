@@ -28,6 +28,7 @@ pub fn init(app_dir: &Path) -> Result<()> {
 fn run_migrations(conn: &Connection) -> Result<()> {
     conn.execute_batch(include_str!("migrations/001_initial.sql"))?;
     conn.execute_batch(include_str!("migrations/002_scan_stats.sql"))?;
+    conn.execute_batch(include_str!("migrations/003_bios.sql"))?;
     Ok(())
 }
 
