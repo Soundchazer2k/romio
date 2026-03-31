@@ -26,9 +26,23 @@ pub fn init(app_dir: &Path) -> Result<()> {
 }
 
 fn run_migrations(conn: &Connection) -> Result<()> {
-    conn.execute_batch(include_str!("migrations/001_initial.sql"))?;
-    conn.execute_batch(include_str!("migrations/002_scan_stats.sql"))?;
-    conn.execute_batch(include_str!("migrations/003_bios.sql"))?;
+    let version: i64 = conn.query_row(
+        "PRAGMA user_version", [], |r| r.get(0)
+    )?;
+
+    if version < 1 {
+        conn.execute_batch(include_str!("migrations/001_initial.sql"))?;
+        conn.execute_batch("PRAGMA user_version = 1")?;
+    }
+    if version < 2 {
+        conn.execute_batch(include_str!("migrations/002_scan_stats.sql"))?;
+        conn.execute_batch("PRAGMA user_version = 2")?;
+    }
+    if version < 3 {
+        conn.execute_batch(include_str!("migrations/003_bios.sql"))?;
+        conn.execute_batch("PRAGMA user_version = 3")?;
+    }
+
     Ok(())
 }
 
