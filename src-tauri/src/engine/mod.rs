@@ -10,3 +10,4 @@ pub mod save_registry;
 pub mod host_checker;
 pub mod scanner;
 pub mod shortcut_validator;
+pub mod bios_sweep;
