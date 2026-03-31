@@ -44,6 +44,8 @@ pub fn run() {
             commands::bios::validate_bios,
             commands::bios::get_bios_rules,
             commands::bios::get_bios_status,
+            commands::bios::revalidate_bios,
+            commands::bios::set_bios_root,
 
             // Format compatibility
             commands::format::check_format_compatibility,
