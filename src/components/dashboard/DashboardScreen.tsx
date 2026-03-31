@@ -5,6 +5,28 @@ import { Play, AlertTriangle, XCircle, Info, CheckCircle2 } from "lucide-react";
 import { useAppStore, useScanStore } from "@/stores";
 import { ipc } from "@/lib/ipc";
 import { cn } from "@/lib/utils";
+import type { Project } from "@/types";
+
+function biosBadge(project: Project): {
+  label: string;
+  color: "gray" | "amber" | "red" | "green";
+} {
+  if (!project.biosRoot)     return { label: "Not configured", color: "gray" };
+  if (!project.biosResults)  return { label: "Not validated",  color: "gray" };
+
+  const results      = project.biosResults;
+  const erroredCount  = results.filter(r => r.errored).length;
+  const blockingCount = results.filter(r => r.blocking).length;
+  const missingCount  = results
+    .flatMap(r => r.entries)
+    .filter(e => e.state === "MISSING_REQUIRED" || e.state === "MISSING_OPTIONAL")
+    .length;
+
+  if (blockingCount > 0) return { label: `${blockingCount} blocking`,          color: "red"   };
+  if (erroredCount  > 0) return { label: `${erroredCount} systems incomplete`, color: "amber" };
+  if (missingCount  > 0) return { label: `${missingCount} missing`,            color: "amber" };
+  return { label: "All valid", color: "green" };
+}
 
 export function DashboardScreen() {
   const { activeProject, setActiveProject, setScreen, setRomioState } = useAppStore();
@@ -148,6 +170,7 @@ export function DashboardScreen() {
             description="Check all BIOS files for your target frontend"
             status={stats.blockingIssues > 0 ? "error" : "ok"}
             onClick={() => setScreen("bios")}
+            badge={biosBadge(activeProject)}
           />
           <ActionCard
             title="Save Migration"
@@ -202,8 +225,12 @@ function StatCard({ label, value, color, icon, onClick }: {
   );
 }
 
-function ActionCard({ title, description, status, onClick }: {
-  title: string; description: string; status: string; onClick: () => void;
+function ActionCard({ title, description, status, onClick, badge }: {
+  title: string;
+  description: string;
+  status: string;
+  onClick: () => void;
+  badge?: { label: string; color: "gray" | "amber" | "red" | "green" };
 }) {
   return (
     <button
@@ -217,6 +244,17 @@ function ActionCard({ title, description, status, onClick }: {
           <p className="font-semibold text-romio-cream text-sm group-hover:text-romio-green
                         transition-colors">{title}</p>
           <p className="text-xs text-romio-gray mt-0.5">{description}</p>
+          {badge && (
+            <span className={cn(
+              "inline-block mt-1.5 text-xs font-medium px-2 py-0.5 rounded-full",
+              badge.color === "red"   && "bg-romio-red/10 text-romio-red",
+              badge.color === "amber" && "bg-amber-600/10 text-amber-400",
+              badge.color === "green" && "bg-romio-green/10 text-romio-green",
+              badge.color === "gray"  && "bg-white/5 text-romio-gray",
+            )}>
+              {badge.label}
+            </span>
+          )}
         </div>
         {status === "error" && <XCircle className="w-4 h-4 text-romio-red flex-shrink-0 mt-0.5" />}
         {status === "ok"    && <CheckCircle2 className="w-4 h-4 text-romio-green flex-shrink-0 mt-0.5" />}
