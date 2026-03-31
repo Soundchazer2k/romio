@@ -47,6 +47,7 @@ export function BiosScreen() {
     await ipc.setBiosRoot(projectId, trimmed || null);
     const updated = await ipc.getProject(projectId);
     setActiveProject(updated);
+    queryClient.invalidateQueries({ queryKey: ["bios_status", projectId] });
     setEditingPath(false);
     setPathInput("");
   }
