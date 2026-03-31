@@ -5,7 +5,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
   Project, CreateProjectRequest,
-  BiosSystemResult, BiosRule,
+  BiosSystemResult, BiosRule, BiosStatusResponse,
   HostEnvironmentReport,
   SaveRoot, MigrationPlan, SaveCheckpoint,
   FrontendInfo,
@@ -34,7 +34,12 @@ export const ipc = {
   validateBios:     (system: string, biosRoot: string, frontend: string, emulator: string) =>
                       invoke<BiosSystemResult>("validate_bios", { system, biosRoot, frontend, emulator }),
   getBiosRules:     (system: string)                  => invoke<BiosRule[]>("get_bios_rules", { system }),
-  getBiosStatus:    (projectId: string)               => invoke<BiosSystemResult[]>("get_bios_status", { projectId }),
+  getBiosStatus:  (projectId: string) =>
+                  invoke<BiosStatusResponse>("get_bios_status", { projectId }),
+  revalidateBios: (projectId: string) =>
+                  invoke<BiosStatusResponse>("revalidate_bios", { projectId }),
+  setBiosRoot:    (projectId: string, biosRoot: string | null) =>
+                  invoke<void>("set_bios_root", { projectId, biosRoot }),
 
   // Format
   checkFormat:       (path: string, system: string, emulator: string, frontend: string) =>

@@ -5,7 +5,7 @@
 
 import type {
   Project, CreateProjectRequest,
-  BiosSystemResult, BiosRule,
+  BiosSystemResult, BiosRule, BiosStatusResponse,
   HostEnvironmentReport,
   SaveRoot, MigrationPlan, SaveCheckpoint,
   FrontendInfo,
@@ -202,8 +202,12 @@ export const ipc = {
   ): Promise<BiosSystemResult> => FIXTURE_BIOS_RESULT,
   getBiosRules: async (_system: string): Promise<BiosRule[]> =>
     FIXTURE_BIOS_RESULT.entries.map((e) => e.rule),
-  getBiosStatus: async (_projectId: string): Promise<BiosSystemResult[]> =>
-    [FIXTURE_BIOS_RESULT],
+  getBiosStatus:  async (_projectId: string): Promise<BiosStatusResponse> =>
+    ({ configured: false, validated: false, results: [], lastValidatedAt: undefined }),
+  revalidateBios: async (_projectId: string): Promise<BiosStatusResponse> =>
+    ({ configured: true, validated: true, results: [], lastValidatedAt: new Date().toISOString() }),
+  setBiosRoot:    async (_projectId: string, _biosRoot: string | null): Promise<void> =>
+    undefined,
 
   // Format
   checkFormat: async (
