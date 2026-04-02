@@ -165,13 +165,21 @@ export function DashboardScreen() {
       {/* Quick-action cards */}
       {stats && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <ActionCard
-            title="BIOS Validation"
-            description="Check all BIOS files for your target frontend"
-            status={stats.blockingIssues > 0 ? "error" : "ok"}
-            onClick={() => setScreen("bios")}
-            badge={biosBadge(activeProject)}
-          />
+          {(() => {
+            const bBadge = biosBadge(activeProject);
+            const biosStatus = bBadge.color === "red"   ? "error"
+                             : bBadge.color === "green" ? "ok"
+                             : "warning";
+            return (
+              <ActionCard
+                title="BIOS Validation"
+                description="Check all BIOS files for your target frontend"
+                status={biosStatus}
+                onClick={() => setScreen("bios")}
+                badge={bBadge}
+              />
+            );
+          })()}
           <ActionCard
             title="Save Migration"
             description="Check for save roots at risk after emulator updates"

@@ -71,9 +71,15 @@ pub async fn scan_library(
                             };
                             match crate::engine::bios_sweep::run_sweep(&config, &all_rules) {
                                 Ok(results) => {
-                                    let _ = crate::db::projects::update_bios_results(
+                                    if let Err(e) = crate::db::projects::update_bios_results(
                                         &project_id, results
-                                    );
+                                    ) {
+                                        eprintln!(
+                                            "[scan] BIOS results persist failed \
+                                             project_id={} bios_root={} frontend={}: {}",
+                                            project_id, bios_root, frontend, e
+                                        );
+                                    }
                                 }
                                 Err(e) => eprintln!(
                                     "[scan] BIOS sweep failed \
