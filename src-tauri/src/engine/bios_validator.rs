@@ -54,7 +54,7 @@ pub fn validate_system_bios(
         .map(|r| r.system.clone())
         .unwrap_or_default();
 
-    Ok(BiosSystemResult { system, entries, blocking })
+    Ok(BiosSystemResult { system, entries, blocking, errored: false })
 }
 
 /// Scan a directory tree and build a hash-to-path index.

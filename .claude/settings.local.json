@@ -31,7 +31,20 @@
       "mcp__MCP_DOCKER__start_process",
       "mcp__MCP_DOCKER__interact_with_process",
       "Bash(node -e \":*)",
-      "Bash(pnpm tsc:*)"
+      "Bash(pnpm tsc:*)",
+      "Bash(python -c \"import json; data=json.load\\(open\\(''''src-tauri/data/emulator_matrix.json''''\\)\\); print\\([list\\(e.keys\\(\\)\\) for e in data[:2]]\\); print\\(data[:3]\\)\")",
+      "Bash(ls -la \"H:\\\\Vibe Coding\\\\Romio\\\\src-tauri\\\\src\\\\db\\\\migrations\"\" 2>/dev/null || echo \"Directory does not exist \")",
+      "mcp__MCP_DOCKER__write_file",
+      "Bash(cd /h/Vibe Coding/Romio/src-tauri)",
+      "Bash(git -C \"H:/Vibe Coding/Romio\" log --oneline -5)",
+      "Bash(git -C \"H:/Vibe Coding/Romio\" show --stat a8ba1e3)",
+      "Bash(cargo tree:*)",
+      "Bash(grep -A2 'name = \"\"\"\"libsqlite3-sys\"\"\"\"' \"H:/Vibe Coding/Romio/Cargo.lock\")",
+      "Bash(sqlite3 --version)",
+      "Bash(cargo build:*)",
+      "Bash(cargo clean:*)",
+      "Skill(commit-commands:commit-push-pr)",
+      "Skill(commit-commands:commit-push-pr:*)"
     ]
   }
 }

@@ -2,6 +2,7 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use chrono::{DateTime, Utc};
+use crate::models::bios::BiosSystemResult;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -14,6 +15,10 @@ pub struct Project {
     pub created_at:       DateTime<Utc>,
     pub last_scanned_at:  Option<DateTime<Utc>>,
     pub scan_stats:       Option<ScanStats>,
+    // BIOS fields
+    pub bios_root:              Option<String>,
+    pub bios_results:           Option<Vec<BiosSystemResult>>,
+    pub bios_last_validated_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

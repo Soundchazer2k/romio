@@ -5,7 +5,7 @@
 
 import type {
   Project, CreateProjectRequest,
-  BiosSystemResult, BiosRule,
+  BiosSystemResult, BiosRule, BiosStatusResponse,
   HostEnvironmentReport,
   SaveRoot, MigrationPlan, SaveCheckpoint,
   FrontendInfo,
@@ -19,7 +19,7 @@ const FIXTURE_PROJECT: Project = {
   name: "Test Library",
   libraryRoots: ["/Volumes/External_SSD/Roms"],
   targetFrontends: ["esde", "batocera"],
-  emulatorPrefs: { "Sony - PlayStation": "duckstation" },
+  emulatorPrefs: { "ps1": "duckstation" },
   createdAt: "2026-01-01T00:00:00Z",
   lastScannedAt: "2026-03-25T10:00:00Z",
   scanStats: {
@@ -33,14 +33,14 @@ const FIXTURE_PROJECT: Project = {
 };
 
 const FIXTURE_BIOS_RESULT: BiosSystemResult = {
-  system: "psx",
+  system: "ps1",
   entries: [
     {
       rule: {
         filename: "scph5501.bin",
         knownGoodMd5: ["8dd7d5296a650fac7319bce665a6a53c"],
         knownBadMd5: [],
-        system: "psx",
+        system: "ps1",
         requirement: "required",
         compressed: false,
         defaultPath: "bios/scph5501.bin",
@@ -67,6 +67,7 @@ const FIXTURE_BIOS_RESULT: BiosSystemResult = {
     },
   ],
   blocking: true,
+  errored: false,
 };
 
 const FIXTURE_HOST_ENV: HostEnvironmentReport = {
@@ -201,8 +202,12 @@ export const ipc = {
   ): Promise<BiosSystemResult> => FIXTURE_BIOS_RESULT,
   getBiosRules: async (_system: string): Promise<BiosRule[]> =>
     FIXTURE_BIOS_RESULT.entries.map((e) => e.rule),
-  getBiosStatus: async (_projectId: string): Promise<BiosSystemResult[]> =>
-    [FIXTURE_BIOS_RESULT],
+  getBiosStatus:  async (_projectId: string): Promise<BiosStatusResponse> =>
+    ({ configured: false, validated: false, results: [], lastValidatedAt: undefined }),
+  revalidateBios: async (_projectId: string): Promise<BiosStatusResponse> =>
+    ({ configured: true, validated: true, results: [], lastValidatedAt: new Date().toISOString() }),
+  setBiosRoot:    async (_projectId: string, _biosRoot: string | null): Promise<void> =>
+    undefined,
 
   // Format
   checkFormat: async (
