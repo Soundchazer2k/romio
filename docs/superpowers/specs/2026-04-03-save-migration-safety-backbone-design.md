@@ -196,6 +196,8 @@ Validation policy: empty `project_id` returns `Err(anyhow!("project_id is requir
 
 Defensive reads: rows where `project_id` IS NULL are silently filtered from list results. This handles any legacy rows; no migration needed.
 
+**Malformed row policy:** `SaveCheckpoint.id` is a `String` (stored and returned as-is, no UUID parsing required). Any row that fails to deserialize a required non-nullable field should be skipped with an `eprintln!` log rather than silently coerced to a default — consistent with the `db::operation_log` policy.
+
 **`db::operation_log` (`src-tauri/src/db/operation_log.rs`) — new:**
 
 - `insert(entry: &OperationLogEntry) -> anyhow::Result<()>` — calls `db::with_conn`, validates `project_id`
@@ -203,7 +205,19 @@ Defensive reads: rows where `project_id` IS NULL are silently filtered from list
 - `list(project_id: &str) -> anyhow::Result<Vec<OperationLogEntry>>` — filters NULL `project_id` rows
 - `mark_rolled_back(id: &str) -> anyhow::Result<()>` — sets `rolled_back = 1`
 
-**`OperationLogEntry.id` serialization:** `id` is `Uuid` in the Rust model. When writing to SQLite, serialize as `entry.id.to_string()`. When reading back, parse with `Uuid::parse_str(&id_str).unwrap_or_default()` — matching the pattern used in `db/projects.rs`.
+**`OperationLogEntry.id` serialization:** `id` is `Uuid` in the Rust model. When writing to SQLite, serialize as `entry.id.to_string()`. When reading back, use `Uuid::parse_str(&id_str)` and skip any row that fails to parse, logging loudly:
+
+```rust
+let id = match Uuid::parse_str(&id_str) {
+    Ok(u)  => u,
+    Err(e) => {
+        eprintln!("[db::operation_log] skipping row with malformed id {:?}: {}", id_str, e);
+        continue;
+    }
+};
+```
+
+`unwrap_or_default()` is explicitly forbidden here — silently coercing to the nil UUID creates misleading duplicates in audit history and makes corrupt rows hard to investigate. A skipped-with-log row is always preferable to a nil-UUID phantom row.
 
 **Affected paths column:** Stored as a JSON array string (`serde_json::to_string`/`from_str`), same pattern as `library_roots` in `db/projects.rs`.
 
