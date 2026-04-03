@@ -56,14 +56,64 @@ CREATE INDEX IF NOT EXISTS idx_save_checkpoints_project ON save_checkpoints(proj
 CREATE INDEX IF NOT EXISTS idx_operation_log_project    ON operation_log(project_id);
 ```
 
-**`src-tauri/src/db/mod.rs`** — extend the `PRAGMA user_version` gate:
+**`src-tauri/src/db/mod.rs`** — extend the `run_migrations` function:
 
 ```rust
-if version < 4 {
-    conn.execute_batch(include_str!("migrations/004_save_indexes.sql"))?;
-    conn.execute_batch("PRAGMA user_version = 4")?;
+fn run_migrations(conn: &Connection) -> Result<()> {
+    // version is a snapshot of PRAGMA user_version read once at startup.
+    // Each if-gate checks this original value independently (same pattern as migrations 1–3).
+    let version: i64 = conn.query_row("PRAGMA user_version", [], |r| r.get(0))?;
+
+    if version < 1 {
+        conn.execute_batch(include_str!("migrations/001_initial.sql"))?;
+        conn.execute_batch("PRAGMA user_version = 1")?;
+    }
+    if version < 2 {
+        conn.execute_batch(include_str!("migrations/002_scan_stats.sql"))?;
+        conn.execute_batch("PRAGMA user_version = 2")?;
+    }
+    if version < 3 {
+        conn.execute_batch(include_str!("migrations/003_bios.sql"))?;
+        conn.execute_batch("PRAGMA user_version = 3")?;
+    }
+    if version < 4 {
+        conn.execute_batch(include_str!("migrations/004_save_indexes.sql"))?;
+        conn.execute_batch("PRAGMA user_version = 4")?;
+    }
+
+    Ok(())
 }
 ```
+
+Also add module declarations and a transaction helper:
+
+```rust
+pub mod projects;
+pub mod bios;
+pub mod format;
+pub mod save;
+pub mod emulator;
+pub mod artifacts;
+pub mod checkpoints;      // ← new
+pub mod operation_log;    // ← new
+
+// ... existing with_conn ...
+
+/// Opens a rusqlite transaction and passes it to `f`. Commits on Ok, rolls back on Err.
+pub fn with_transaction<F, T>(f: F) -> Result<T>
+where
+    F: FnOnce(&rusqlite::Transaction) -> Result<T>,
+{
+    let mut guard = DB.lock().unwrap();
+    let conn = guard.as_mut().ok_or_else(|| anyhow::anyhow!("DB not initialized"))?;
+    let tx = conn.transaction()?;
+    let result = f(&tx)?;
+    tx.commit()?;
+    Ok(result)
+}
+```
+
+`with_transaction` is needed by `commands::save::create_save_checkpoint` to atomically insert both the checkpoint row and the operation log entry in a single transaction.
 
 ### Model Changes
 
@@ -131,19 +181,31 @@ Used as the error type for `execute_migration` so the frontend can render specif
 
 ### DB Modules
 
-**`db::checkpoints` (new):**
-- `insert(checkpoint: &SaveCheckpoint) -> Result<()>` — validates `project_id` non-empty, returns `Err` otherwise
-- `list(project_id: &str) -> Result<Vec<SaveCheckpoint>>` — filters out rows where DB `project_id` is NULL (defensive read)
-- `get(id: &str) -> Result<SaveCheckpoint>`
+**`db::checkpoints` (`src-tauri/src/db/checkpoints.rs`) — new:**
 
-**`db::operation_log` (new):**
-- `insert(entry: &OperationLogEntry) -> Result<()>` — validates `project_id` non-empty
-- `list(project_id: &str) -> Result<Vec<OperationLogEntry>>` — filters out NULL `project_id` rows
-- `mark_rolled_back(id: &str) -> Result<()>` — sets `rolled_back = 1`
+Functions:
 
-**Validation policy:** Empty `project_id` returns `Err("project_id is required".to_string())` — no panic.
+- `insert(checkpoint: &SaveCheckpoint) -> anyhow::Result<()>` — calls `db::with_conn`, validates `project_id` non-empty with `Err(anyhow!("project_id is required"))`
+- `insert_tx(tx: &rusqlite::Transaction, checkpoint: &SaveCheckpoint) -> anyhow::Result<()>` — writes within a caller-supplied transaction (used by `create_save_checkpoint` command)
+- `list(project_id: &str) -> anyhow::Result<Vec<SaveCheckpoint>>` — filters out rows where DB `project_id` is NULL (defensive read)
+- `get(id: &str) -> anyhow::Result<SaveCheckpoint>`
 
-**Defensive reads:** Rows where `project_id` IS NULL are silently filtered from list results. This handles any legacy rows written before this spec; no migration is needed to clean them up.
+**`u64` column mapping note:** `file_count` and `size_bytes` are `u64` in the Rust model but SQLite stores all integers as `i64`. Row mapping must read these columns as `i64` then cast: `row.get::<_, i64>(n)? as u64`. This applies to both `list` and `get`.
+
+Validation policy: empty `project_id` returns `Err(anyhow!("project_id is required"))` — no panic.
+
+Defensive reads: rows where `project_id` IS NULL are silently filtered from list results. This handles any legacy rows; no migration needed.
+
+**`db::operation_log` (`src-tauri/src/db/operation_log.rs`) — new:**
+
+- `insert(entry: &OperationLogEntry) -> anyhow::Result<()>` — calls `db::with_conn`, validates `project_id`
+- `insert_tx(tx: &rusqlite::Transaction, entry: &OperationLogEntry) -> anyhow::Result<()>` — writes within a caller-supplied transaction
+- `list(project_id: &str) -> anyhow::Result<Vec<OperationLogEntry>>` — filters NULL `project_id` rows
+- `mark_rolled_back(id: &str) -> anyhow::Result<()>` — sets `rolled_back = 1`
+
+**`OperationLogEntry.id` serialization:** `id` is `Uuid` in the Rust model. When writing to SQLite, serialize as `entry.id.to_string()`. When reading back, parse with `Uuid::parse_str(&id_str).unwrap_or_default()` — matching the pattern used in `db/projects.rs`.
+
+**Affected paths column:** Stored as a JSON array string (`serde_json::to_string`/`from_str`), same pattern as `library_roots` in `db/projects.rs`.
 
 ---
 
@@ -151,7 +213,11 @@ Used as the error type for `execute_migration` so the frontend can render specif
 
 ### `engine::save_checkpoint` (new module)
 
+**File:** `src-tauri/src/engine/save_checkpoint.rs`
+
 Pure Rust — no Tauri or DB dependencies. Archive-creation logic only.
+
+`src-tauri/src/engine/mod.rs` adds: `pub mod save_checkpoint;`
 
 **Signature:**
 
@@ -179,21 +245,28 @@ pub fn create_checkpoint(
 - File-only entries. Empty directories are not preserved. This is acceptable for save data — emulators create directories when writing saves.
 - Entry paths are relative, no leading slash: `saves/duckstation/memcards/mc0.mc` ✓
 
-**New dependency:** `zip` crate added to `Cargo.toml`.
-
-**`engine/mod.rs`:** adds `pub mod save_checkpoint`.
+**New dependency:** `zip = "2"` added to `src-tauri/Cargo.toml` under `[dependencies]`.
 
 ### `engine::save_registry` — `expected_destination` fix
 
-`discover_save_roots` fills `expected_destination` for applicable states:
+`discover_save_roots` fills `expected_destination` for applicable states. The existing `roots.push(SaveRoot { ... })` block in `src-tauri/src/engine/save_registry.rs` is replaced in-place (not duplicated) to add the new field. The already-local variable `new_path` (computed as `frontend_root.join(&rule.new_path_pattern)`) can be reused:
 
 ```rust
-let expected_destination = match migration_state {
-    SaveMigrationState::MigrationNeeded | SaveMigrationState::ConflictDetected =>
-        Some(frontend_root.join(&rule.new_path_pattern)
-             .to_string_lossy().to_string()),
-    _ => None,
-};
+// Replace the existing roots.push(...) block with:
+roots.push(SaveRoot {
+    path:                 root_path_str.clone(),
+    emulator:             rule.emulator.clone(),
+    is_symlink:           is_symlink,
+    real_path:            real_path,
+    file_count:           file_count,
+    size_bytes:           size_bytes,
+    migration_state:      migration_state.clone(),
+    expected_destination: match migration_state {
+        SaveMigrationState::MigrationNeeded | SaveMigrationState::ConflictDetected =>
+            Some(new_path.to_string_lossy().to_string()),
+        _ => None,
+    },
+});
 ```
 
 `build_migration_plan` signature is unchanged — it still accepts explicit `source` and `destination` paths. The fix is at the call site.
@@ -219,11 +292,10 @@ Sequence:
 1. Validate `project_id` non-empty
 2. Derive `app_data_dir` from `app_handle.path().app_data_dir()`
 3. Call `engine::save_checkpoint::create_checkpoint(...)` — returns `SaveCheckpoint` or `Err` (partial archive already deleted by engine)
-4. Open a DB transaction and execute both:
-   - `db::checkpoints::insert(&checkpoint)`
-   - `db::operation_log::insert(&log_entry)` where `log_entry.operation = "create_checkpoint"`, `affected_paths = [source, archive_path]`, `reversible = false`
-5. Commit transaction. If commit fails: delete the created archive file, return `Err`
-6. Return `Ok(checkpoint)`
+4. Build the `OperationLogEntry` (`operation = "create_checkpoint"`, `affected_paths = [source, archive_path]`, `reversible = false`)
+5. Call `crate::db::with_transaction(|tx| { db::checkpoints::insert_tx(tx, &checkpoint)?; db::operation_log::insert_tx(tx, &log_entry)?; Ok(()) })` — both rows committed atomically
+6. If the transaction fails for any reason (either insert or commit): delete the created archive file, return `Err`
+7. Return `Ok(checkpoint)`
 
 This ensures no checkpoint artifact exists without a matching log entry, and no log entry exists without a checkpoint row.
 
@@ -246,7 +318,7 @@ Validates `project_id` non-empty and project exists in DB. Destination comes fro
 pub async fn get_checkpoints(project_id: String) -> Result<Vec<SaveCheckpoint>, String>
 ```
 
-Calls `db::checkpoints::list(project_id)`.
+Calls `db::checkpoints::list(&project_id).map_err(|e| e.to_string())`.
 
 **`execute_migration`** — structured precondition check:
 
@@ -257,7 +329,7 @@ pub async fn execute_migration(
 ) -> Result<(), MigrationBlocker>
 ```
 
-Returns `Err(MigrationBlocker::CheckpointRequired)` (or other applicable variant) — no file movement. The frontend matches on the error variant to show the correct disabled-state label.
+Returns `Err(MigrationBlocker::CheckpointRequired)` (or other applicable variant) — no file movement. The frontend does **not** call this command in the current phase: the "Execute Migration" button is always disabled and renders as `"Execution not yet available"`. The command is registered (so it compiles and does not break future callers) but `ipc.ts` does not expose a new `executeMigration` wrapper in this phase. The command signature adds `project_id` as a forward-looking addition; the existing `ipc.ts` call should be removed or kept disabled — no active IPC call for `execute_migration` is wired in the frontend during this phase.
 
 ### `commands::rollback` changes
 
@@ -277,7 +349,22 @@ Err("Rollback execution not yet implemented — log entry preserved".to_string()
 
 ### `lib.rs`
 
-Registers new `get_checkpoints` command. Updates signatures for `create_save_checkpoint` and `create_migration_plan`.
+Registers the new `get_checkpoints` command and updates the other changed signatures. The relevant section of the `.invoke_handler` call:
+
+```rust
+tauri::Builder::default()
+    // ...
+    .invoke_handler(tauri::generate_handler![
+        // ... existing commands ...
+        commands::save::create_save_checkpoint,
+        commands::save::create_migration_plan,
+        commands::save::get_checkpoints,         // ← new
+        commands::save::execute_migration,
+        commands::rollback::get_operation_log,
+        commands::rollback::rollback_operation,
+        // ... other existing commands ...
+    ])
+```
 
 ---
 
@@ -377,14 +464,40 @@ No rollback button exposed. `rolled_back` shown as a read-only badge if true.
 ### IPC and type updates
 
 **`src/lib/ipc.ts`:**
-- `createSaveCheckpoint(projectId, source, emulator)`
-- `createMigrationPlan(projectId, source, destination, emulator)`
-- `getCheckpoints(projectId): Promise<SaveCheckpoint[]>` — new
-- `getOperationLog` return type: `Promise<OperationLogEntry[]>`
+
+Updated import line (add `OperationLogEntry` alongside existing save types):
+```ts
+import type { ..., SaveCheckpoint, OperationLogEntry } from "@/types";
+```
+
+Updated/new function implementations:
+```ts
+createSaveCheckpoint: (projectId: string, source: string, emulator: string): Promise<SaveCheckpoint> =>
+  invoke<SaveCheckpoint>("create_save_checkpoint", { projectId, source, emulator }),
+
+createMigrationPlan: (projectId: string, source: string, destination: string, emulator: string): Promise<MigrationPlan> =>
+  invoke<MigrationPlan>("create_migration_plan", { projectId, source, destination, emulator }),
+
+getCheckpoints: (projectId: string): Promise<SaveCheckpoint[]> =>
+  invoke<SaveCheckpoint[]>("get_checkpoints", { projectId }),   // new
+
+getOperationLog: (projectId: string): Promise<OperationLogEntry[]> =>
+  invoke<OperationLogEntry[]>("get_operation_log", { projectId }),
+```
+
+Note: the existing `executeMigration` wrapper in `ipc.ts` should be removed or stubbed out — no active IPC call for `execute_migration` is used in the frontend during this phase.
 
 **`src/types/index.ts`:**
 - `SaveRoot` gains `expectedDestination?: string`
 - `SaveCheckpoint` gains `projectId: string`
+- `MigrationBlocker` type (matches Rust enum snake_case variants):
+  ```ts
+  export type MigrationBlocker =
+    | "no_active_project"
+    | "checkpoint_required"
+    | "plan_required"
+    | "conflict_detected";
+  ```
 - `OperationLogEntry` interface added:
   ```ts
   export interface OperationLogEntry {
@@ -399,16 +512,102 @@ No rollback button exposed. `rolled_back` shown as a read-only badge if true.
   }
   ```
 
-**`src/lib/ipc.mock.ts`:** Updated mock signatures and fixtures to match.
+**`src/lib/ipc.mock.ts`:** Updated mock signatures and fixtures to match:
+
+```ts
+createSaveCheckpoint: async (
+  _projectId: string,
+  _source: string,
+  _emulator: string,
+): Promise<SaveCheckpoint> => ({
+  id: "mock-checkpoint-1",
+  projectId: _projectId,
+  emulator: _emulator,
+  sourcePath: _source,
+  archivePath: "/mock/checkpoints/mock-checkpoint-1.zip",
+  createdAt: new Date().toISOString(),
+  fileCount: 3,
+  sizeBytes: 12288,
+}),
+
+createMigrationPlan: async (
+  _projectId: string,
+  _source: string,
+  _destination: string,
+  _emulator: string,
+): Promise<MigrationPlan> => FIXTURE_MIGRATION_PLAN,
+
+getCheckpoints: async (_projectId: string): Promise<SaveCheckpoint[]> => [],
+
+getOperationLog: async (_projectId: string): Promise<OperationLogEntry[]> => [],
+```
+
+`FIXTURE_SAVE_ROOTS` must include `expectedDestination` on at least one entry with `migrationState: "migration_needed"`, so that mock-based tests of the plan flow can exercise `SaveRootCard.onMigrate` without hitting the `if (!root.expectedDestination) return` hard stop:
+
+```ts
+// Example fixture update:
+{
+  path: "/home/user/saves/duckstation",
+  emulator: "duckstation",
+  isSymlink: false,
+  fileCount: 12,
+  sizeBytes: 65536,
+  migrationState: "migration_needed",
+  expectedDestination: "/home/user/.local/share/duckstation/memcards",  // ← new
+}
+```
 
 ---
 
 ## Testing Requirements
 
-- At least one Rust test for checkpoint persistence (create + insert + list round-trip)
-- At least one Rust test for operation log persistence (insert + list)
-- At least one frontend unit test covering `SavesScreen` blocked state (`!activeProject`) or disabled execution path
-- All tests in: `cargo test`, `pnpm test --run`, `npx tsc --noEmit`, `cargo check`
+### Rust tests
+
+**`src-tauri/src/db/checkpoints.rs`** — `#[cfg(test)]` block using the `init_test_db()` pattern from `db/projects.rs` (creates a `TempDir`, initializes a fresh DB, stores path in `DB` static):
+
+```rust
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    fn init_test_db() -> TempDir {
+        let dir = TempDir::new().unwrap();
+        crate::db::init(dir.path()).unwrap();
+        dir
+    }
+
+    #[test]
+    fn checkpoint_round_trip() {
+        let _dir = init_test_db();
+        // insert a SaveCheckpoint, then list by project_id, assert returned
+    }
+}
+```
+
+**`src-tauri/src/db/operation_log.rs`** — same `init_test_db()` pattern:
+
+```rust
+#[cfg(test)]
+mod tests {
+    // insert an OperationLogEntry, list by project_id, assert returned
+    // verify mark_rolled_back flips the flag
+}
+```
+
+### Frontend tests
+
+At least one Vitest unit test in `src/components/saves/SavesScreen.test.tsx` (or adjacent test file) covering:
+- `SavesScreen` renders blocked state (`!activeProject`) — no scan triggers, no inputs rendered
+- Disabled execute path — "Execute Migration" button is not present or is always disabled
+
+### Verification commands
+
+All tests must pass under:
+- `cargo test` — Rust unit tests
+- `pnpm test --run` — Vitest frontend tests
+- `npx tsc --noEmit` — TypeScript type check
+- `cargo check` — Rust type check
 
 ---
 
