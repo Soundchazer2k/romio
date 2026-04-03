@@ -249,18 +249,18 @@ pub fn create_checkpoint(
 
 ### `engine::save_registry` — `expected_destination` fix
 
-`discover_save_roots` fills `expected_destination` for applicable states. The existing `roots.push(SaveRoot { ... })` block in `src-tauri/src/engine/save_registry.rs` is replaced in-place (not duplicated) to add the new field. The already-local variable `new_path` (computed as `frontend_root.join(&rule.new_path_pattern)`) can be reused:
+`discover_save_roots` fills `expected_destination` for applicable states. The existing `roots.push(SaveRoot { ... })` block at line 47 of `src-tauri/src/engine/save_registry.rs` is replaced in-place (not duplicated) to add the new field. All other field expressions match the actual local variables already in scope:
 
 ```rust
-// Replace the existing roots.push(...) block with:
+// Replace the existing roots.push(SaveRoot { ... }) block (lines 47–55) with:
 roots.push(SaveRoot {
-    path:                 root_path_str.clone(),
+    path:                 active_path.to_string_lossy().to_string(),
     emulator:             rule.emulator.clone(),
-    is_symlink:           is_symlink,
-    real_path:            real_path,
-    file_count:           file_count,
-    size_bytes:           size_bytes,
-    migration_state:      migration_state.clone(),
+    is_symlink:           symlink,
+    real_path:            real.map(|p| p.to_string_lossy().to_string()),
+    file_count:           stats.0,
+    size_bytes:           stats.1,
+    migration_state,
     expected_destination: match migration_state {
         SaveMigrationState::MigrationNeeded | SaveMigrationState::ConflictDetected =>
             Some(new_path.to_string_lossy().to_string()),
@@ -268,6 +268,8 @@ roots.push(SaveRoot {
     },
 });
 ```
+
+All identifiers match the surrounding scope: `active_path`, `symlink`, `real`, `stats`, `migration_state`, and `new_path` are all already defined before the push.
 
 `build_migration_plan` signature is unchanged — it still accepts explicit `source` and `destination` paths. The fix is at the call site.
 
@@ -485,7 +487,7 @@ getOperationLog: (projectId: string): Promise<OperationLogEntry[]> =>
   invoke<OperationLogEntry[]>("get_operation_log", { projectId }),
 ```
 
-Note: the existing `executeMigration` wrapper in `ipc.ts` should be removed or stubbed out — no active IPC call for `execute_migration` is used in the frontend during this phase.
+Note: remove the existing `executeMigration` line from `ipc.ts` entirely. The old signature (`(plan: MigrationPlan) => invoke<void>("execute_migration", { plan })`) is missing `projectId` and would silently omit it if called against the updated Rust command. Since the button is always disabled this phase and no code path calls `executeMigration`, removing the wrapper is the correct action.
 
 **`src/types/index.ts`:**
 - `SaveRoot` gains `expectedDestination?: string`
