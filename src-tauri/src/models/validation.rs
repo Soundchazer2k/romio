@@ -7,13 +7,14 @@ use uuid::Uuid;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OperationLogEntry {
-    pub id:           Uuid,
-    pub operation:    String,
-    pub description:  String,
+    pub id:             Uuid,
+    pub project_id:     String,
+    pub operation:      String,
+    pub description:    String,
     pub affected_paths: Vec<String>,
-    pub reversible:   bool,
-    pub rolled_back:  bool,
-    pub created_at:   DateTime<Utc>,
+    pub reversible:     bool,
+    pub rolled_back:    bool,
+    pub created_at:     DateTime<Utc>,
 }
 
 /// Result of the three-layer smoke test
