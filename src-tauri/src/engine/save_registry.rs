@@ -52,6 +52,7 @@ pub fn discover_save_roots(
                 file_count: stats.0,
                 size_bytes: stats.1,
                 migration_state,
+                expected_destination: None,
             });
         }
     }

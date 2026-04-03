@@ -20,13 +20,14 @@ pub struct SavePathRule {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SaveRoot {
-    pub path:           String,
-    pub emulator:       String,
-    pub is_symlink:     bool,
-    pub real_path:      Option<String>,
-    pub file_count:     u64,
-    pub size_bytes:     u64,
-    pub migration_state: SaveMigrationState,
+    pub path:                 String,
+    pub emulator:             String,
+    pub is_symlink:           bool,
+    pub real_path:            Option<String>,
+    pub file_count:           u64,
+    pub size_bytes:           u64,
+    pub migration_state:      SaveMigrationState,
+    pub expected_destination: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -78,10 +79,20 @@ pub enum MigrationAction {
 #[serde(rename_all = "camelCase")]
 pub struct SaveCheckpoint {
     pub id:           String,
+    pub project_id:   String,
     pub emulator:     String,
     pub source_path:  String,
     pub archive_path: String,
     pub created_at:   DateTime<Utc>,
     pub file_count:   u64,
     pub size_bytes:   u64,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MigrationBlocker {
+    NoActiveProject,
+    CheckpointRequired,
+    PlanRequired,
+    ConflictDetected,
 }
