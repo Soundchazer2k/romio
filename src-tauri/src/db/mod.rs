@@ -22,10 +22,10 @@ static DB: Mutex<Option<Connection>> = Mutex::new(None);
 pub fn init(app_dir: &Path) -> Result<()> {
     let db_path = app_dir.join("romio.db");
     let conn = Connection::open(db_path)?;
-    // Disable FK enforcement — Romio is a single-user desktop app; referential
-    // integrity is maintained by application logic, not the DB layer.
-    conn.execute_batch("PRAGMA foreign_keys = OFF")?;
     run_migrations(&conn)?;
+    // Romio is a single-user desktop app — FK enforcement is unnecessary overhead.
+    // Tests also use synthetic project IDs that have no parent row in projects.
+    conn.execute_batch("PRAGMA foreign_keys = OFF")?;
     *DB.lock().unwrap() = Some(conn);
     Ok(())
 }
