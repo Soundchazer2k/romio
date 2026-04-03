@@ -7,6 +7,8 @@ pub mod format;
 pub mod save;
 pub mod emulator;
 pub mod artifacts;
+pub mod checkpoints;
+pub mod operation_log;
 
 use anyhow::Result;
 use rusqlite::Connection;
@@ -42,6 +44,10 @@ fn run_migrations(conn: &Connection) -> Result<()> {
         conn.execute_batch(include_str!("migrations/003_bios.sql"))?;
         conn.execute_batch("PRAGMA user_version = 3")?;
     }
+    if version < 4 {
+        conn.execute_batch(include_str!("migrations/004_save_indexes.sql"))?;
+        conn.execute_batch("PRAGMA user_version = 4")?;
+    }
 
     Ok(())
 }
@@ -53,4 +59,18 @@ where
     let guard = DB.lock().unwrap();
     let conn = guard.as_ref().ok_or_else(|| anyhow::anyhow!("DB not initialized"))?;
     f(conn)
+}
+
+/// Opens a rusqlite transaction and passes it to `f`.
+/// Commits on Ok; rolls back automatically on Err (Transaction drop).
+pub fn with_transaction<F, T>(f: F) -> Result<T>
+where
+    F: FnOnce(&rusqlite::Transaction) -> Result<T>,
+{
+    let mut guard = DB.lock().unwrap();
+    let conn = guard.as_mut().ok_or_else(|| anyhow::anyhow!("DB not initialized"))?;
+    let tx = conn.transaction()?;
+    let result = f(&tx)?;
+    tx.commit()?;
+    Ok(result)
 }
