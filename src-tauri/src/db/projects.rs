@@ -184,6 +184,7 @@ pub fn update_bios_root(id: &str, bios_root: Option<&str>) -> Result<()> {
 mod tests {
     use super::*;
     use crate::db;
+    use serial_test::serial;
     use tempfile::TempDir;
 
     fn init_test_db() -> TempDir {
@@ -193,6 +194,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_update_bios_root_clears_stale_results() {
         let _dir = init_test_db();
         // Create a project

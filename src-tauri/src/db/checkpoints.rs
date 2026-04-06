@@ -132,6 +132,7 @@ pub fn get(id: &str) -> Result<SaveCheckpoint> {
 mod tests {
     use super::*;
     use chrono::Utc;
+    use serial_test::serial;
     use tempfile::TempDir;
 
     fn init_test_db() -> TempDir {
@@ -163,6 +164,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn checkpoint_round_trip() {
         let _dir = init_test_db();
         let project_id = make_project();
@@ -177,6 +179,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn list_filters_by_project_id() {
         let _dir = init_test_db();
         let proj_a = make_project();
@@ -192,6 +195,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn insert_rejects_empty_project_id() {
         let _dir = init_test_db();
         let mut cp = make_checkpoint("x");
