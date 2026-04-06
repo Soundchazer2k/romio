@@ -23,9 +23,7 @@ pub fn init(app_dir: &Path) -> Result<()> {
     let db_path = app_dir.join("romio.db");
     let conn = Connection::open(db_path)?;
     run_migrations(&conn)?;
-    // Romio is a single-user desktop app — FK enforcement is unnecessary overhead.
-    // Tests also use synthetic project IDs that have no parent row in projects.
-    conn.execute_batch("PRAGMA foreign_keys = OFF")?;
+    conn.execute_batch("PRAGMA foreign_keys = ON")?;
     *DB.lock().unwrap() = Some(conn);
     Ok(())
 }

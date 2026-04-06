@@ -52,6 +52,8 @@ pub async fn create_save_checkpoint(
     if project_id.is_empty() {
         return Err("project_id is required".to_string());
     }
+    crate::db::projects::get(&project_id)
+        .map_err(|e| format!("project not found: {e}"))?;
 
     let app_data_dir = app_handle
         .path()

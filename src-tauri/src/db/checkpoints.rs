@@ -140,6 +140,15 @@ mod tests {
         dir
     }
 
+    fn make_project() -> String {
+        let req = crate::models::project::CreateProjectRequest {
+            name:             "test-project".to_string(),
+            library_roots:    vec![],
+            target_frontends: vec![],
+        };
+        crate::db::projects::create(req).unwrap().id.to_string()
+    }
+
     fn make_checkpoint(project_id: &str) -> SaveCheckpoint {
         SaveCheckpoint {
             id:           uuid::Uuid::new_v4().to_string(),
@@ -156,12 +165,13 @@ mod tests {
     #[test]
     fn checkpoint_round_trip() {
         let _dir = init_test_db();
-        let cp = make_checkpoint("proj-1");
+        let project_id = make_project();
+        let cp = make_checkpoint(&project_id);
         insert(&cp).unwrap();
-        let results = list("proj-1").unwrap();
+        let results = list(&project_id).unwrap();
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].id, cp.id);
-        assert_eq!(results[0].project_id, "proj-1");
+        assert_eq!(results[0].project_id, project_id);
         assert_eq!(results[0].file_count, 3);
         assert_eq!(results[0].size_bytes, 12288);
     }
@@ -169,14 +179,16 @@ mod tests {
     #[test]
     fn list_filters_by_project_id() {
         let _dir = init_test_db();
-        insert(&make_checkpoint("proj-a")).unwrap();
-        insert(&make_checkpoint("proj-b")).unwrap();
-        let a = list("proj-a").unwrap();
-        let b = list("proj-b").unwrap();
+        let proj_a = make_project();
+        let proj_b = make_project();
+        insert(&make_checkpoint(&proj_a)).unwrap();
+        insert(&make_checkpoint(&proj_b)).unwrap();
+        let a = list(&proj_a).unwrap();
+        let b = list(&proj_b).unwrap();
         assert_eq!(a.len(), 1);
         assert_eq!(b.len(), 1);
-        assert_eq!(a[0].project_id, "proj-a");
-        assert_eq!(b[0].project_id, "proj-b");
+        assert_eq!(a[0].project_id, proj_a);
+        assert_eq!(b[0].project_id, proj_b);
     }
 
     #[test]
