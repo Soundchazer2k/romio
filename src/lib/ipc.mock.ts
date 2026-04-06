@@ -7,7 +7,7 @@ import type {
   Project, CreateProjectRequest,
   BiosSystemResult, BiosRule, BiosStatusResponse,
   HostEnvironmentReport,
-  SaveRoot, MigrationPlan, SaveCheckpoint,
+  SaveRoot, MigrationPlan, SaveCheckpoint, OperationLogEntry,
   FrontendInfo,
   FormatRule, FormatCheckResult, EmulatorMatrixEntry,
 } from "@/types";
@@ -107,6 +107,7 @@ const FIXTURE_SAVE_ROOTS: SaveRoot[] = [
     fileCount: 42,
     sizeBytes: 1048576,
     migrationState: "migration_needed",
+    expectedDestination: "/home/user/.local/share/retroarch/saves",
   },
   {
     path: "/home/user/.config/retroarch/states",
@@ -218,24 +219,26 @@ export const ipc = {
     FIXTURE_EMULATOR_MATRIX,
 
   // Save migration
-  discoverSaveRoots: async (_frontendRoot: string): Promise<SaveRoot[]> =>
+  discoverSaveRoots:    async (_frontendRoot: string): Promise<SaveRoot[]> =>
     FIXTURE_SAVE_ROOTS,
   checkMigrationNeeded: async (_frontendRoot: string): Promise<boolean> =>
     true,
   createMigrationPlan: async (
-    _source: string, _destination: string, _emulator: string
+    _projectId: string, _source: string, _destination: string, _emulator: string
   ): Promise<MigrationPlan> => FIXTURE_MIGRATION_PLAN,
-  executeMigration: async (_plan: MigrationPlan): Promise<void> =>
-    undefined,
-  createSaveCheckpoint: async (_source: string, _emulator: string): Promise<SaveCheckpoint> => ({
+  createSaveCheckpoint: async (
+    _projectId: string, _source: string, _emulator: string
+  ): Promise<SaveCheckpoint> => ({
     id:          "mock-checkpoint-1",
+    projectId:   _projectId,
     emulator:    _emulator,
     sourcePath:  _source,
-    archivePath: "/tmp/checkpoint.tar.gz",
-    createdAt:   "2026-03-28T00:00:00Z",
-    fileCount:   42,
-    sizeBytes:   1048576,
+    archivePath: "/mock/checkpoints/mock-checkpoint-1.zip",
+    createdAt:   new Date().toISOString(),
+    fileCount:   3,
+    sizeBytes:   12288,
   }),
+  getCheckpoints: async (_projectId: string): Promise<SaveCheckpoint[]> => [],
 
   // Multi-disc (placeholder screens — minimal stubs)
   detectMultiDisc: async (_root: string) => [],
@@ -261,6 +264,6 @@ export const ipc = {
   dryRunExport: async (_projectId: string, _frontend: string) => null,
 
   // Rollback (placeholder screens — minimal stubs)
-  getOperationLog: async (_projectId: string) => [],
+  getOperationLog: async (_projectId: string): Promise<OperationLogEntry[]> => [],
   rollback: async (_operationId: string): Promise<void> => undefined,
 };

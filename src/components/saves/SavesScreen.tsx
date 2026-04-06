@@ -9,7 +9,7 @@ import type { SaveRoot, MigrationPlan } from "@/types";
 import { cn, formatBytes, migrationStateLabel } from "@/lib/utils";
 
 export function SavesScreen() {
-  const { setRomioState } = useAppStore();
+  const { setRomioState, activeProject } = useAppStore();
   const [frontendRoot, setFrontendRoot] = useState("");
   const [selectedPlan, setSelectedPlan] = useState<MigrationPlan | null>(null);
   const [confirmed, setConfirmed] = useState(false);
@@ -96,6 +96,7 @@ export function SavesScreen() {
               onMigrate={async () => {
                 // Build a plan — in real impl would use new path from registry
                 const plan = await ipc.createMigrationPlan(
+                  activeProject?.id ?? "",
                   root.path,
                   root.path + "_new",
                   root.emulator
