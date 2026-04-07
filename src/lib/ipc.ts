@@ -7,7 +7,7 @@ import type {
   Project, CreateProjectRequest,
   BiosSystemResult, BiosRule, BiosStatusResponse,
   HostEnvironmentReport,
-  SaveRoot, MigrationPlan, SaveCheckpoint,
+  SaveRoot, MigrationPlan, SaveCheckpoint, OperationLogEntry,
   FrontendInfo,
   FormatRule, FormatCheckResult, EmulatorMatrixEntry,
 } from "@/types";
@@ -48,13 +48,11 @@ export const ipc = {
   getEmulatorMatrix: ()                                => invoke<EmulatorMatrixEntry[]>("get_emulator_matrix"),
 
   // Save migration
-  discoverSaveRoots:   (frontendRoot: string)         => invoke<SaveRoot[]>("discover_save_roots", { frontendRoot }),
-  checkMigrationNeeded:(frontendRoot: string)         => invoke<boolean>("check_migration_needed", { frontendRoot }),
-  createMigrationPlan: (source: string, destination: string, emulator: string) =>
-                          invoke<MigrationPlan>("create_migration_plan", { source, destination, emulator }),
-  executeMigration:    (plan: MigrationPlan)          => invoke<void>("execute_migration", { plan }),
-  createSaveCheckpoint:(source: string, emulator: string) =>
-                          invoke<SaveCheckpoint>("create_save_checkpoint", { source, emulator }),
+  discoverSaveRoots:    (frontendRoot: string)                                                     => invoke<SaveRoot[]>("discover_save_roots", { frontendRoot }),
+  checkMigrationNeeded: (frontendRoot: string)                                                     => invoke<boolean>("check_migration_needed", { frontendRoot }),
+  createMigrationPlan:  (projectId: string, source: string, destination: string, emulator: string) => invoke<MigrationPlan>("create_migration_plan", { projectId, source, destination, emulator }),
+  createSaveCheckpoint: (projectId: string, source: string, emulator: string)                      => invoke<SaveCheckpoint>("create_save_checkpoint", { projectId, source, emulator }),
+  getCheckpoints:       (projectId: string)                                                        => invoke<SaveCheckpoint[]>("get_checkpoints", { projectId }),
 
   // Multi-disc
   detectMultiDisc:  (root: string)                    => invoke("detect_multidisc_sets", { root }),
@@ -81,6 +79,6 @@ export const ipc = {
                            invoke("dry_run_export", { projectId, frontend }),
 
   // Rollback
-  getOperationLog:  (projectId: string)               => invoke("get_operation_log", { projectId }),
+  getOperationLog:  (projectId: string)               => invoke<OperationLogEntry[]>("get_operation_log", { projectId }),
   rollback:         (operationId: string)             => invoke<void>("rollback_operation", { operationId }),
 };

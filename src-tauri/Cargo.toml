@@ -36,6 +36,9 @@ tokio = { version = "1", features = ["full"] }
 # Filesystem traversal
 walkdir = "2"
 
+# ZIP archive creation for save checkpoints
+zip = "2"
+
 # Hashing - MD5 for BIOS validation, Blake3 for fast file identity
 md5    = "0.7"
 blake3 = "1"
@@ -64,5 +67,6 @@ chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1", features = ["v4", "serde"] }
 
 [dev-dependencies]
-tempfile  = "3"
-assert_fs = "1"
+tempfile    = "3"
+assert_fs   = "1"
+serial_test = "3"

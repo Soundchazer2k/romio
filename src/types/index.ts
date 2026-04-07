@@ -159,13 +159,14 @@ export type SaveMigrationState =
   | "migration_needed" | "conflict_detected" | "already_migrated" | "not_applicable";
 
 export interface SaveRoot {
-  path:            string;
-  emulator:        string;
-  isSymlink:       boolean;
-  realPath?:       string;
-  fileCount:       number;
-  sizeBytes:       number;
-  migrationState:  SaveMigrationState;
+  path:                 string;
+  emulator:             string;
+  isSymlink:            boolean;
+  realPath?:            string;
+  fileCount:            number;
+  sizeBytes:            number;
+  migrationState:       SaveMigrationState;
+  expectedDestination?: string;
 }
 
 export type MigrationAction =
@@ -191,12 +192,30 @@ export interface MigrationPlan {
 
 export interface SaveCheckpoint {
   id:          string;
+  projectId:   string;
   emulator:    string;
   sourcePath:  string;
   archivePath: string;
   createdAt:   string;
   fileCount:   number;
   sizeBytes:   number;
+}
+
+export type MigrationBlocker =
+  | "no_active_project"
+  | "checkpoint_required"
+  | "plan_required"
+  | "conflict_detected";
+
+export interface OperationLogEntry {
+  id:             string;
+  projectId:      string;
+  operation:      string;
+  description:    string;
+  affectedPaths:  string[];
+  reversible:     boolean;
+  rolledBack:     boolean;
+  createdAt:      string;
 }
 
 // ── Scan ──────────────────────────────────────────────────────────────────────

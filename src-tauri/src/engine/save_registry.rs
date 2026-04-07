@@ -44,14 +44,20 @@ pub fn discover_save_roots(
             let symlink = is_symlink(&active_path);
             let real = if symlink { resolve_symlink(&active_path) } else { None };
 
+            let expected_destination = match &migration_state {
+                SaveMigrationState::MigrationNeeded | SaveMigrationState::ConflictDetected =>
+                    Some(new_path.to_string_lossy().to_string()),
+                _ => None,
+            };
             roots.push(SaveRoot {
-                path: active_path.to_string_lossy().to_string(),
-                emulator: rule.emulator.clone(),
-                is_symlink: symlink,
-                real_path: real.map(|p| p.to_string_lossy().to_string()),
-                file_count: stats.0,
-                size_bytes: stats.1,
+                path:                 active_path.to_string_lossy().to_string(),
+                emulator:             rule.emulator.clone(),
+                is_symlink:           symlink,
+                real_path:            real.map(|p| p.to_string_lossy().to_string()),
+                file_count:           stats.0,
+                size_bytes:           stats.1,
                 migration_state,
+                expected_destination,
             });
         }
     }

@@ -1,29 +1,53 @@
 // SPDX-License-Identifier: GPL-3.0
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { Save, AlertTriangle, ArrowRight, ShieldCheck, Link2 } from "lucide-react";
+import {
+  Save, AlertTriangle, ArrowRight, ShieldCheck, Link2,
+  Archive, CheckCircle2, ChevronDown, ChevronRight,
+} from "lucide-react";
 import { useAppStore } from "@/stores";
 import { ipc } from "@/lib/ipc";
-import type { SaveRoot, MigrationPlan } from "@/types";
+import type { SaveRoot, MigrationPlan, SaveCheckpoint, OperationLogEntry } from "@/types";
 import { cn, formatBytes, migrationStateLabel } from "@/lib/utils";
 
+// ── Screen ───────────────────────────────────────────────────────────────────
+
 export function SavesScreen() {
-  const { setRomioState } = useAppStore();
+  const { activeProject, setRomioState } = useAppStore();
+  const queryClient = useQueryClient();
   const [frontendRoot, setFrontendRoot] = useState("");
   const [selectedPlan, setSelectedPlan] = useState<MigrationPlan | null>(null);
-  const [confirmed, setConfirmed] = useState(false);
+  const [selectedRoot, setSelectedRoot] = useState<SaveRoot | null>(null);
+  const [logExpanded, setLogExpanded] = useState(false);
 
+  const projectId = activeProject?.id ?? "";
+
+  // ── Project guard ─────────────────────────────────────────────────────────
+  if (!activeProject) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <p className="text-romio-gray">Open a project to use Save Migration.</p>
+      </div>
+    );
+  }
+
+  // ── Queries ───────────────────────────────────────────────────────────────
   const { data: roots = [], isLoading } = useQuery({
     queryKey: ["save-roots", frontendRoot],
     queryFn:  () => ipc.discoverSaveRoots(frontendRoot),
     enabled:  frontendRoot.length > 0,
   });
 
-  const atRisk = roots.filter((r) => r.migrationState === "migration_needed");
+  const { data: log = [] } = useQuery({
+    queryKey: ["operation-log", projectId],
+    queryFn:  () => ipc.getOperationLog(projectId),
+    enabled:  !!activeProject,
+  });
 
-  // Update Romio state based on findings
-  if (atRisk.length > 0)    setRomioState("difficult_save");
+  // ── Derived state ─────────────────────────────────────────────────────────
+  const atRisk = roots.filter((r) => r.migrationState === "migration_needed");
+  if (atRisk.length > 0)     setRomioState("difficult_save");
   else if (roots.length > 0) setRomioState("success");
 
   return (
@@ -56,8 +80,7 @@ export function SavesScreen() {
               {atRisk.length} save {atRisk.length === 1 ? "root" : "roots"} at risk
             </p>
             <p className="text-xs text-romio-gray mt-0.5">
-              These emulators have moved their save directories. Your saves exist at the
-              old path but the emulator now writes to a new location. Migrate before updating.
+              These emulators have moved their save directories. Migrate before updating.
             </p>
           </div>
         </motion.div>
@@ -94,12 +117,14 @@ export function SavesScreen() {
               root={root}
               index={i}
               onMigrate={async () => {
-                // Build a plan — in real impl would use new path from registry
+                if (!root.expectedDestination) return; // hard stop
                 const plan = await ipc.createMigrationPlan(
+                  activeProject.id,
                   root.path,
-                  root.path + "_new",
-                  root.emulator
+                  root.expectedDestination,
+                  root.emulator,
                 );
+                setSelectedRoot(root);
                 setSelectedPlan(plan);
               }}
             />
@@ -118,14 +143,49 @@ export function SavesScreen() {
       {selectedPlan && (
         <MigrationPlanModal
           plan={selectedPlan}
-          onClose={() => { setSelectedPlan(null); setConfirmed(false); }}
-          confirmed={confirmed}
-          onConfirm={() => setConfirmed(true)}
+          projectId={activeProject.id}
+          sourcePath={selectedRoot?.path ?? selectedPlan.sourcePath}
+          emulator={selectedPlan.emulator}
+          onClose={() => { setSelectedPlan(null); setSelectedRoot(null); }}
+          onCheckpointSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: ["checkpoints", projectId] });
+            queryClient.invalidateQueries({ queryKey: ["operation-log", projectId] });
+          }}
         />
       )}
+
+      {/* Migration history */}
+      <div className="border border-border rounded-xl overflow-hidden">
+        <button
+          onClick={() => setLogExpanded((x) => !x)}
+          className="w-full flex items-center justify-between px-4 py-3
+                     hover:bg-white/5 transition-colors text-left"
+        >
+          <span className="text-sm font-medium text-romio-cream">Migration History</span>
+          <div className="flex items-center gap-2">
+            {log.length > 0 && (
+              <span className="text-xs text-romio-gray">{log.length} entries</span>
+            )}
+            {logExpanded
+              ? <ChevronDown  className="w-4 h-4 text-romio-gray" />
+              : <ChevronRight className="w-4 h-4 text-romio-gray" />
+            }
+          </div>
+        </button>
+        {logExpanded && (
+          <div className="border-t border-border px-4 py-3 space-y-2">
+            {log.length === 0
+              ? <p className="text-romio-gray text-sm">No migration operations recorded yet.</p>
+              : log.map((entry) => <OperationLogRow key={entry.id} entry={entry} />)
+            }
+          </div>
+        )}
+      </div>
     </div>
   );
 }
+
+// ── SaveRootCard ──────────────────────────────────────────────────────────────
 
 function SaveRootCard({ root, index, onMigrate }: {
   root: SaveRoot; index: number; onMigrate: () => void;
@@ -136,6 +196,8 @@ function SaveRootCard({ root, index, onMigrate }: {
     already_migrated:  "border-romio-green/20 bg-romio-green/5",
     not_applicable:    "border-border",
   };
+
+  const canPlan = root.migrationState === "migration_needed" && !!root.expectedDestination;
 
   return (
     <motion.div
@@ -160,8 +222,12 @@ function SaveRootCard({ root, index, onMigrate }: {
           {root.realPath && root.realPath !== root.path && (
             <p className="font-mono text-xs text-romio-gray/60 truncate">→ {root.realPath}</p>
           )}
+          {root.expectedDestination && (
+            <p className="font-mono text-xs text-romio-gray/60 mt-0.5 truncate">
+              → {root.expectedDestination}
+            </p>
+          )}
         </div>
-
         <div className="text-right text-xs text-romio-gray flex-shrink-0">
           <p>{root.fileCount.toLocaleString()} files</p>
           <p>{formatBytes(root.sizeBytes)}</p>
@@ -175,9 +241,14 @@ function SaveRootCard({ root, index, onMigrate }: {
           </p>
           <button
             onClick={onMigrate}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold
-                       rounded-lg bg-amber-600/20 text-amber-400 border border-amber-600/30
-                       hover:bg-amber-600/30 transition-colors flex-shrink-0 ml-3"
+            disabled={!canPlan}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold",
+              "rounded-lg border flex-shrink-0 ml-3 transition-colors",
+              canPlan
+                ? "bg-amber-600/20 text-amber-400 border-amber-600/30 hover:bg-amber-600/30"
+                : "opacity-40 cursor-not-allowed bg-white/5 text-romio-gray border-border"
+            )}
           >
             Plan Migration <ArrowRight className="w-3 h-3" />
           </button>
@@ -200,6 +271,8 @@ function SaveRootCard({ root, index, onMigrate }: {
   );
 }
 
+// ── MigrationStateBadge ───────────────────────────────────────────────────────
+
 function MigrationStateBadge({ state }: { state: SaveRoot["migrationState"] }) {
   const styles: Record<string, string> = {
     migration_needed:  "bg-romio-red/15 text-romio-red border-romio-red/20",
@@ -214,12 +287,33 @@ function MigrationStateBadge({ state }: { state: SaveRoot["migrationState"] }) {
   );
 }
 
-function MigrationPlanModal({ plan, onClose, confirmed, onConfirm }: {
-  plan:      MigrationPlan;
-  onClose:   () => void;
-  confirmed: boolean;
-  onConfirm: () => void;
+// ── MigrationPlanModal ────────────────────────────────────────────────────────
+
+function MigrationPlanModal({
+  plan, projectId, sourcePath, emulator, onClose, onCheckpointSuccess,
+}: {
+  plan:                 MigrationPlan;
+  projectId:            string;
+  sourcePath:           string;
+  emulator:             string;
+  onClose:              () => void;
+  onCheckpointSuccess:  () => void;
 }) {
+  const [checkpoint, setCheckpoint]   = useState<SaveCheckpoint | null>(null);
+  const [checkpointError, setCheckpointError] = useState<string | null>(null);
+
+  const checkpointMut = useMutation({
+    mutationFn: () => ipc.createSaveCheckpoint(projectId, sourcePath, emulator),
+    onSuccess: (cp) => {
+      setCheckpoint(cp);
+      setCheckpointError(null);
+      onCheckpointSuccess();
+    },
+    onError: (e: unknown) => {
+      setCheckpointError(e instanceof Error ? e.message : String(e));
+    },
+  });
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
       <motion.div
@@ -233,7 +327,7 @@ function MigrationPlanModal({ plan, onClose, confirmed, onConfirm }: {
           <div>
             <h2 className="font-bold text-romio-cream">Migration Plan — {plan.emulator}</h2>
             <p className="text-xs text-romio-gray mt-0.5">
-              Review all steps before confirming. A backup will be created first.
+              Review all steps. Create a checkpoint before proceeding.
             </p>
           </div>
         </div>
@@ -271,24 +365,62 @@ function MigrationPlanModal({ plan, onClose, confirmed, onConfirm }: {
 
         {/* Symlink warning */}
         {plan.symlinkWarning && (
-          <div className="px-3 py-2.5 rounded-lg bg-amber-600/10 border border-amber-600/20 text-xs text-amber-400">
+          <div className="px-3 py-2.5 rounded-lg bg-amber-600/10 border border-amber-600/20
+                          text-xs text-amber-400">
             ⚠ {plan.symlinkWarning}
           </div>
         )}
 
-        {/* Confirmation checkbox */}
-        <label className="flex items-start gap-3 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={confirmed}
-            onChange={(e) => e.target.checked && onConfirm()}
-            className="mt-0.5 accent-romio-green"
-          />
-          <span className="text-sm text-romio-cream">
-            I have reviewed the plan. I understand a backup will be created before
-            any files are moved, and that some steps are not reversible.
-          </span>
-        </label>
+        {/* Checkpoint step */}
+        <div className="rounded-lg border border-border bg-black/20 px-4 py-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Archive className="w-4 h-4 text-romio-gray" />
+              <span className="text-sm font-medium text-romio-cream">Create Checkpoint</span>
+            </div>
+            {checkpoint && (
+              <CheckCircle2 className="w-4 h-4 text-romio-green" />
+            )}
+          </div>
+
+          {checkpoint ? (
+            <div className="text-xs text-romio-gray space-y-0.5">
+              <p className="font-mono truncate">{checkpoint.archivePath}</p>
+              <p>{checkpoint.fileCount} files · {formatBytes(checkpoint.sizeBytes)}</p>
+            </div>
+          ) : checkpointError ? (
+            <div className="text-xs text-romio-red">
+              <p>Checkpoint failed: {checkpointError}</p>
+              <button
+                onClick={() => checkpointMut.mutate()}
+                className="mt-1 text-romio-gray hover:text-romio-cream underline"
+              >
+                Retry
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => checkpointMut.mutate()}
+              disabled={checkpointMut.isPending}
+              className={cn(
+                "flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-lg",
+                "transition-colors border",
+                checkpointMut.isPending
+                  ? "opacity-60 cursor-not-allowed bg-white/5 text-romio-gray border-border"
+                  : "bg-romio-green/10 text-romio-green border-romio-green/20 hover:bg-romio-green/20"
+              )}
+            >
+              {checkpointMut.isPending ? (
+                <>
+                  <div className="w-3 h-3 border-2 border-romio-green/40 border-t-romio-green rounded-full animate-spin" />
+                  Creating…
+                </>
+              ) : (
+                "Create Checkpoint"
+              )}
+            </button>
+          )}
+        </div>
 
         {/* Actions */}
         <div className="flex gap-3">
@@ -298,14 +430,34 @@ function MigrationPlanModal({ plan, onClose, confirmed, onConfirm }: {
             Close
           </button>
           <div className="flex-1 flex flex-col items-center justify-center px-4 py-2
-                          rounded-lg border border-border bg-black/10 text-center">
+                          rounded-lg border border-border bg-black/10 text-center opacity-50
+                          cursor-not-allowed select-none">
             <span className="text-xs font-semibold text-romio-gray">Execute Migration</span>
-            <span className="text-xs text-romio-gray/50 mt-0.5">
-              Coming soon — plan review only
-            </span>
+            <span className="text-xs text-romio-gray/50 mt-0.5">Execution not yet available</span>
           </div>
         </div>
       </motion.div>
+    </div>
+  );
+}
+
+// ── OperationLogRow ───────────────────────────────────────────────────────────
+
+function OperationLogRow({ entry }: { entry: OperationLogEntry }) {
+  return (
+    <div className="flex items-start gap-3 px-3 py-2.5 rounded-lg bg-black/10 border border-border text-xs">
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="font-medium text-romio-cream">{entry.operation}</span>
+          {entry.rolledBack && (
+            <span className="px-1.5 py-0.5 rounded text-xs bg-amber-600/10 text-amber-400 border border-amber-600/20">
+              rolled back
+            </span>
+          )}
+        </div>
+        <p className="text-romio-gray mt-0.5">{entry.description}</p>
+        <p className="text-romio-gray/50 mt-0.5">{new Date(entry.createdAt).toLocaleString()}</p>
+      </div>
     </div>
   );
 }

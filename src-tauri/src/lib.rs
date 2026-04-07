@@ -57,6 +57,7 @@ pub fn run() {
             commands::save::create_migration_plan,
             commands::save::execute_migration,
             commands::save::create_save_checkpoint,
+            commands::save::get_checkpoints,
 
             // Multi-disc
             commands::multidisc::detect_multidisc_sets,
