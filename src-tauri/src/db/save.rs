@@ -19,6 +19,11 @@ mod tests {
         assert!(!rules.is_empty(), "save_paths.json has no rules");
         for rule in rules {
             assert_ne!(rule.old_path_pattern, rule.new_path_pattern, "rule for {}", rule.emulator);
+            // discover_save_roots silently skips rules with an anchor it doesn't know
+            assert!(
+                matches!(rule.anchor.as_deref(), None | Some("appdata")),
+                "unknown anchor for {}", rule.emulator
+            );
         }
     }
 }

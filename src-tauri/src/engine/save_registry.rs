@@ -12,16 +12,26 @@ use crate::models::save::{
 };
 use crate::engine::path_normalizer::{is_symlink, resolve_symlink};
 
-/// Discover save roots for all known emulators relative to a frontend root.
+/// Discover save roots for all known emulators, relative to the frontend root
+/// or, for rules anchored to "appdata", the user's %APPDATA% folder.
 pub fn discover_save_roots(
     frontend_root: &Path,
+    appdata: Option<&Path>,
     rules: &[SavePathRule],
 ) -> Vec<SaveRoot> {
     let mut roots = Vec::new();
 
     for rule in rules {
-        let old_path = frontend_root.join(&rule.old_path_pattern);
-        let new_path = frontend_root.join(&rule.new_path_pattern);
+        let base = match rule.anchor.as_deref() {
+            None => frontend_root,
+            Some("appdata") => match appdata {
+                Some(dir) => dir,
+                None => continue,
+            },
+            Some(_) => continue,
+        };
+        let old_path = base.join(&rule.old_path_pattern);
+        let new_path = base.join(&rule.new_path_pattern);
 
         let old_exists = old_path.exists();
         let new_exists = new_path.exists();
@@ -135,4 +145,54 @@ fn count_files_and_size(path: &Path) -> (u64, u64) {
         }
     }
     (count, size)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn rule(anchor: Option<&str>) -> SavePathRule {
+        SavePathRule {
+            emulator: "eden".into(),
+            frontend: None,
+            anchor: anchor.map(Into::into),
+            version_from: None,
+            version_to: None,
+            old_path_pattern: "yuzu/nand/user/save".into(),
+            new_path_pattern: "eden/nand/user/save".into(),
+            trigger: String::new(),
+            notes: None,
+        }
+    }
+
+    #[test]
+    fn appdata_rules_resolve_under_appdata_not_frontend_root() {
+        let frontend = tempfile::tempdir().unwrap();
+        let appdata = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(appdata.path().join("yuzu/nand/user/save")).unwrap();
+        std::fs::write(appdata.path().join("yuzu/nand/user/save/a.bin"), b"save").unwrap();
+
+        let roots = discover_save_roots(frontend.path(), Some(appdata.path()), &[rule(Some("appdata"))]);
+        assert_eq!(roots.len(), 1);
+        assert_eq!(roots[0].migration_state, SaveMigrationState::MigrationNeeded);
+        assert_eq!(roots[0].file_count, 1);
+        assert_eq!(
+            roots[0].expected_destination.as_deref(),
+            Some(appdata.path().join("eden/nand/user/save").to_string_lossy().as_ref())
+        );
+
+        // Same layout under the frontend root is ignored for an appdata rule
+        let roots = discover_save_roots(appdata.path(), Some(frontend.path()), &[rule(Some("appdata"))]);
+        assert!(roots.is_empty());
+    }
+
+    #[test]
+    fn appdata_rules_skipped_without_appdata_or_with_unknown_anchor() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(dir.path().join("yuzu/nand/user/save")).unwrap();
+
+        assert!(discover_save_roots(dir.path(), None, &[rule(Some("appdata"))]).is_empty());
+        assert!(discover_save_roots(dir.path(), Some(dir.path()), &[rule(Some("home"))]).is_empty());
+        assert_eq!(discover_save_roots(dir.path(), None, &[rule(None)]).len(), 1);
+    }
 }

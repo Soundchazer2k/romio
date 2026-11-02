@@ -8,8 +8,10 @@ use crate::models::validation::OperationLogEntry;
 #[tauri::command]
 pub async fn discover_save_roots(frontend_root: String) -> Result<Vec<SaveRoot>, String> {
     let rules = crate::db::save::load_rules().map_err(|e| e.to_string())?;
+    let appdata = std::env::var_os("APPDATA").map(std::path::PathBuf::from);
     Ok(crate::engine::save_registry::discover_save_roots(
         std::path::Path::new(&frontend_root),
+        appdata.as_deref(),
         &rules,
     ))
 }

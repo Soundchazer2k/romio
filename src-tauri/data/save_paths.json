@@ -68,5 +68,38 @@
     "newPathPattern": "saves/psvita/vita3k",
     "trigger": "RetroBat update or manual path change",
     "notes": "Vita3K content path default changed. Custom path can still be set in Vita3K settings."
+  },
+  {
+    "emulator": "eden",
+    "frontend": null,
+    "anchor": "appdata",
+    "versionFrom": null,
+    "versionTo": null,
+    "oldPathPattern": "yuzu/nand/user/save",
+    "newPathPattern": "eden/nand/user/save",
+    "trigger": "Switching from yuzu to Eden",
+    "notes": "Eden is a yuzu fork with its own user folder. It does not read yuzu's saves. Copy the save folder across, then check each game's save in Eden (right-click > Open Save Data Location). Saves not tied to a profile can become unreadable, so back up first."
+  },
+  {
+    "emulator": "azahar",
+    "frontend": null,
+    "anchor": "appdata",
+    "versionFrom": null,
+    "versionTo": null,
+    "oldPathPattern": "Citra/sdmc",
+    "newPathPattern": "Azahar/sdmc",
+    "trigger": "Switching from Citra to Azahar",
+    "notes": "Azahar uses its own user folder. On first launch it offers to copy Citra's data; if you accepted, both folders exist and that is expected. 3DS saves live under sdmc. Merge into Azahar's folder rather than replacing it."
+  },
+  {
+    "emulator": "azahar",
+    "frontend": null,
+    "anchor": "appdata",
+    "versionFrom": null,
+    "versionTo": null,
+    "oldPathPattern": "Lime3DS/sdmc",
+    "newPathPattern": "Azahar/sdmc",
+    "trigger": "Switching from Lime3DS to Azahar",
+    "notes": "Lime3DS became Azahar and moved its user folder. On first launch Azahar offers to migrate; if you accepted, both folders exist and that is expected."
   }
 ]
