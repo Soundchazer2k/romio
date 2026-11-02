@@ -32,8 +32,8 @@ pub fn discover_save_roots(
             },
             Some(_) => continue,
         };
-        let old_path = base.join(&rule.old_path_pattern);
-        let new_path = base.join(&rule.new_path_pattern);
+        let old_path = join_pattern(base, &rule.old_path_pattern);
+        let new_path = join_pattern(base, &rule.new_path_pattern);
 
         let old_exists = old_path.exists();
         let new_exists = new_path.exists();
@@ -47,7 +47,8 @@ pub fn discover_save_roots(
 
         // Only report roots that exist or are at risk
         if old_exists || new_exists {
-            let (active_path, stats) = if new_exists {
+            // Point at the saves still to move; only an already-migrated root points at the destination
+            let (active_path, stats) = if !old_exists {
                 (new_path.clone(), count_files_and_size(&new_path))
             } else {
                 (old_path.clone(), count_files_and_size(&old_path))
@@ -70,14 +71,20 @@ pub fn discover_save_roots(
                 size_bytes:           stats.1,
                 migration_state,
                 expected_destination,
+                // Rule notes explain a pending move; they don't apply once only the destination exists
+                notes:                if old_exists { rule.notes.clone() } else { None },
             };
-            // Rules can share a destination (Citra and Lime3DS both move to Azahar), and a
-            // shared destination gives identical rows. Report each path once, preferring a
-            // rule whose source still exists over a bare AlreadyMigrated.
-            match roots.iter().position(|r: &SaveRoot| r.path == root.path) {
-                Some(i) if roots[i].migration_state == SaveMigrationState::AlreadyMigrated => roots[i] = root,
-                Some(_) => {}
-                None => roots.push(root),
+            // Rules can share a destination (Citra and Lime3DS both move to Azahar). Report a
+            // bare AlreadyMigrated destination only when no rule still has saves heading there.
+            let dest = new_path.to_string_lossy().to_string();
+            if root.migration_state == SaveMigrationState::AlreadyMigrated {
+                let covered = roots.iter().any(|r: &SaveRoot| {
+                    r.path == dest || r.expected_destination.as_deref() == Some(dest.as_str())
+                });
+                if !covered { roots.push(root); }
+            } else {
+                roots.retain(|r| !(r.migration_state == SaveMigrationState::AlreadyMigrated && r.path == dest));
+                roots.push(root);
             }
         }
     }
@@ -144,6 +151,11 @@ pub fn build_migration_plan(
     })
 }
 
+/// Join a "/"-separated rule pattern so the result uses the platform's separator throughout.
+fn join_pattern(base: &Path, pattern: &str) -> PathBuf {
+    pattern.split('/').filter(|c| !c.is_empty()).fold(base.to_path_buf(), |p, c| p.join(c))
+}
+
 fn count_files_and_size(path: &Path) -> (u64, u64) {
     if !path.exists() { return (0, 0); }
     let mut count = 0u64;
@@ -188,7 +200,7 @@ mod tests {
         assert_eq!(roots[0].file_count, 1);
         assert_eq!(
             roots[0].expected_destination.as_deref(),
-            Some(appdata.path().join("eden/nand/user/save").to_string_lossy().as_ref())
+            Some(join_pattern(appdata.path(), "eden/nand/user/save").to_string_lossy().as_ref())
         );
 
         // Same layout under the frontend root is ignored for an appdata rule
@@ -216,6 +228,7 @@ mod tests {
         let shared = |old: &str| SavePathRule {
             old_path_pattern: old.into(),
             new_path_pattern: "Azahar/sdmc".into(),
+            notes: Some("move note".into()),
             ..rule(Some("appdata"))
         };
         // Citra first: its source is missing, so alone it would say AlreadyMigrated
@@ -224,5 +237,14 @@ mod tests {
         let roots = discover_save_roots(Path::new(""), Some(appdata.path()), &rules);
         assert_eq!(roots.len(), 1);
         assert_eq!(roots[0].migration_state, SaveMigrationState::ConflictDetected);
+        assert_eq!(roots[0].path, appdata.path().join("Lime3DS").join("sdmc").to_string_lossy());
+        assert!(roots[0].notes.is_some());
+
+        // Neither source: one bare AlreadyMigrated row, no move notes
+        std::fs::remove_dir_all(appdata.path().join("Lime3DS")).unwrap();
+        let roots = discover_save_roots(Path::new(""), Some(appdata.path()), &rules);
+        assert_eq!(roots.len(), 1);
+        assert_eq!(roots[0].migration_state, SaveMigrationState::AlreadyMigrated);
+        assert!(roots[0].notes.is_none());
     }
 }

@@ -32,6 +32,8 @@ pub struct SaveRoot {
     pub size_bytes:           u64,
     pub migration_state:      SaveMigrationState,
     pub expected_destination: Option<String>,
+    /// The matching rule's notes from save_paths.json
+    pub notes:                Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

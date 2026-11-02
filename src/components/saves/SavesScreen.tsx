@@ -266,6 +266,8 @@ function SaveRootCard({ root, index, onMigrate }: {
         </p>
       )}
 
+      {root.notes && <p className="text-xs text-romio-gray">{root.notes}</p>}
+
       {root.isSymlink && (
         <p className="flex items-start gap-1.5 text-xs text-amber-400/80">
           <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-px" aria-hidden />
