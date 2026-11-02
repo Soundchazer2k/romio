@@ -23,6 +23,8 @@ pub fn discover_save_roots(
 
     for rule in rules {
         let base = match rule.anchor.as_deref() {
+            // An empty root would resolve against the working directory
+            None if frontend_root.as_os_str().is_empty() => continue,
             None => frontend_root,
             Some("appdata") => match appdata {
                 Some(dir) => dir,
@@ -59,7 +61,7 @@ pub fn discover_save_roots(
                     Some(new_path.to_string_lossy().to_string()),
                 _ => None,
             };
-            roots.push(SaveRoot {
+            let root = SaveRoot {
                 path:                 active_path.to_string_lossy().to_string(),
                 emulator:             rule.emulator.clone(),
                 is_symlink:           symlink,
@@ -68,7 +70,15 @@ pub fn discover_save_roots(
                 size_bytes:           stats.1,
                 migration_state,
                 expected_destination,
-            });
+            };
+            // Rules can share a destination (Citra and Lime3DS both move to Azahar), and a
+            // shared destination gives identical rows. Report each path once, preferring a
+            // rule whose source still exists over a bare AlreadyMigrated.
+            match roots.iter().position(|r: &SaveRoot| r.path == root.path) {
+                Some(i) if roots[i].migration_state == SaveMigrationState::AlreadyMigrated => roots[i] = root,
+                Some(_) => {}
+                None => roots.push(root),
+            }
         }
     }
 
@@ -194,5 +204,25 @@ mod tests {
         assert!(discover_save_roots(dir.path(), None, &[rule(Some("appdata"))]).is_empty());
         assert!(discover_save_roots(dir.path(), Some(dir.path()), &[rule(Some("home"))]).is_empty());
         assert_eq!(discover_save_roots(dir.path(), None, &[rule(None)]).len(), 1);
+        // Frontend-root rules need a frontend root
+        assert!(discover_save_roots(Path::new(""), None, &[rule(None)]).is_empty());
+    }
+
+    #[test]
+    fn shared_destination_reported_once_with_source_rule_winning() {
+        let appdata = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(appdata.path().join("Lime3DS/sdmc")).unwrap();
+        std::fs::create_dir_all(appdata.path().join("Azahar/sdmc")).unwrap();
+        let shared = |old: &str| SavePathRule {
+            old_path_pattern: old.into(),
+            new_path_pattern: "Azahar/sdmc".into(),
+            ..rule(Some("appdata"))
+        };
+        // Citra first: its source is missing, so alone it would say AlreadyMigrated
+        let rules = [shared("Citra/sdmc"), shared("Lime3DS/sdmc")];
+
+        let roots = discover_save_roots(Path::new(""), Some(appdata.path()), &rules);
+        assert_eq!(roots.len(), 1);
+        assert_eq!(roots[0].migration_state, SaveMigrationState::ConflictDetected);
     }
 }
