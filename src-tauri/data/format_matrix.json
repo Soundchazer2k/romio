@@ -142,5 +142,23 @@
     "support": { "conditional": { "condition": "Requires prod.keys + title.keys." } },
     "notes": null,
     "sinceVersion": null
+  },
+  {
+    "system": "switch",
+    "extension": "nsp",
+    "emulator": "eden",
+    "frontend": null,
+    "support": { "conditional": { "condition": "Requires prod.keys + title.keys. Keys are console-specific and cannot be shared between installations." } },
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "switch",
+    "extension": "xci",
+    "emulator": "eden",
+    "frontend": null,
+    "support": { "conditional": { "condition": "Requires prod.keys + title.keys." } },
+    "notes": null,
+    "sinceVersion": null
   }
 ]

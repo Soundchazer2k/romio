@@ -16,6 +16,15 @@ Romio uses [Semantic Versioning](https://semver.org/).
 - All 13 Romio mascot states wired to UX contexts
 - GPL-3.0 license
 - GitHub Actions CI/CD pipeline for Windows, macOS, Linux
+- Eden `.nsp`/`.xci` format rules
+
+### Changed
+- Switch: Eden is now recommended; Ryubing (halted Feb 2026) and Sudachi (ended Jul 2025) dropped as alternatives
+- 32X BIOS files marked optional — PicoDrive does not need them
+- `syscard3.pce` accepts the libretro/Batocera MD5 `38179df8f4ac870017db21ebcbf53114`
+
+### Removed
+- PCSX2 save rule whose old and new paths were identical, which flagged a false conflict
 
 ---
 
