@@ -29,7 +29,7 @@
         "connect-src": "ipc: http://ipc.localhost",
         "img-src": "'self' data: asset: http://asset.localhost",
         "font-src": "'self'",
-        "style-src": "'self'",
+        "style-src": "'self' 'unsafe-inline'",
         "object-src": "'none'",
         "base-uri": "'self'"
       }
