@@ -46,11 +46,11 @@ export function FormatFileRow({ result, rules, stagedFixes, onStageFix }: Props)
           </div>
 
           {result.notes && (
-            <p className="text-xs text-romio-gray/70 mt-0.5">{result.notes}</p>
+            <p className="text-xs text-romio-gray mt-0.5">{result.notes}</p>
           )}
 
           {truncatePath(result.path) !== result.path.split(/[/\\]/).pop() && (
-            <p className="font-mono text-xs text-romio-gray/50 mt-0.5 truncate">
+            <p className="font-mono text-xs text-romio-gray mt-0.5 truncate">
               {truncatePath(result.path)}
             </p>
           )}

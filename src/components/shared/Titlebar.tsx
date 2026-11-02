@@ -45,7 +45,7 @@ export function Titlebar() {
       )}
 
       {/* Right: version */}
-      <span className="text-xs text-romio-gray/50">v0.1.0</span>
+      <span className="text-xs text-romio-gray">v0.1.0</span>
     </header>
   );
 }

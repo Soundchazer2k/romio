@@ -38,7 +38,7 @@ export function FormatFixTray({ fixes, onClear, onReviewPlan }: Props) {
       <button
         onClick={onReviewPlan}
         className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold
-                   bg-romio-green text-romio-dark hover:bg-romio-green/90 transition-colors"
+                   bg-romio-green-fill text-white hover:bg-romio-green-fill/90 transition-colors"
       >
         Review plan <ArrowRight className="w-3.5 h-3.5" />
       </button>

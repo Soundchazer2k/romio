@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 import { useState } from "react";
-import { motion } from "framer-motion";
 import { AlertTriangle, FileEdit, X } from "lucide-react";
+import { Modal, Dialog } from "@/components/shared/Modal";
 import type { StagedFix } from "@/types";
 import { cn, truncatePath } from "@/lib/utils";
 
@@ -23,26 +23,23 @@ export function FormatFixPlanModal({ fixes, onClose }: Props) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-        className="w-full max-w-lg bg-romio-surface border border-border rounded-2xl
-                   shadow-romio p-6 space-y-5 mx-4 max-h-[80vh] flex flex-col"
-      >
+    <Modal
+      onClose={onClose}
+      className="w-full max-w-lg bg-romio-surface border border-border rounded-2xl
+                 shadow-romio p-6 space-y-5 mx-4 max-h-[80vh] flex flex-col"
+    >
         {/* Header */}
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-start gap-3">
             <FileEdit className="w-5 h-5 text-romio-green flex-shrink-0 mt-0.5" />
             <div>
-              <h2 className="font-bold text-romio-cream">Fix Plan</h2>
-              <p className="text-xs text-romio-gray mt-0.5">
+              <Dialog.Title className="font-bold text-romio-cream">Fix Plan</Dialog.Title>
+              <Dialog.Description className="text-xs text-romio-gray mt-0.5">
                 Review all changes before applying. Nothing will be written without your confirmation.
-              </p>
+              </Dialog.Description>
             </div>
           </div>
-          <button onClick={onClose} className="text-romio-gray hover:text-romio-cream">
+          <button onClick={onClose} aria-label="Close" className="text-romio-gray hover:text-romio-cream">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -125,14 +122,13 @@ export function FormatFixPlanModal({ fixes, onClose }: Props) {
               onClick={handleExecute}
               disabled={!confirmed}
               className="flex-1 px-4 py-2 rounded-lg text-sm font-semibold
-                         bg-romio-green text-romio-dark hover:bg-romio-green/90
+                         bg-romio-green-fill text-white hover:bg-romio-green-fill/90
                          disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             >
               Apply Fixes
             </button>
           )}
         </div>
-      </motion.div>
-    </div>
+    </Modal>
   );
 }

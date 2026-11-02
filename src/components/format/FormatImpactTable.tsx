@@ -17,7 +17,7 @@ export function FormatImpactTable({ extension, system, rules }: Props) {
 
   if (relevant.length === 0) {
     return (
-      <p className="text-xs text-romio-gray/60 italic mt-2">
+      <p className="text-xs text-romio-gray italic mt-2">
         No cross-emulator rules found for .{extension} on {system}.
       </p>
     );
@@ -60,7 +60,7 @@ export function FormatImpactTable({ extension, system, rules }: Props) {
         ))}
       </div>
       {relevant.some((r) => typeof r.support === "object" && ("deprecated" in r.support || "unsupported" in r.support)) && (
-        <p className="text-[10px] text-romio-gray/60 mt-1.5">
+        <p className="text-[10px] text-romio-gray mt-1.5">
           A fix for one emulator may break compatibility with another. Review before staging.
         </p>
       )}

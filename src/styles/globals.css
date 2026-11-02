@@ -11,9 +11,9 @@
   /* Romio brand tokens */
   --romio-black:   #1C1C1E;
   --romio-cream:   #F5F0E8;
-  --romio-red:     #E03030;
-  --romio-green:   #4A8C5C;
-  --romio-gray:    #8A8A8A;
+  --romio-red:     #FF6060;
+  --romio-green:   #58A76E;
+  --romio-gray:    #999999;
   --romio-bg:      #0F0F11;
   --romio-surface: #1C1C1E;
 }
@@ -49,6 +49,16 @@ body::before {
   z-index: 0;
 }
 
+/* CSS animations (spinners, pulses) stop when the OS asks for reduced motion.
+   framer-motion is handled by <MotionConfig reducedMotion="user"> in main.tsx. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 /* Monospace text for file paths and hashes */
 .path-text, .hash-text, code, pre {
   font-family: var(--font-mono);
@@ -57,11 +67,11 @@ body::before {
 }
 
 /* Validation state colors as CSS classes */
-.state-valid    { color: #4A8C5C; }
+.state-valid    { color: #58A76E; }
 .state-warning  { color: #C47C1A; }
-.state-error    { color: #E03030; }
-.state-advisory { color: #6B7280; }
-.state-info     { color: #3B82F6; }
+.state-error    { color: #FF6060; }
+.state-advisory { color: #9399A5; }
+.state-info     { color: #5D98F8; }
 
 .bg-state-valid    { background-color: rgba(74, 140, 92, 0.15); }
 .bg-state-warning  { background-color: rgba(196, 124, 26, 0.15); }
