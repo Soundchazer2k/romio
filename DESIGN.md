@@ -202,7 +202,7 @@ Draft sample lines (to be replaced with lines the team writes):
 Do:
 
 - Use tokens from this file or `tailwind.config.js`. No raw hex in components.
-- Keep every text color at 4.5:1 or better.
+- Keep every text color at 4.5:1 or better against the tinted background it actually sits on. Never put an opacity modifier on text (`text-romio-green/60`); tint the background instead.
 - Show exact data (paths, hashes, counts) in `data-mono`.
 - Put background and lore in optional asides; keep fixes on the page.
 - Give every interactive element a keyboard path and a label.

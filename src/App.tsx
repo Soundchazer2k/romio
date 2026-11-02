@@ -38,7 +38,7 @@ function PlaceholderScreen({ name }: { name: string }) {
   return (
     <div className="flex items-center justify-center h-full">
       <div className="text-center space-y-2">
-        <p className="text-2xl font-semibold text-romio-cream/60">{name}</p>
+        <p className="text-2xl font-semibold text-romio-gray">{name}</p>
         <p className="text-sm text-romio-gray">Coming soon</p>
       </div>
     </div>

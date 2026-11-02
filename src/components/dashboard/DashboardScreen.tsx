@@ -90,7 +90,7 @@ export function DashboardScreen() {
             "flex items-center gap-2 px-5 py-2.5 rounded-lg font-semibold text-sm",
             "transition-all shadow-romio-sm",
             isScanning
-              ? "bg-romio-green/20 text-romio-green/60 cursor-not-allowed"
+              ? "bg-romio-green/20 text-romio-green cursor-not-allowed"
               : "bg-romio-green-fill text-white hover:bg-romio-green-fill/90"
           )}
         >
