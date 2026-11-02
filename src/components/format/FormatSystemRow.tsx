@@ -35,7 +35,7 @@ export function FormatSystemRow({
         hasRed   ? "border-romio-red/30 bg-romio-red/5" :
         hasAmber ? "border-amber-400/20 bg-amber-400/5" :
         allOk    ? "border-romio-green/20" :
-                   "border-border bg-romio-surface/40"
+                   "border-border bg-background-surface/40"
       )}
     >
       {/* Header */}

@@ -75,7 +75,7 @@ export function ProjectsScreen() {
               transition={{ delay: i * 0.05 }}
               onClick={() => openProject(p.id)}
               className="w-full text-left px-5 py-4 rounded-xl border border-border
-                         bg-romio-surface hover:border-romio-green/40 hover:bg-romio-green/5
+                         bg-background-surface hover:border-romio-green/40 hover:bg-romio-green/5
                          transition-all group"
             >
               <div className="flex items-start justify-between gap-4">
@@ -180,7 +180,7 @@ function NewProjectModal({
   return (
     <Modal
       onClose={onClose}
-      className="w-full max-w-md bg-romio-surface border border-border rounded-2xl
+      className="w-full max-w-md bg-background-surface border border-border rounded-2xl
                  shadow-romio p-6 space-y-5"
     >
         <Dialog.Title className="text-lg font-bold text-romio-cream">New Project</Dialog.Title>

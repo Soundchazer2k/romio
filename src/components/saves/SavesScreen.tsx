@@ -322,7 +322,7 @@ function MigrationPlanModal({
   return (
     <Modal
       onClose={onClose}
-      className="w-full max-w-lg bg-romio-surface border border-border rounded-2xl
+      className="w-full max-w-lg bg-background-surface border border-border rounded-2xl
                  shadow-romio p-6 space-y-5 mx-4"
     >
         <div className="flex items-start gap-3">

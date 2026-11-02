@@ -36,7 +36,7 @@ export function Sidebar() {
     <motion.aside
       initial={{ x: -240 }}
       animate={{ x: 0 }}
-      className="w-56 flex-shrink-0 flex flex-col bg-romio-surface border-r border-border
+      className="w-56 flex-shrink-0 flex flex-col bg-background-surface border-r border-border
                  h-full overflow-hidden"
     >
       {/* Project name */}

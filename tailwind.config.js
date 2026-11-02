@@ -9,36 +9,25 @@ export default {
     extend: {
       // ── Romio design tokens ──────────────────────────────────────────
       // Derived from the mascot's palette, adjusted so text meets WCAG AA
-      // (4.5:1) on every surface up to background.elevated
+      // (4.5:1) on every surface, including the lightest hover tint (#252528).
+      // DESIGN.md documents these; src/lib/design-tokens.test.ts keeps the two in sync.
       colors: {
         // Core brand
         romio: {
-          black:    "#1C1C1E",   // body / primary dark surface
-          cream:    "#F5F0E8",   // face / primary light surface
+          black:    "#1C1C1E",   // body / titlebar
+          cream:    "#F5F0E8",   // face / primary text
           red:      "#FF6060",   // antenna dot / high-tops / errors (mascot #E03030 is 4.2:1 on dark)
           green:    "#58A76E",   // floppy disk / success / valid — text, borders, tints
           "green-fill": "#437F53", // solid buttons carrying white text (4.8:1)
-          gray:     "#999999",   // side panel / neutral
-          "gray-dark": "#2C2C2E", // secondary surface
-          surface:  "#1C1C1E",   // card / panel surface (mirrors --romio-surface)
+          gray:     "#999999",   // side panel / secondary text
         },
         // Semantic aliases
         background: {
           DEFAULT:  "#0F0F11",   // app background — near-black warm
-          surface:  "#1C1C1E",   // card / panel surface
-          elevated: "#252528",   // elevated surface (modals, popovers)
+          surface:  "#1C1C1E",   // card / panel / sidebar surface
         },
         border: {
           DEFAULT:  "#2E2E32",
-          muted:    "#1E1E22",
-        },
-        // Validation state colors
-        state: {
-          valid:      "#58A76E",   // PRESENT_VALID — romio green
-          warning:    "#C47C1A",   // PRESENT_WRONG_PATH
-          error:      "#FF6060",   // MISSING_REQUIRED / PRESENT_HASH_MISMATCH
-          advisory:   "#9399A5",   // MISSING_OPTIONAL
-          info:       "#5D98F8",   // informational
         },
       },
       fontFamily: {

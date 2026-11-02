@@ -211,8 +211,8 @@ function StatCard({ label, value, color, icon, onClick }: {
   const colorMap: Record<string, string> = {
     error:   "border-romio-red/30 bg-romio-red/5 text-romio-red",
     warning: "border-amber-600/30 bg-amber-600/5 text-amber-400",
-    advisory:"border-border bg-romio-surface/50 text-romio-gray",
-    info:    "border-border bg-romio-surface/50 text-romio-cream",
+    advisory:"border-border bg-background-surface/50 text-romio-gray",
+    info:    "border-border bg-background-surface/50 text-romio-cream",
     ok:      "border-romio-green/20 bg-romio-green/5 text-romio-green",
   };
   return (
@@ -243,7 +243,7 @@ function ActionCard({ title, description, status, onClick, badge }: {
   return (
     <button
       onClick={onClick}
-      className="px-5 py-4 rounded-xl border border-border bg-romio-surface/50
+      className="px-5 py-4 rounded-xl border border-border bg-background-surface/50
                  text-left hover:border-romio-green/30 hover:bg-romio-green/5
                  transition-all group"
     >
