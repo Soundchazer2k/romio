@@ -10,7 +10,7 @@
     "frontendDist": "../dist"
   },
   "app": {
-    "withGlobalTauri": true,
+    "withGlobalTauri": false,
     "windows": [
       {
         "title": "Romio",
@@ -24,7 +24,15 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": {
+        "default-src": "'self'",
+        "connect-src": "ipc: http://ipc.localhost",
+        "img-src": "'self' data: asset: http://asset.localhost",
+        "font-src": "'self'",
+        "style-src": "'self'",
+        "object-src": "'none'",
+        "base-uri": "'self'"
+      }
     }
   },
   "bundle": {
