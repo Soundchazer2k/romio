@@ -26,7 +26,7 @@ pub fn check_format(
         .filter(|r| r.system == system && r.extension == extension)
         .find(|r| {
             let emu_match = r.emulator == emulator;
-            let fe_match  = r.frontend.as_deref() == Some(frontend)
+            let fe_match  = r.frontend.as_deref() == Some(super::rules_frontend(frontend))
                          || r.frontend.is_none();
             emu_match && fe_match
         });

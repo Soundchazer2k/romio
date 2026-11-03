@@ -198,7 +198,7 @@ fn resolve_expected_path(
     emulator: &str,
 ) -> PathBuf {
     let path_str = rule.emulator_paths.get(emulator)
-        .or_else(|| rule.frontend_paths.get(frontend))
+        .or_else(|| rule.frontend_paths.get(super::rules_frontend(frontend)))
         .map(String::as_str)
         .unwrap_or(&rule.default_path);
 

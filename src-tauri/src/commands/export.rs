@@ -10,6 +10,8 @@ pub struct ExportPlan { pub frontend: String, pub operations: Vec<String>, pub d
 pub async fn get_supported_frontends() -> Result<Vec<FrontendInfo>, String> {
     Ok(vec![
         FrontendInfo { id: "esde".into(),      name: "ES-DE".into(),      tier: 1 },
+        FrontendInfo { id: "emudeck".into(),   name: "EmuDeck".into(),    tier: 1 },
+        FrontendInfo { id: "retrodeck".into(), name: "RetroDECK".into(),  tier: 1 },
         FrontendInfo { id: "retrobat".into(),  name: "RetroBat".into(),   tier: 1 },
         FrontendInfo { id: "launchbox".into(), name: "LaunchBox".into(),  tier: 1 },
         FrontendInfo { id: "batocera".into(),  name: "Batocera".into(),   tier: 1 },
