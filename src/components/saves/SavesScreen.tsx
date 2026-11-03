@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import {
@@ -7,6 +7,7 @@ import {
   Archive, CheckCircle2, ChevronDown, ChevronRight,
 } from "lucide-react";
 import { useAppStore } from "@/stores";
+import { Modal, Dialog } from "@/components/shared/Modal";
 import { ipc } from "@/lib/ipc";
 import type { SaveRoot, MigrationPlan, SaveCheckpoint, OperationLogEntry } from "@/types";
 import { cn, formatBytes, migrationStateLabel } from "@/lib/utils";
@@ -23,20 +24,11 @@ export function SavesScreen() {
 
   const projectId = activeProject?.id ?? "";
 
-  // ── Project guard ─────────────────────────────────────────────────────────
-  if (!activeProject) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <p className="text-romio-gray">Open a project to use Save Migration.</p>
-      </div>
-    );
-  }
-
   // ── Queries ───────────────────────────────────────────────────────────────
   const { data: roots = [], isLoading } = useQuery({
     queryKey: ["save-roots", frontendRoot],
     queryFn:  () => ipc.discoverSaveRoots(frontendRoot),
-    enabled:  frontendRoot.length > 0,
+    enabled:  !!activeProject && frontendRoot.length > 0,
   });
 
   const { data: log = [] } = useQuery({
@@ -47,8 +39,20 @@ export function SavesScreen() {
 
   // ── Derived state ─────────────────────────────────────────────────────────
   const atRisk = roots.filter((r) => r.migrationState === "migration_needed");
-  if (atRisk.length > 0)     setRomioState("difficult_save");
-  else if (roots.length > 0) setRomioState("success");
+
+  useEffect(() => {
+    if (atRisk.length > 0)     setRomioState("difficult_save");
+    else if (roots.length > 0) setRomioState("success");
+  }, [atRisk.length, roots.length, setRomioState]);
+
+  // ── Project guard ─────────────────────────────────────────────────────────
+  if (!activeProject) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <p className="text-romio-gray">Open a project to use Save Migration.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="p-8 max-w-3xl mx-auto space-y-6">
@@ -96,7 +100,7 @@ export function SavesScreen() {
           onChange={(e) => setFrontendRoot(e.target.value)}
           placeholder="C:\RetroBat  or  /home/user/retrobat"
           className="w-full px-3 py-2.5 rounded-lg bg-black/30 border border-border
-                     font-mono text-sm text-romio-cream placeholder:text-romio-gray/40
+                     font-mono text-sm text-romio-cream placeholder:text-romio-gray
                      focus:outline-none focus:border-romio-green/40"
         />
       </div>
@@ -220,10 +224,10 @@ function SaveRootCard({ root, index, onMigrate }: {
           </div>
           <p className="font-mono text-xs text-romio-gray mt-1 truncate">{root.path}</p>
           {root.realPath && root.realPath !== root.path && (
-            <p className="font-mono text-xs text-romio-gray/60 truncate">→ {root.realPath}</p>
+            <p className="font-mono text-xs text-romio-gray truncate">→ {root.realPath}</p>
           )}
           {root.expectedDestination && (
-            <p className="font-mono text-xs text-romio-gray/60 mt-0.5 truncate">
+            <p className="font-mono text-xs text-romio-gray mt-0.5 truncate">
               → {root.expectedDestination}
             </p>
           )}
@@ -262,9 +266,10 @@ function SaveRootCard({ root, index, onMigrate }: {
       )}
 
       {root.isSymlink && (
-        <p className="text-xs text-amber-400/80">
-          ⚠ This path is a symlink. A move operation may redirect the symlink target
-          rather than move the actual files. Review carefully.
+        <p className="flex items-start gap-1.5 text-xs text-amber-400/80">
+          <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-px" aria-hidden />
+          <span>This path is a symlink. A move operation may redirect the symlink target
+          rather than move the actual files. Review carefully.</span>
         </p>
       )}
     </motion.div>
@@ -315,20 +320,18 @@ function MigrationPlanModal({
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="w-full max-w-lg bg-romio-surface border border-border rounded-2xl
-                   shadow-romio p-6 space-y-5 mx-4"
-      >
+    <Modal
+      onClose={onClose}
+      className="w-full max-w-lg bg-romio-surface border border-border rounded-2xl
+                 shadow-romio p-6 space-y-5 mx-4"
+    >
         <div className="flex items-start gap-3">
           <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
           <div>
-            <h2 className="font-bold text-romio-cream">Migration Plan — {plan.emulator}</h2>
-            <p className="text-xs text-romio-gray mt-0.5">
+            <Dialog.Title className="font-bold text-romio-cream">Migration Plan — {plan.emulator}</Dialog.Title>
+            <Dialog.Description className="text-xs text-romio-gray mt-0.5">
               Review all steps. Create a checkpoint before proceeding.
-            </p>
+            </Dialog.Description>
           </div>
         </div>
 
@@ -366,8 +369,9 @@ function MigrationPlanModal({
         {/* Symlink warning */}
         {plan.symlinkWarning && (
           <div className="px-3 py-2.5 rounded-lg bg-amber-600/10 border border-amber-600/20
-                          text-xs text-amber-400">
-            ⚠ {plan.symlinkWarning}
+                          text-xs text-amber-400 flex items-start gap-1.5">
+            <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-px" aria-hidden />
+            <span>{plan.symlinkWarning}</span>
           </div>
         )}
 
@@ -433,11 +437,10 @@ function MigrationPlanModal({
                           rounded-lg border border-border bg-black/10 text-center opacity-50
                           cursor-not-allowed select-none">
             <span className="text-xs font-semibold text-romio-gray">Execute Migration</span>
-            <span className="text-xs text-romio-gray/50 mt-0.5">Execution not yet available</span>
+            <span className="text-xs text-romio-gray mt-0.5">Execution not yet available</span>
           </div>
         </div>
-      </motion.div>
-    </div>
+    </Modal>
   );
 }
 
@@ -456,7 +459,7 @@ function OperationLogRow({ entry }: { entry: OperationLogEntry }) {
           )}
         </div>
         <p className="text-romio-gray mt-0.5">{entry.description}</p>
-        <p className="text-romio-gray/50 mt-0.5">{new Date(entry.createdAt).toLocaleString()}</p>
+        <p className="text-romio-gray mt-0.5">{new Date(entry.createdAt).toLocaleString()}</p>
       </div>
     </div>
   );

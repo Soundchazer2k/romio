@@ -2,8 +2,9 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { Plus, FolderOpen, Clock, AlertTriangle } from "lucide-react";
+import { Plus, FolderOpen, Clock, AlertTriangle, X } from "lucide-react";
 import { open } from "@tauri-apps/plugin-dialog";
+import { Modal, Dialog } from "@/components/shared/Modal";
 import { useAppStore } from "@/stores";
 import { ipc } from "@/lib/ipc";
 import type { CreateProjectRequest, FrontendInfo } from "@/types";
@@ -53,7 +54,7 @@ export function ProjectsScreen() {
         <button
           onClick={() => setShowNew(true)}
           className="flex items-center gap-2 px-4 py-2 rounded-lg font-semibold text-sm
-                     bg-romio-green text-white hover:bg-romio-green/90 transition-colors"
+                     bg-romio-green-fill text-white hover:bg-romio-green-fill/90 transition-colors"
         >
           <Plus className="w-4 h-4" /> New Project
         </button>
@@ -177,14 +178,15 @@ function NewProjectModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="w-full max-w-md bg-romio-surface border border-border rounded-2xl
-                   shadow-romio p-6 space-y-5"
-      >
-        <h2 className="text-lg font-bold text-romio-cream">New Project</h2>
+    <Modal
+      onClose={onClose}
+      className="w-full max-w-md bg-romio-surface border border-border rounded-2xl
+                 shadow-romio p-6 space-y-5"
+    >
+        <Dialog.Title className="text-lg font-bold text-romio-cream">New Project</Dialog.Title>
+        <Dialog.Description className="sr-only">
+          Name the project, add your library folders, and pick the frontends you use.
+        </Dialog.Description>
 
         {/* Name */}
         <div className="space-y-1.5">
@@ -196,7 +198,7 @@ function NewProjectModal({
             onChange={(e) => setName(e.target.value)}
             placeholder="My Retro Library"
             className="w-full px-3 py-2 rounded-lg bg-black/30 border border-border
-                       text-romio-cream text-sm placeholder:text-romio-gray/50
+                       text-romio-cream text-sm placeholder:text-romio-gray
                        focus:outline-none focus:border-romio-green/50"
           />
         </div>
@@ -213,7 +215,10 @@ function NewProjectModal({
                 <FolderOpen className="w-3 h-3 text-romio-gray flex-shrink-0" />
                 <span className="text-xs text-romio-cream font-mono truncate flex-1">{r}</span>
                 <button onClick={() => setRoots((p) => p.filter((x) => x !== r))}
-                  className="text-romio-gray hover:text-romio-red text-xs">✕</button>
+                  aria-label={`Remove ${r}`}
+                  className="text-romio-gray hover:text-romio-red">
+                  <X className="w-3 h-3" />
+                </button>
               </div>
             ))}
           </div>
@@ -259,13 +264,12 @@ function NewProjectModal({
             onClick={submit}
             disabled={!name.trim() || roots.length === 0 || isPending}
             className="flex-1 px-4 py-2 rounded-lg text-sm font-semibold
-                       bg-romio-green text-white hover:bg-romio-green/90
+                       bg-romio-green-fill text-white hover:bg-romio-green-fill/90
                        disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             {isPending ? "Creating…" : "Create Project"}
           </button>
         </div>
-      </motion.div>
-    </div>
+    </Modal>
   );
 }

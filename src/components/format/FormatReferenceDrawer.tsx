@@ -60,7 +60,7 @@ export function FormatReferenceDrawer({ open, rules, onClose }: Props) {
                   Full compatibility matrix — {rules.length} rules loaded
                 </p>
               </div>
-              <button onClick={onClose} className="text-romio-gray hover:text-romio-cream">
+              <button onClick={onClose} aria-label="Close" className="text-romio-gray hover:text-romio-cream">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -77,7 +77,7 @@ export function FormatReferenceDrawer({ open, rules, onClose }: Props) {
                     s.label === "Unsupported" ? "text-romio-red"   :
                     "text-romio-gray"
                   )}>{s.label}</span>
-                  <span className="text-romio-gray/70">{s.desc}</span>
+                  <span className="text-romio-gray">{s.desc}</span>
                 </div>
               ))}
             </div>
@@ -92,7 +92,7 @@ export function FormatReferenceDrawer({ open, rules, onClose }: Props) {
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Filter by system, extension, emulator…"
                   className="flex-1 bg-transparent text-sm text-romio-cream
-                             placeholder:text-romio-gray/40 focus:outline-none"
+                             placeholder:text-romio-gray focus:outline-none"
                 />
               </div>
             </div>

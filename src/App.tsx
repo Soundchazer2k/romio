@@ -64,7 +64,7 @@ export default function App() {
   const ActiveScreen = SCREENS[screen];
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-[#0F0F11] text-romio-cream">
+    <div className="flex flex-col h-screen overflow-hidden bg-background text-romio-cream">
       {/* Custom titlebar */}
       <Titlebar />
 

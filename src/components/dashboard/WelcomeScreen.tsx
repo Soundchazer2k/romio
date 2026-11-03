@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0
 import { motion } from "framer-motion";
-import { FolderOpen, Plus } from "lucide-react";
+import { FolderOpen, Plus, Shield, Save, FileCode2, Cpu } from "lucide-react";
 import { useAppStore } from "@/stores";
 
 export function WelcomeScreen() {
@@ -37,10 +37,10 @@ export function WelcomeScreen() {
         {/* Value props */}
         <div className="grid grid-cols-1 gap-3 text-left">
           {[
-            { icon: "🔍", text: "Validates BIOS files for any frontend" },
-            { icon: "💾", text: "Protects your saves across emulator updates" },
-            { icon: "🎮", text: "Fixes format and path issues before they bite" },
-            { icon: "🖥️", text: "Checks your machine is ready to launch" },
+            { icon: Shield,    text: "Validates BIOS files for any frontend" },
+            { icon: Save,      text: "Protects your saves across emulator updates" },
+            { icon: FileCode2, text: "Fixes format and path issues before they bite" },
+            { icon: Cpu,       text: "Checks your machine is ready to launch" },
           ].map((item, i) => (
             <motion.div
               key={i}
@@ -50,7 +50,7 @@ export function WelcomeScreen() {
               className="flex items-center gap-3 px-4 py-2.5 rounded-lg
                          bg-white/[0.03] border border-border text-sm text-romio-cream/80"
             >
-              <span className="text-base">{item.icon}</span>
+              <item.icon className="w-4 h-4 text-romio-green flex-shrink-0" aria-hidden />
               {item.text}
             </motion.div>
           ))}
@@ -69,7 +69,7 @@ export function WelcomeScreen() {
               setRomioState("tutorial");
             }}
             className="flex items-center gap-2 px-5 py-2.5 rounded-lg font-semibold
-                       bg-romio-green text-white hover:bg-romio-green/90
+                       bg-romio-green-fill text-white hover:bg-romio-green-fill/90
                        transition-colors text-sm shadow-romio-sm"
           >
             <Plus className="w-4 h-4" />

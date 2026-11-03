@@ -8,15 +8,17 @@ export default {
   theme: {
     extend: {
       // ── Romio design tokens ──────────────────────────────────────────
-      // Derived directly from the mascot's color palette
+      // Derived from the mascot's palette, adjusted so text meets WCAG AA
+      // (4.5:1) on every surface up to background.elevated
       colors: {
         // Core brand
         romio: {
           black:    "#1C1C1E",   // body / primary dark surface
           cream:    "#F5F0E8",   // face / primary light surface
-          red:      "#E03030",   // antenna dot / high-tops / errors
-          green:    "#4A8C5C",   // floppy disk / success / valid
-          gray:     "#8A8A8A",   // side panel / neutral
+          red:      "#FF6060",   // antenna dot / high-tops / errors (mascot #E03030 is 4.2:1 on dark)
+          green:    "#58A76E",   // floppy disk / success / valid — text, borders, tints
+          "green-fill": "#437F53", // solid buttons carrying white text (4.8:1)
+          gray:     "#999999",   // side panel / neutral
           "gray-dark": "#2C2C2E", // secondary surface
           surface:  "#1C1C1E",   // card / panel surface (mirrors --romio-surface)
         },
@@ -32,11 +34,11 @@ export default {
         },
         // Validation state colors
         state: {
-          valid:      "#4A8C5C",   // PRESENT_VALID — romio green
+          valid:      "#58A76E",   // PRESENT_VALID — romio green
           warning:    "#C47C1A",   // PRESENT_WRONG_PATH
-          error:      "#E03030",   // MISSING_REQUIRED / PRESENT_HASH_MISMATCH
-          advisory:   "#6B7280",   // MISSING_OPTIONAL
-          info:       "#3B82F6",   // informational
+          error:      "#FF6060",   // MISSING_REQUIRED / PRESENT_HASH_MISMATCH
+          advisory:   "#9399A5",   // MISSING_OPTIONAL
+          info:       "#5D98F8",   // informational
         },
       },
       fontFamily: {

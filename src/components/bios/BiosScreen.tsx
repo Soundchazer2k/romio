@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Shield, ChevronDown, ChevronRight, ExternalLink,
-  Copy, FolderOpen, RefreshCw, Pencil,
+  Copy, FolderOpen, RefreshCw, Pencil, AlertTriangle,
 } from "lucide-react";
 import { useAppStore } from "@/stores";
 import { ipc } from "@/lib/ipc";
@@ -85,14 +85,14 @@ export function BiosScreen() {
         {!configured || editingPath ? (
           /* Not configured, or user clicked Edit */
           <div className="space-y-2">
-            <label className="text-xs font-medium text-romio-gray/70 uppercase tracking-widest">
+            <label className="text-xs font-medium text-romio-gray uppercase tracking-widest">
               BIOS directory
             </label>
             <div className="flex gap-2">
               <div className="relative flex-1 flex items-center">
                 <div className="absolute left-0 flex items-center h-full pl-3 pr-2.5
                                 border-r border-white/10 pointer-events-none">
-                  <FolderOpen className="w-4 h-4 text-romio-gray/50" />
+                  <FolderOpen className="w-4 h-4 text-romio-gray" />
                 </div>
                 <input
                   value={pathInput}
@@ -101,15 +101,15 @@ export function BiosScreen() {
                   placeholder="/path/to/bios"
                   autoFocus
                   className="w-full pl-11 pr-3 py-2 rounded-lg bg-romio-surface border border-white/10
-                             text-sm font-mono text-romio-cream placeholder:text-romio-gray/40
+                             text-sm font-mono text-romio-cream placeholder:text-romio-gray
                              focus:outline-none focus:border-romio-green/40"
                 />
               </div>
               <button
                 onClick={savePath}
                 disabled={!pathInput.trim()}
-                className="px-4 py-2 rounded-lg text-sm font-semibold bg-romio-green text-white
-                           hover:bg-romio-green/90 disabled:opacity-40 disabled:cursor-not-allowed
+                className="px-4 py-2 rounded-lg text-sm font-semibold bg-romio-green-fill text-white
+                           hover:bg-romio-green-fill/90 disabled:opacity-40 disabled:cursor-not-allowed
                            transition-colors"
               >
                 Save
@@ -125,7 +125,7 @@ export function BiosScreen() {
               )}
             </div>
             {!configured && (
-              <p className="text-xs text-romio-gray/60">
+              <p className="text-xs text-romio-gray">
                 Set your BIOS directory to enable validation and automatic sweep on scan.
               </p>
             )}
@@ -135,7 +135,7 @@ export function BiosScreen() {
           <div className="flex items-center justify-between p-3 rounded-lg
                           bg-romio-surface/50 border border-border">
             <div className="flex items-center gap-2 min-w-0">
-              <FolderOpen className="w-4 h-4 text-romio-gray/50 flex-shrink-0" />
+              <FolderOpen className="w-4 h-4 text-romio-gray flex-shrink-0" />
               <span className="font-mono text-sm text-romio-cream truncate">{biosRoot}</span>
             </div>
             <button
@@ -174,7 +174,7 @@ export function BiosScreen() {
       {configured && !validated && !revalidateMut.isPending && (
         <div className="flex flex-col items-center justify-center py-10 text-center space-y-3
                         border border-dashed border-border rounded-xl">
-          <Shield className="w-8 h-8 text-romio-gray/30" />
+          <Shield className="w-8 h-8 text-romio-gray" />
           <div>
             <p className="text-romio-cream font-medium text-sm">No validation results yet</p>
             <p className="text-romio-gray text-xs">Run a scan or click "Validate Now" to check your BIOS files.</p>
@@ -253,7 +253,7 @@ function SystemResultRow({ result, expanded, onToggle, index }: {
             </span>
           )}
           {result.entries.length === 0 && !result.errored && (
-            <span className="text-xs text-romio-gray/50">Not in database</span>
+            <span className="text-xs text-romio-gray">Not in database</span>
           )}
         </div>
       </button>
@@ -325,12 +325,13 @@ function BiosEntryRow({ entry }: { entry: BiosEntryResult }) {
             </p>
           )}
           {entry.badDumpLabel && (
-            <p className="text-xs text-romio-red mt-1">
-              ⚠ Known bad dump: {entry.badDumpLabel}
+            <p className="flex items-start gap-1.5 text-xs text-romio-red mt-1">
+              <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-px" aria-hidden />
+              <span>Known bad dump: {entry.badDumpLabel}</span>
             </p>
           )}
           {entry.rule.notes && (
-            <p className="text-xs text-romio-gray/70 mt-1">{entry.rule.notes}</p>
+            <p className="text-xs text-romio-gray mt-1">{entry.rule.notes}</p>
           )}
         </div>
 

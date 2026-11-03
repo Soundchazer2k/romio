@@ -80,7 +80,7 @@ export function PreflightScreen() {
                 "transition-colors",
                 report.blockingCount > 0
                   ? "bg-amber-600/20 text-amber-400 border border-amber-600/30 hover:bg-amber-600/30"
-                  : "bg-romio-green text-white hover:bg-romio-green/90"
+                  : "bg-romio-green-fill text-white hover:bg-romio-green-fill/90"
               )}
             >
               {report.blockingCount > 0

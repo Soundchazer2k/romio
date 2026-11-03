@@ -91,7 +91,7 @@ export function DashboardScreen() {
             "transition-all shadow-romio-sm",
             isScanning
               ? "bg-romio-green/20 text-romio-green/60 cursor-not-allowed"
-              : "bg-romio-green text-white hover:bg-romio-green/90"
+              : "bg-romio-green-fill text-white hover:bg-romio-green-fill/90"
           )}
         >
           {isScanning ? (
@@ -283,7 +283,7 @@ function NoScanState({ onScan }: { onScan: () => void }) {
       <button
         onClick={onScan}
         className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold
-                   bg-romio-green text-white hover:bg-romio-green/90 transition-colors"
+                   bg-romio-green-fill text-white hover:bg-romio-green-fill/90 transition-colors"
       >
         <Play className="w-3.5 h-3.5" /> Scan Now
       </button>

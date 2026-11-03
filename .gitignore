@@ -6,7 +6,7 @@ dist/
 target/
 
 # Tauri generated icons (regenerate with: pnpm tauri icon <source.png>)
-icons/
+/icons/
 
 # Generated schema (produced by tauri-build)
 src-tauri/gen/

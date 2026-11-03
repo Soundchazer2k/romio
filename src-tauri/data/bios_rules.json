@@ -221,12 +221,12 @@
     "knownBadMd5": [],
     "system": "sega32x",
     "region": null,
-    "requirement": "required",
+    "requirement": "optional",
     "compressed": false,
     "defaultPath": "",
     "frontendPaths": {},
     "emulatorPaths": {},
-    "notes": "32X Master SH2 BIOS. Uppercase filename required — case-sensitive on Linux/macOS.",
+    "notes": "32X Master SH2 BIOS. Not needed by PicoDrive; MAME needs it. Uppercase filename required — case-sensitive on Linux/macOS.",
     "dumpingGuideUrl": null
   },
   {
@@ -235,12 +235,12 @@
     "knownBadMd5": [],
     "system": "sega32x",
     "region": null,
-    "requirement": "required",
+    "requirement": "optional",
     "compressed": false,
     "defaultPath": "",
     "frontendPaths": {},
     "emulatorPaths": {},
-    "notes": "32X Slave SH2 BIOS. All three 32X BIOS files required.",
+    "notes": "32X Slave SH2 BIOS. Not needed by PicoDrive; MAME needs all three 32X BIOS files.",
     "dumpingGuideUrl": null
   },
   {
@@ -249,12 +249,12 @@
     "knownBadMd5": [],
     "system": "sega32x",
     "region": null,
-    "requirement": "required",
+    "requirement": "optional",
     "compressed": false,
     "defaultPath": "",
     "frontendPaths": {},
     "emulatorPaths": {},
-    "notes": "32X 68K BIOS.",
+    "notes": "32X 68K BIOS. Not needed by PicoDrive; MAME needs it.",
     "dumpingGuideUrl": null
   },
   {
@@ -317,7 +317,7 @@
   },
   {
     "filename": "syscard3.pce",
-    "knownGoodMd5": ["ff1a674273fe3540ccef576376407d1d"],
+    "knownGoodMd5": ["38179df8f4ac870017db21ebcbf53114", "ff1a674273fe3540ccef576376407d1d"],
     "knownBadMd5": [],
     "system": "tg16cd",
     "region": null,
