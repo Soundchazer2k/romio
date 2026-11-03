@@ -153,16 +153,42 @@ fn handheld_batocera_fresh_setup_bios() {
     assert_eq!(bios_entry(&results, "dc_boot.bin").state, Bios::PresentValid);
 }
 
+/// ES-DE keeps neogeo.zip with the arcade ROMs, outside the BIOS folder.
+/// Romio must find it there, call it valid, and not block Neo Geo.
+#[test]
+fn esde_neogeo_bios_in_roms_arcade_is_found() {
+    let lib = Library::new();
+    let bios_root = lib.path("Emulation/bios");
+    std::fs::create_dir_all(&bios_root).unwrap();
+    let rules = fixture_bios_rules();
+
+    let results = sweep(&bios_root, "esde", &rules);
+    assert_eq!(bios_entry(&results, "neogeo.zip").state, Bios::MissingRequired);
+
+    // ES-DE's path is bios/../../roms/arcade/, i.e. roms/arcade beside Emulation/
+    lib.bios("roms/arcade/neogeo.zip", "neogeo.zip");
+    let results = sweep(&bios_root, "esde", &rules);
+    let neogeo = bios_entry(&results, "neogeo.zip");
+    assert_eq!(neogeo.state, Bios::PresentValid, "{neogeo:#?}");
+    assert!(!results.iter().find(|s| s.system == "neogeo").unwrap().blocking);
+
+    // The same file inside bios/ is in the wrong place for ES-DE
+    std::fs::rename(lib.path("roms/arcade/neogeo.zip"), lib.path("Emulation/bios/neogeo.zip")).unwrap();
+    let results = sweep(&bios_root, "esde", &rules);
+    assert_eq!(bios_entry(&results, "neogeo.zip").state, Bios::PresentWrongPath);
+}
+
 /// A rule shipped with no known-good hash can't be validated, fixture or not.
 #[test]
 fn bios_rule_without_shipped_hash_is_never_reported_valid() {
     let lib = Library::new();
-    let rules = fixture_bios_rules();
-    let unhashed = rules.iter().find(|r| r.known_good_md5.is_empty()).expect("shipped data has an unhashed rule");
-    lib.bios(&format!("bios/{}", unhashed.filename), &unhashed.filename);
+    let mut rules = fixture_bios_rules();
+    let unhashed = rules.iter_mut().find(|r| r.filename == "scph39001.bin").unwrap();
+    unhashed.known_good_md5.clear();
+    lib.bios("bios/scph39001.bin", "scph39001.bin");
 
     let results = sweep(&lib.path("bios"), "esde", &rules);
-    assert_ne!(bios_entry(&results, &unhashed.filename).state, Bios::PresentValid);
+    assert_ne!(bios_entry(&results, "scph39001.bin").state, Bios::PresentValid);
 }
 
 /// Rescuer after breakage: games stopped working after an update.
