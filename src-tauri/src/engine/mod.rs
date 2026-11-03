@@ -12,3 +12,12 @@ pub mod scanner;
 pub mod shortcut_validator;
 pub mod bios_sweep;
 pub mod save_checkpoint;
+
+/// The frontend whose rules apply. EmuDeck and RetroDECK install ES-DE and keep its
+/// folder layout, so they share ES-DE's rules.
+pub fn rules_frontend(frontend: &str) -> &str {
+    match frontend {
+        "emudeck" | "retrodeck" => "esde",
+        other => other,
+    }
+}

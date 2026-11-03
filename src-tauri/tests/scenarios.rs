@@ -194,6 +194,21 @@ fn esde_neogeo_bios_in_roms_arcade_is_found() {
     assert_eq!(bios_entry(&results, "neogeo.zip").state, Bios::PresentWrongPath);
 }
 
+/// EmuDeck and RetroDECK run ES-DE, so ES-DE's placement rules must apply to them too.
+#[test]
+fn emudeck_and_retrodeck_follow_esde_bios_rules() {
+    let lib = Library::new();
+    let bios_root = lib.path("Emulation/bios");
+    std::fs::create_dir_all(&bios_root).unwrap();
+    lib.bios("roms/arcade/neogeo.zip", "neogeo.zip");
+    let rules = fixture_bios_rules();
+
+    for frontend in ["emudeck", "retrodeck"] {
+        let results = sweep(&bios_root, frontend, &rules);
+        assert_eq!(bios_entry(&results, "neogeo.zip").state, Bios::PresentValid, "{frontend}");
+    }
+}
+
 /// A rule shipped with no known-good hash can't be validated, fixture or not.
 #[test]
 fn bios_rule_without_shipped_hash_is_never_reported_valid() {
