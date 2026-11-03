@@ -72,13 +72,16 @@ pub fn fake_md5(name: &str) -> String {
 }
 
 /// The shipped BIOS rules, with each rule's known-good hash replaced by the
-/// fixture hash of its own file name.
+/// fixture hash of its own file name. Rules that ship with no known-good hash
+/// keep an empty list: Romio can't validate those, so neither can a fixture.
 pub fn fixture_bios_rules() -> Vec<BiosRule> {
     db::bios::load_all_rules()
         .expect("shipped bios_rules.json parses")
         .into_iter()
         .map(|mut r| {
-            r.known_good_md5 = vec![fake_md5(&r.filename)];
+            if !r.known_good_md5.is_empty() {
+                r.known_good_md5 = vec![fake_md5(&r.filename)];
+            }
             r
         })
         .collect()

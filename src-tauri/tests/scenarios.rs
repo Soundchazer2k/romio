@@ -66,13 +66,22 @@ fn curator_retrobat_library_before_an_update() {
     lib.saves("saves/xbox360/xenia/profile", 1);
     appdata.saves("yuzu/nand/user/save/0000000000000000", 4);
 
-    // Scan: every file is classified, games as ROMs, playlists as M3U
+    // Scan: every file is classified, each as the right type
     let artifacts = scan_roots(&[lib.path("roms")], Arc::new(AtomicBool::new(false)), |_| {}).unwrap();
     assert_eq!(artifacts.len(), games.len() + 1);
-    let of_type = |t: ArtifactType| artifacts.iter().filter(|a| a.artifact_type == t).count();
-    assert_eq!(of_type(ArtifactType::Rom), 4);
-    assert_eq!(of_type(ArtifactType::M3u), 1);
-    assert_eq!(of_type(ArtifactType::Unknown), 1, "gamelist.xml is not a game");
+    let type_of = |rel: &str| {
+        let path = lib.path(rel).to_string_lossy().to_string();
+        artifacts.iter()
+            .find(|a| a.source_path == path)
+            .unwrap_or_else(|| panic!("{rel} not scanned"))
+            .artifact_type.clone()
+    };
+    assert_eq!(type_of("roms/psx/Ape Escape (USA).chd"), ArtifactType::Rom);
+    assert_eq!(type_of("roms/psx/Final Fantasy VII (USA).m3u"), ArtifactType::M3u);
+    assert_eq!(type_of("roms/gamecube/Wind Waker (USA).rvz"), ArtifactType::Rom);
+    assert_eq!(type_of("roms/daphne/lair.daphne"), ArtifactType::Rom, "deprecated, but still a game");
+    assert_eq!(type_of("roms/n64/Mario Kart 64 (USA).z64"), ArtifactType::Rom);
+    assert_eq!(type_of("roms/psx/gamelist.xml"), ArtifactType::Unknown, "gamelist.xml is not a game");
 
     // Formats against the shipped matrix
     let rules = db::format::load_rules().unwrap();
@@ -144,6 +153,18 @@ fn handheld_batocera_fresh_setup_bios() {
     assert_eq!(bios_entry(&results, "dc_boot.bin").state, Bios::PresentValid);
 }
 
+/// A rule shipped with no known-good hash can't be validated, fixture or not.
+#[test]
+fn bios_rule_without_shipped_hash_is_never_reported_valid() {
+    let lib = Library::new();
+    let rules = fixture_bios_rules();
+    let unhashed = rules.iter().find(|r| r.known_good_md5.is_empty()).expect("shipped data has an unhashed rule");
+    lib.bios(&format!("bios/{}", unhashed.filename), &unhashed.filename);
+
+    let results = sweep(&lib.path("bios"), "esde", &rules);
+    assert_ne!(bios_entry(&results, &unhashed.filename).state, Bios::PresentValid);
+}
+
 /// Rescuer after breakage: games stopped working after an update.
 /// Romio must name the bad dump, the renamed file, and the saves now split in two places.
 #[test]
@@ -191,9 +212,14 @@ fn real_library_smoke() {
     };
     let root = std::path::PathBuf::from(root);
     let frontend = std::env::var("ROMIO_REAL_FRONTEND").unwrap_or_else(|_| "esde".into());
+    // A typo in the path must fail, not pass with nothing checked
+    for dir in ["roms", "bios"] {
+        assert!(root.join(dir).is_dir(), "{} is not a folder", root.join(dir).display());
+    }
 
     let artifacts = scan_roots(&[root.join("roms")], Arc::new(AtomicBool::new(false)), |_| {})
         .expect("scan completes");
+    assert!(!artifacts.is_empty(), "no files found under {}", root.join("roms").display());
     let results = sweep(&root.join("bios"), &frontend, &db::bios::load_all_rules().unwrap());
 
     eprintln!("scanned {} files", artifacts.len());
