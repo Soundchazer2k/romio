@@ -30,7 +30,8 @@ const FOLDER_ALIASES: Record<string, string> = {
 /** Romio system ID for a frontend's roms/ folder name */
 export function systemForFolder(folder: string): string {
   const name = folder.toLowerCase();
-  return FOLDER_ALIASES[name] ?? name;
+  // Own keys only: a folder named "constructor" must not resolve to Object.prototype.constructor
+  return Object.prototype.hasOwnProperty.call(FOLDER_ALIASES, name) ? FOLDER_ALIASES[name] : name;
 }
 
 export function formatBytes(bytes: number): string {

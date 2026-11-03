@@ -22,6 +22,11 @@ describe("systemForFolder", () => {
     expect(systemForFolder("gamecube")).toBe("gamecube");
     expect(systemForFolder("xbox360")).toBe("xbox360");
   });
+  it("returns the folder name for Object.prototype keys", () => {
+    expect(systemForFolder("constructor")).toBe("constructor");
+    expect(systemForFolder("__proto__")).toBe("__proto__");
+    expect(systemForFolder("toString")).toBe("tostring");
+  });
 });
 
 describe("formatStateColor", () => {

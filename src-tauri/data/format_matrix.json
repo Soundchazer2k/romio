@@ -126,6 +126,15 @@
     "sinceVersion": null
   },
   {
+    "system": "saturn",
+    "extension": "chd",
+    "emulator": "ymir",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Ymir loads MAME CHD, BIN+CUE, IMG+CCD, MDF+MDS and ISO (Ymir README).",
+    "sinceVersion": null
+  },
+  {
     "system": "switch",
     "extension": "nsp",
     "emulator": "citron",
