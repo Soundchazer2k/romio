@@ -1,9 +1,116 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+
+@custom-variant dark (&:is(.dark *));
+
+/* ── Romio design tokens ──────────────────────────────────────────────────────
+   Derived from the mascot's palette, adjusted so text meets WCAG AA (4.5:1) on
+   every surface, including the lightest hover tint (#252528). DESIGN.md documents
+   these; src/lib/design-tokens.test.ts keeps the two in sync. */
+@theme {
+  --color-romio-black: #1C1C1E;      /* body / titlebar */
+  --color-romio-cream: #F5F0E8;      /* face / primary text */
+  --color-romio-red: #FF6060;        /* errors (mascot #E03030 is 4.2:1 on dark) */
+  --color-romio-green: #58A76E;      /* success / valid: text, borders, tints */
+  --color-romio-green-fill: #437F53; /* solid buttons carrying white text (4.8:1) */
+  --color-romio-gray: #999999;       /* secondary text */
+
+  --color-background: #0F0F11;         /* app background, near-black warm */
+  --color-background-surface: #1C1C1E; /* card / panel / sidebar surface */
+
+  --color-border: #2E2E32;
+
+  --font-sans: Nunito, DM Sans, system-ui, sans-serif;
+  --font-mono: JetBrains Mono, Fira Code, Consolas, monospace;
+
+  --text-xs: 0.75rem;
+  --text-xs--line-height: 1rem;
+  --text-sm: 0.875rem;
+  --text-sm--line-height: 1.25rem;
+  --text-base: 1rem;
+  --text-base--line-height: 1.6rem;
+  --text-lg: 1.125rem;
+  --text-lg--line-height: 1.75rem;
+
+  --radius: 0.5rem;
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+
+  --background-image-scanlines: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.03) 2px,
+    rgba(0, 0, 0, 0.03) 4px
+  );
+
+  --animate-romio-pulse: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  --animate-fade-in: fadeIn 0.2s ease-out;
+  --animate-slide-up: slideUp 0.25s ease-out;
+  --animate-slide-in: slideIn 0.2s ease-out;
+
+  --shadow-romio: 0 0 0 2px #1c1c1e, 0 4px 16px rgba(0, 0, 0, 0.4);
+  --shadow-romio-sm: 0 0 0 1.5px #1c1c1e, 0 2px 8px rgba(0, 0, 0, 0.3);
+
+  @keyframes fadeIn {
+    0% {
+      opacity: 0;
+    }
+    100% {
+      opacity: 1;
+    }
+  }
+  @keyframes slideUp {
+    0% {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @keyframes slideIn {
+    0% {
+      opacity: 0;
+      transform: translateX(-8px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+}
+
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+}
+
+/* Tailwind 4 dropped the pointer cursor on buttons; keep v3's behaviour */
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+}
 
 /* ── Romio global styles ──────────────────────────────────────────────────── */
-/* Colors and fonts come from tailwind.config.js via theme(); DESIGN.md documents them. */
+/* Colors and fonts come from the @theme block above; DESIGN.md documents them. */
 
 * {
   box-sizing: border-box;
@@ -15,9 +122,9 @@ html, body, #root {
   height: 100%;
   margin: 0;
   padding: 0;
-  background: theme("colors.background.DEFAULT");
-  color: theme("colors.romio.cream");
-  font-family: theme("fontFamily.sans");
+  background: var(--color-background);
+  color: var(--color-romio-cream);
+  font-family: var(--font-sans);
 }
 
 /* Subtle scanline texture on the app background */
@@ -48,7 +155,7 @@ body::before {
 
 /* Monospace text for file paths and hashes */
 .path-text, .hash-text, code, pre {
-  font-family: theme("fontFamily.mono");
+  font-family: var(--font-mono);
   font-size: 0.8125rem;
   letter-spacing: 0.01em;
 }
@@ -56,8 +163,8 @@ body::before {
 /* Custom scrollbar — matches the dark theme */
 ::-webkit-scrollbar       { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: theme("colors.border.DEFAULT"); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: theme("colors.romio.gray / 40%"); }
+::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--color-romio-gray) 40%, transparent); }
 
 /* Tauri drag region for custom titlebar */
 [data-tauri-drag-region] {

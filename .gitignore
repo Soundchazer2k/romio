@@ -29,3 +29,4 @@ codebase_analysis.md
 # Playwright test output
 test-results/
 playwright-report/
+*.tsbuildinfo

@@ -73,7 +73,7 @@ export default function App() {
         {sidebarOpen && <Sidebar />}
 
         {/* Main content */}
-        <main className="flex-1 overflow-auto relative z-[1]">
+        <main className="flex-1 overflow-auto relative z-1">
           <ActiveScreen />
         </main>
       </div>

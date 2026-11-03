@@ -264,8 +264,8 @@ function ActionCard({ title, description, status, onClick, badge }: {
             </span>
           )}
         </div>
-        {status === "error" && <XCircle className="w-4 h-4 text-romio-red flex-shrink-0 mt-0.5" />}
-        {status === "ok"    && <CheckCircle2 className="w-4 h-4 text-romio-green flex-shrink-0 mt-0.5" />}
+        {status === "error" && <XCircle className="w-4 h-4 text-romio-red shrink-0 mt-0.5" />}
+        {status === "ok"    && <CheckCircle2 className="w-4 h-4 text-romio-green shrink-0 mt-0.5" />}
       </div>
     </button>
   );

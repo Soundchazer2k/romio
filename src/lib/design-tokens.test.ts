@@ -1,18 +1,20 @@
 import { describe, it, expect } from "vitest";
 import designMd from "../../DESIGN.md?raw";
+import { readFileSync } from "node:fs";
 
-// DESIGN.md documents the tokens; tailwind.config.js is what the app uses. Fail when they drift.
+// Vitest hands back an empty string for `?raw` CSS imports, so read the file directly
+const globalsCss = readFileSync(new URL("../styles/globals.css", import.meta.url), "utf8");
 
-type TokenTree = { [key: string]: string | TokenTree };
+// DESIGN.md documents the tokens; the @theme block in globals.css is what the app uses.
+// Fail when they drift.
 
-function flatten(tree: TokenTree, prefix = ""): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const [key, value] of Object.entries(tree)) {
-    const name = key === "DEFAULT" ? prefix : prefix ? `${prefix}-${key}` : key;
-    if (typeof value === "string") out[name] = value.toUpperCase();
-    else Object.assign(out, flatten(value, name));
-  }
-  return out;
+// Every `--<prefix>-name: value;` in the @theme block, keyed by name
+function themeTokens(prefix: string): Record<string, string> {
+  const theme = globalsCss.replace(/\r\n/g, "\n").match(/@theme\s*{([\s\S]*?)\n}/)?.[1] ?? "";
+  return Object.fromEntries(
+    [...theme.matchAll(new RegExp(`--${prefix}-([\\w-]+):\\s*([^;]+);`, "g"))]
+      .map(([, k, v]) => [k, v.trim().toUpperCase()])
+  );
 }
 
 // Every `  key: value` line of a flat front matter block, quotes stripped
@@ -23,30 +25,26 @@ function designBlock(name: string): Record<string, string> {
   );
 }
 
-async function tailwindTheme() {
-  const configPath = "../../tailwind.config.js";
-  const { default: config } = await import(/* @vite-ignore */ configPath);
-  return config.theme.extend;
-}
-
 describe("DESIGN.md tokens", () => {
-  it("lists every Tailwind color with the same value", async () => {
-    const tailwind = flatten((await tailwindTheme()).colors);
+  it("lists every Tailwind color with the same value", () => {
+    const tailwind = themeTokens("color");
+    expect(Object.keys(tailwind).length).toBeGreaterThan(0);
     const design = designBlock("colors");
 
     expect(Object.keys(design).length).toBeGreaterThan(0);
     // The comparison below is by exact string, so every color must be #RRGGBB
     expect(Object.entries(design).filter(([, v]) => !/^#[0-9A-F]{6}$/.test(v))).toEqual([]);
     expect(design).toMatchObject(tailwind);
-    // on-fill is Tailwind's built-in `white`, so it has no entry in the config
+    // on-fill is Tailwind's built-in `white`, so it has no entry in @theme
     expect(design["on-fill"]).toBe("#FFFFFF");
     const extra = Object.keys(design).filter((k) => !(k in tailwind) && k !== "on-fill");
     expect(extra).toEqual([]);
   });
 
-  it("lists every Tailwind border radius with the same value", async () => {
-    const { DEFAULT: _, ...radii } = (await tailwindTheme()).borderRadius;
-    const tailwind = flatten(radii);
+  it("lists every Tailwind border radius with the same value", () => {
+    // --radius alone is the bare `rounded` default, not a named step
+    const tailwind = themeTokens("radius");
+    expect(Object.keys(tailwind).length).toBeGreaterThan(0);
     const design = designBlock("rounded");
 
     expect(design).toMatchObject(tailwind);

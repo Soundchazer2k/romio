@@ -46,7 +46,7 @@ export function FormatConfigBar({
             placeholder="/path/to/roms"
             className="flex-1 px-3 py-2 rounded-lg bg-background-surface border border-white/10
                        text-sm font-mono text-romio-cream placeholder:text-romio-gray
-                       focus:outline-none focus:border-romio-green/40"
+                       focus:outline-hidden focus:border-romio-green/40"
           />
           <button
             onClick={browse}
@@ -67,7 +67,7 @@ export function FormatConfigBar({
             value={frontend}
             onChange={(e) => onFrontendChange(e.target.value)}
             className="appearance-none px-3 py-2 pr-8 rounded-lg bg-background-surface border border-white/10
-                       text-sm text-romio-cream focus:outline-none focus:border-romio-green/40"
+                       text-sm text-romio-cream focus:outline-hidden focus:border-romio-green/40"
           >
             {frontends.map((f) => <option key={f} value={f}>{f}</option>)}
           </select>
@@ -84,7 +84,7 @@ export function FormatConfigBar({
             value={emulator}
             onChange={(e) => onEmulatorChange(e.target.value)}
             className="appearance-none px-3 py-2 pr-8 rounded-lg bg-background-surface border border-white/10
-                       text-sm text-romio-cream focus:outline-none focus:border-romio-green/40"
+                       text-sm text-romio-cream focus:outline-hidden focus:border-romio-green/40"
           >
             {emulators.map((e) => <option key={e} value={e}>{e}</option>)}
           </select>

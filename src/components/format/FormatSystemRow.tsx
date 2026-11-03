@@ -46,8 +46,8 @@ export function FormatSystemRow({
       >
         <div className="flex items-center gap-3">
           {expanded
-            ? <ChevronDown  className="w-4 h-4 text-romio-gray flex-shrink-0" />
-            : <ChevronRight className="w-4 h-4 text-romio-gray flex-shrink-0" />
+            ? <ChevronDown  className="w-4 h-4 text-romio-gray shrink-0" />
+            : <ChevronRight className="w-4 h-4 text-romio-gray shrink-0" />
           }
           <div>
             <span className="font-medium text-sm text-romio-cream capitalize">

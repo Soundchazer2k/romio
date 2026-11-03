@@ -31,7 +31,7 @@ export function FormatFixPlanModal({ fixes, onClose }: Props) {
         {/* Header */}
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-start gap-3">
-            <FileEdit className="w-5 h-5 text-romio-green flex-shrink-0 mt-0.5" />
+            <FileEdit className="w-5 h-5 text-romio-green shrink-0 mt-0.5" />
             <div>
               <p className="text-xs font-semibold text-romio-green">Step 2 of 2: review plan</p>
               <Dialog.Title className="font-bold text-romio-cream">Fix Plan</Dialog.Title>
@@ -64,7 +64,7 @@ export function FormatFixPlanModal({ fixes, onClose }: Props) {
                   <p className="text-romio-gray mt-0.5">{staged.fix.description}</p>
                 </div>
                 <span className={cn(
-                  "px-1.5 py-0.5 rounded text-[10px] border flex-shrink-0",
+                  "px-1.5 py-0.5 rounded text-[10px] border shrink-0",
                   staged.fix.safe
                     ? "text-romio-green border-romio-green/20"
                     : "text-amber-400 border-amber-400/20"
@@ -80,7 +80,7 @@ export function FormatFixPlanModal({ fixes, onClose }: Props) {
         {hasUnsafe && (
           <div className="flex items-start gap-2 px-3 py-2.5 rounded-lg
                           bg-amber-600/10 border border-amber-600/20 text-xs text-amber-400">
-            <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+            <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
             <span>
               {unsafeFixes.length} {unsafeFixes.length === 1 ? "fix requires" : "fixes require"} re-dumping
               or conversion — these cannot be automatically applied.
