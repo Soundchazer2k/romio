@@ -178,5 +178,257 @@
     "support": { "conditional": { "condition": "Requires prod.keys + title.keys." } },
     "notes": null,
     "sinceVersion": null
+  },
+  {
+    "system": "psp",
+    "extension": "iso",
+    "emulator": "ppsspp",
+    "frontend": null,
+    "support": "supported",
+    "notes": "PPSSPP Core/FileSystems/BlockDevices.cpp detects CISO, PBP, CHD and plain ISO.",
+    "sinceVersion": null
+  },
+  {
+    "system": "psp",
+    "extension": "cso",
+    "emulator": "ppsspp",
+    "frontend": null,
+    "support": "supported",
+    "notes": "PPSSPP Core/FileSystems/BlockDevices.cpp detects CISO, PBP, CHD and plain ISO.",
+    "sinceVersion": null
+  },
+  {
+    "system": "psp",
+    "extension": "pbp",
+    "emulator": "ppsspp",
+    "frontend": null,
+    "support": "supported",
+    "notes": "PPSSPP Core/FileSystems/BlockDevices.cpp detects CISO, PBP, CHD and plain ISO.",
+    "sinceVersion": null
+  },
+  {
+    "system": "psp",
+    "extension": "chd",
+    "emulator": "ppsspp",
+    "frontend": null,
+    "support": "supported",
+    "notes": "CHD support arrived in PPSSPP 1.17. PPSSPP Core/FileSystems/BlockDevices.cpp detects CISO, PBP, CHD and plain ISO.",
+    "sinceVersion": "1.17"
+  },
+  {
+    "system": "psp",
+    "extension": "zso",
+    "emulator": "ppsspp",
+    "frontend": null,
+    "support": { "unsupported": { "reason": "PPSSPP only reads the CISO header used by .cso; .zso (ZISO, LZ4) isn't recognised. Convert it to .cso or .iso with maxcso." } },
+    "notes": "PPSSPP Core/FileSystems/BlockDevices.cpp detects CISO, PBP, CHD and plain ISO.",
+    "sinceVersion": null
+  },
+  {
+    "system": "3ds",
+    "extension": "3ds",
+    "emulator": "azahar",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Azahar src/core/loader/loader.cpp boots CCI, CXI and 3DSX (plain and Z3DS-compressed). Dumps must be decrypted.",
+    "sinceVersion": null
+  },
+  {
+    "system": "3ds",
+    "extension": "cci",
+    "emulator": "azahar",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Azahar src/core/loader/loader.cpp boots CCI, CXI and 3DSX (plain and Z3DS-compressed). Dumps must be decrypted.",
+    "sinceVersion": null
+  },
+  {
+    "system": "3ds",
+    "extension": "zcci",
+    "emulator": "azahar",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Azahar src/core/loader/loader.cpp boots CCI, CXI and 3DSX (plain and Z3DS-compressed). Dumps must be decrypted.",
+    "sinceVersion": null
+  },
+  {
+    "system": "3ds",
+    "extension": "cxi",
+    "emulator": "azahar",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Azahar src/core/loader/loader.cpp boots CCI, CXI and 3DSX (plain and Z3DS-compressed). Dumps must be decrypted.",
+    "sinceVersion": null
+  },
+  {
+    "system": "3ds",
+    "extension": "zcxi",
+    "emulator": "azahar",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Azahar src/core/loader/loader.cpp boots CCI, CXI and 3DSX (plain and Z3DS-compressed). Dumps must be decrypted.",
+    "sinceVersion": null
+  },
+  {
+    "system": "3ds",
+    "extension": "3dsx",
+    "emulator": "azahar",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Azahar src/core/loader/loader.cpp boots CCI, CXI and 3DSX (plain and Z3DS-compressed). Dumps must be decrypted.",
+    "sinceVersion": null
+  },
+  {
+    "system": "3ds",
+    "extension": "z3dsx",
+    "emulator": "azahar",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Azahar src/core/loader/loader.cpp boots CCI, CXI and 3DSX (plain and Z3DS-compressed). Dumps must be decrypted.",
+    "sinceVersion": null
+  },
+  {
+    "system": "3ds",
+    "extension": "cia",
+    "emulator": "azahar",
+    "frontend": null,
+    "support": { "conditional": { "condition": "Azahar installs .cia files; it can't boot one. Install it (File > Install CIA) and launch it from Azahar's home menu, or keep a .cci/.3ds dump in roms/ instead." } },
+    "notes": "Azahar src/core/loader/loader.cpp boots CCI, CXI and 3DSX (plain and Z3DS-compressed). Dumps must be decrypted.",
+    "sinceVersion": null
+  },
+  {
+    "system": "3ds",
+    "extension": "zcia",
+    "emulator": "azahar",
+    "frontend": null,
+    "support": { "conditional": { "condition": "Azahar installs .cia files; it can't boot one. Install it (File > Install CIA) and launch it from Azahar's home menu, or keep a .cci/.3ds dump in roms/ instead." } },
+    "notes": "Azahar src/core/loader/loader.cpp boots CCI, CXI and 3DSX (plain and Z3DS-compressed). Dumps must be decrypted.",
+    "sinceVersion": null
+  },
+  {
+    "system": "ps3",
+    "extension": "iso",
+    "emulator": "rpcs3",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Decrypted ISO since RPCS3 0.0.40 (PR #17855); encrypted ISO since 0.0.41 (PR #18498).",
+    "sinceVersion": "0.0.40"
+  },
+  {
+    "system": "ps2",
+    "extension": "iso",
+    "emulator": "pcsx2",
+    "frontend": null,
+    "support": "supported",
+    "notes": "PCSX2 pcsx2/CDVD has readers for plain ISO, CHD, CSO/ZSO and GZ.",
+    "sinceVersion": null
+  },
+  {
+    "system": "ps2",
+    "extension": "cso",
+    "emulator": "pcsx2",
+    "frontend": null,
+    "support": "supported",
+    "notes": "PCSX2 pcsx2/CDVD has readers for plain ISO, CHD, CSO/ZSO and GZ.",
+    "sinceVersion": null
+  },
+  {
+    "system": "ps2",
+    "extension": "zso",
+    "emulator": "pcsx2",
+    "frontend": null,
+    "support": "supported",
+    "notes": "PCSX2 pcsx2/CDVD has readers for plain ISO, CHD, CSO/ZSO and GZ.",
+    "sinceVersion": null
+  },
+  {
+    "system": "ps2",
+    "extension": "gz",
+    "emulator": "pcsx2",
+    "frontend": null,
+    "support": "supported",
+    "notes": "PCSX2 pcsx2/CDVD has readers for plain ISO, CHD, CSO/ZSO and GZ.",
+    "sinceVersion": null
+  },
+  {
+    "system": "gamecube",
+    "extension": "iso",
+    "emulator": "dolphin",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Dolphin Source/Core/DiscIO/Blob.cpp reads plain images, GCZ, CISO, WBFS, WIA and RVZ.",
+    "sinceVersion": null
+  },
+  {
+    "system": "gamecube",
+    "extension": "gcm",
+    "emulator": "dolphin",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Dolphin Source/Core/DiscIO/Blob.cpp reads plain images, GCZ, CISO, WBFS, WIA and RVZ.",
+    "sinceVersion": null
+  },
+  {
+    "system": "gamecube",
+    "extension": "gcz",
+    "emulator": "dolphin",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Dolphin Source/Core/DiscIO/Blob.cpp reads plain images, GCZ, CISO, WBFS, WIA and RVZ.",
+    "sinceVersion": null
+  },
+  {
+    "system": "gamecube",
+    "extension": "ciso",
+    "emulator": "dolphin",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Dolphin Source/Core/DiscIO/Blob.cpp reads plain images, GCZ, CISO, WBFS, WIA and RVZ.",
+    "sinceVersion": null
+  },
+  {
+    "system": "wii",
+    "extension": "iso",
+    "emulator": "dolphin",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Dolphin Source/Core/DiscIO/Blob.cpp reads plain images, GCZ, CISO, WBFS, WIA and RVZ.",
+    "sinceVersion": null
+  },
+  {
+    "system": "wii",
+    "extension": "wbfs",
+    "emulator": "dolphin",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Dolphin Source/Core/DiscIO/Blob.cpp reads plain images, GCZ, CISO, WBFS, WIA and RVZ.",
+    "sinceVersion": null
+  },
+  {
+    "system": "wii",
+    "extension": "wia",
+    "emulator": "dolphin",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Dolphin Source/Core/DiscIO/Blob.cpp reads plain images, GCZ, CISO, WBFS, WIA and RVZ.",
+    "sinceVersion": null
+  },
+  {
+    "system": "wii",
+    "extension": "gcz",
+    "emulator": "dolphin",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Dolphin Source/Core/DiscIO/Blob.cpp reads plain images, GCZ, CISO, WBFS, WIA and RVZ.",
+    "sinceVersion": null
+  },
+  {
+    "system": "wii",
+    "extension": "ciso",
+    "emulator": "dolphin",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Dolphin Source/Core/DiscIO/Blob.cpp reads plain images, GCZ, CISO, WBFS, WIA and RVZ.",
+    "sinceVersion": null
   }
 ]

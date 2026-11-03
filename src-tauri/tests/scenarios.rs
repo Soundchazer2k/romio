@@ -268,6 +268,41 @@ fn steam_deck_saves_under_xdg_data_home() {
     assert!(discover_save_roots(std::path::Path::new(""), &anchors, &db::save::load_rules().unwrap()).is_empty());
 }
 
+/// Handheld setup checking formats before copying games over: each system's default
+/// emulator must give a verdict on its common formats, not "Unknown".
+#[test]
+fn default_emulators_judge_their_common_formats() {
+    let lib = Library::new();
+    let rules = db::format::load_rules().unwrap();
+    let check = |rel: &str, system: &str, emulator: &str| {
+        lib.game(rel);
+        check_format(&lib.path(rel), &rules, system, emulator, "esde")
+    };
+
+    for (rel, system, emulator) in [
+        ("roms/psp/Patapon.chd", "psp", "ppsspp"),
+        ("roms/psp/Patapon.cso", "psp", "ppsspp"),
+        ("roms/n3ds/Pokemon Y.zcci", "3ds", "azahar"),
+        ("roms/n3ds/Pokemon Y.3ds", "3ds", "azahar"),
+        ("roms/ps3/Demon's Souls.iso", "ps3", "rpcs3"),
+        ("roms/ps2/Okami.cso", "ps2", "pcsx2"),
+        ("roms/gc/Wind Waker.iso", "gamecube", "dolphin"),
+        ("roms/wii/Mario Galaxy.wbfs", "wii", "dolphin"),
+    ] {
+        assert_eq!(check(rel, system, emulator).state, Fmt::Compatible, "{rel}");
+    }
+
+    // PPSSPP can't read .zso; Romio says so and offers no rename
+    let zso = check("roms/psp/Patapon.zso", "psp", "ppsspp");
+    assert_eq!(zso.state, Fmt::FormatIncompatible);
+    assert!(zso.notes.unwrap_or_default().contains(".cso"), "points to a format that works");
+
+    // .cia installs into Azahar rather than booting: allowed, with that warning
+    let cia = check("roms/n3ds/Pokemon Y.cia", "3ds", "azahar");
+    assert_eq!(cia.state, Fmt::Compatible);
+    assert!(cia.notes.unwrap_or_default().starts_with("Azahar installs"));
+}
+
 /// Rescuer whose saves are locked: a save root Romio can't read, wholly or in part,
 /// must say so instead of looking missing or reporting short totals.
 #[test]
