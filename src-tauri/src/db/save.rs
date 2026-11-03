@@ -21,7 +21,7 @@ mod tests {
             assert_ne!(rule.old_path_pattern, rule.new_path_pattern, "rule for {}", rule.emulator);
             // discover_save_roots silently skips rules with an anchor it doesn't know
             assert!(
-                matches!(rule.anchor.as_deref(), None | Some("appdata")),
+                matches!(rule.anchor.as_deref(), None | Some("appdata") | Some("xdg_data")),
                 "unknown anchor for {}", rule.emulator
             );
         }

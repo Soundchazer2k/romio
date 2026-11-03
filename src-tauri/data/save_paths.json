@@ -101,5 +101,38 @@
     "newPathPattern": "Azahar/sdmc",
     "trigger": "Switching from Lime3DS to Azahar",
     "notes": "Lime3DS became Azahar and moved its user folder. On first launch Azahar offers to migrate; if you accepted, both folders exist and that is expected."
+  },
+  {
+    "emulator": "eden",
+    "frontend": null,
+    "anchor": "xdg_data",
+    "versionFrom": null,
+    "versionTo": null,
+    "oldPathPattern": "yuzu/nand/user/save",
+    "newPathPattern": "eden/nand/user/save",
+    "trigger": "Switching from yuzu to Eden (Linux, Steam Deck)",
+    "notes": "Eden is a yuzu fork with its own user folder (~/.local/share/eden). It does not read yuzu's saves. Copy the save folder across, then check each game's save in Eden. Back up first. Flatpak installs keep data under ~/.var/app/ instead and aren't checked yet."
+  },
+  {
+    "emulator": "azahar",
+    "frontend": null,
+    "anchor": "xdg_data",
+    "versionFrom": null,
+    "versionTo": null,
+    "oldPathPattern": "citra-emu/sdmc",
+    "newPathPattern": "azahar-emu/sdmc",
+    "trigger": "Switching from Citra to Azahar (Linux, Steam Deck)",
+    "notes": "Azahar uses its own user folder (~/.local/share/azahar-emu). On first launch it offers to copy Citra's data; if you accepted, both folders exist and that is expected. Merge into Azahar's folder rather than replacing it. Flatpak installs keep data under ~/.var/app/ instead and aren't checked yet."
+  },
+  {
+    "emulator": "azahar",
+    "frontend": null,
+    "anchor": "xdg_data",
+    "versionFrom": null,
+    "versionTo": null,
+    "oldPathPattern": "lime3ds-emu/sdmc",
+    "newPathPattern": "azahar-emu/sdmc",
+    "trigger": "Switching from Lime3DS to Azahar (Linux, Steam Deck)",
+    "notes": "Lime3DS became Azahar and moved its user folder to ~/.local/share/azahar-emu. On first launch Azahar offers to migrate; if you accepted, both folders exist and that is expected. Flatpak installs keep data under ~/.var/app/ instead and aren't checked yet."
   }
 ]

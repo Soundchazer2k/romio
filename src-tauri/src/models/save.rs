@@ -10,7 +10,8 @@ pub struct SavePathRule {
     pub emulator:        String,
     pub frontend:        Option<String>,
     /// Where the path patterns start: absent = the frontend root,
-    /// "appdata" = the user's %APPDATA% (Windows only; skipped elsewhere).
+    /// "appdata" = the user's %APPDATA% (Windows only; skipped elsewhere),
+    /// "xdg_data" = $XDG_DATA_HOME or ~/.local/share (Linux only; skipped elsewhere).
     #[serde(default)]
     pub anchor:          Option<String>,
     pub version_from:    Option<String>,

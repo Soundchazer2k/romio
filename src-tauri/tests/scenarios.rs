@@ -11,7 +11,7 @@ use common::{deny_read, fixture_bios_rules, with_bad_dump, Library};
 use romio_lib::db;
 use romio_lib::engine::bios_sweep::{run_sweep, BiosSweepConfig};
 use romio_lib::engine::format_matrix::check_format;
-use romio_lib::engine::save_registry::discover_save_roots;
+use romio_lib::engine::save_registry::{discover_save_roots, SaveAnchors};
 use romio_lib::engine::scanner::scan_roots;
 use romio_lib::models::artifact::{ArtifactType, BiosValidationState as Bios, FormatCompatibilityState as Fmt};
 use romio_lib::models::bios::{BiosEntryResult, BiosSystemResult};
@@ -113,7 +113,7 @@ fn curator_retrobat_library_before_an_update() {
 
     // Saves against the shipped registry
     let save_rules = db::save::load_rules().unwrap();
-    let roots = discover_save_roots(lib.root(), Some(appdata.root()), &save_rules);
+    let roots = discover_save_roots(lib.root(), &SaveAnchors { appdata: Some(appdata.root()), ..Default::default() }, &save_rules);
 
     let ppsspp = save_root(&roots, "ppsspp");
     assert_eq!(ppsspp.migration_state, Save::MigrationNeeded);
@@ -233,12 +233,39 @@ fn rescuer_finds_bad_dump_renamed_bios_and_split_saves() {
     appdata.saves("Citra/sdmc/Nintendo 3DS/save", 5);
     appdata.saves("Azahar/sdmc/Nintendo 3DS/save", 1);
 
-    let roots = discover_save_roots(std::path::Path::new(""), Some(appdata.root()), &db::save::load_rules().unwrap());
+    let roots = discover_save_roots(std::path::Path::new(""), &SaveAnchors { appdata: Some(appdata.root()), ..Default::default() }, &db::save::load_rules().unwrap());
     assert_eq!(roots.len(), 1, "one Azahar row, not one per source rule: {roots:#?}");
     let azahar = &roots[0];
     assert_eq!(azahar.migration_state, Save::ConflictDetected);
     assert_eq!(azahar.file_count, 5, "counts the saves still to move, not the fresh ones");
     assert!(azahar.notes.is_some(), "the rule's note explains the move");
+}
+
+/// Handheld on a Steam Deck: Linux keeps emulator data under ~/.local/share.
+/// The same moves as on Windows must be found there, under Linux folder names.
+#[test]
+fn steam_deck_saves_under_xdg_data_home() {
+    let xdg = Library::new();
+    xdg.saves("yuzu/nand/user/save/0000000000000000", 2);
+    xdg.saves("citra-emu/sdmc/Nintendo 3DS/save", 3);
+
+    let anchors = SaveAnchors { xdg_data: Some(xdg.root()), ..Default::default() };
+    let roots = discover_save_roots(std::path::Path::new(""), &anchors, &db::save::load_rules().unwrap());
+
+    let eden = save_root(&roots, "eden");
+    assert_eq!(eden.migration_state, Save::MigrationNeeded);
+    assert_eq!(eden.expected_destination.as_deref(), Some(xdg.path("eden/nand/user/save").to_string_lossy().as_ref()));
+
+    let azahar = save_root(&roots, "azahar");
+    assert_eq!(azahar.migration_state, Save::MigrationNeeded);
+    assert_eq!(azahar.file_count, 3);
+    assert_eq!(azahar.expected_destination.as_deref(), Some(xdg.path("azahar-emu/sdmc").to_string_lossy().as_ref()));
+
+    // Windows folder names under ~/.local/share mean nothing
+    let windows_style = Library::new();
+    windows_style.saves("Citra/sdmc", 1);
+    let anchors = SaveAnchors { xdg_data: Some(windows_style.root()), ..Default::default() };
+    assert!(discover_save_roots(std::path::Path::new(""), &anchors, &db::save::load_rules().unwrap()).is_empty());
 }
 
 /// Rescuer whose saves are locked: a save root Romio can't read, wholly or in part,
@@ -247,7 +274,7 @@ fn rescuer_finds_bad_dump_renamed_bios_and_split_saves() {
 fn locked_save_roots_are_reported_unreadable_not_missing() {
     let appdata = Library::new();
     let rules = db::save::load_rules().unwrap();
-    let discover = || discover_save_roots(std::path::Path::new(""), Some(appdata.root()), &rules);
+    let discover = || discover_save_roots(std::path::Path::new(""), &SaveAnchors { appdata: Some(appdata.root()), ..Default::default() }, &rules);
 
     // Whole root locked: yuzu's save folder can't be listed at all
     let yuzu = appdata.saves("yuzu/nand/user/save/0000000000000000", 4);
