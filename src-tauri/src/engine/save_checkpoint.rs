@@ -140,8 +140,8 @@ mod tests {
         let mut zip = zip::ZipArchive::new(file).unwrap();
         for i in 0..zip.len() {
             let entry = zip.by_index(i).unwrap();
-            assert!(!entry.name().starts_with('/'),
-                "entry {:?} must not have a leading slash", entry.name());
+            let name = entry.name().unwrap();
+            assert!(!name.starts_with('/'), "entry {name:?} must not have a leading slash");
         }
     }
 
