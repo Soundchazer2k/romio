@@ -65,6 +65,20 @@ const FIXTURE_BIOS_RESULT: BiosSystemResult = {
       },
       state: "MISSING_REQUIRED",
     },
+    {
+      rule: {
+        filename: "dc_flash.bin",
+        knownGoodMd5: [],
+        knownBadMd5: [],
+        system: "dreamcast",
+        requirement: "not_required",
+        compressed: false,
+        defaultPath: "bios/dc/dc_flash.bin",
+        frontendPaths: {},
+        emulatorPaths: {},
+      },
+      state: "NOT_APPLICABLE",
+    },
   ],
   blocking: true,
   errored: false,
@@ -117,6 +131,14 @@ const FIXTURE_SAVE_ROOTS: SaveRoot[] = [
     fileCount: 15,
     sizeBytes: 524288,
     migrationState: "already_migrated",
+  },
+  {
+    path: "C:\\Users\\user\\AppData\\Roaming\\yuzu\\nand\\user\\save",
+    emulator: "eden",
+    isSymlink: false,
+    fileCount: 0,
+    sizeBytes: 0,
+    migrationState: "unreadable",
   },
 ];
 
@@ -212,8 +234,13 @@ export const ipc = {
 
   // Format
   checkFormat: async (
-    _path: string, _system: string, _emulator: string, _frontend: string
-  ): Promise<FormatCheckResult> => FIXTURE_FORMAT_RESULT,
+    path: string, _system: string, _emulator: string, _frontend: string
+  ): Promise<FormatCheckResult> =>
+    // .bin files come back deprecated with a rename fix so the fix tray can be exercised
+    path.endsWith(".bin")
+      ? { ...FIXTURE_FORMAT_RESULT, path, state: "FormatDeprecated",
+          fixAction: { actionType: "rename", description: "Rename to .cue/.bin pair", safe: true } }
+      : { ...FIXTURE_FORMAT_RESULT, path, extension: path.split(".").pop() ?? "" },
   getFormatMatrix: async (): Promise<FormatRule[]> => [],
   getEmulatorMatrix: async (): Promise<EmulatorMatrixEntry[]> =>
     FIXTURE_EMULATOR_MATRIX,

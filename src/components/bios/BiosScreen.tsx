@@ -85,7 +85,7 @@ export function BiosScreen() {
         {!configured || editingPath ? (
           /* Not configured, or user clicked Edit */
           <div className="space-y-2">
-            <label className="text-xs font-medium text-romio-gray uppercase tracking-widest">
+            <label className="text-xs font-semibold text-romio-gray">
               BIOS directory
             </label>
             <div className="flex gap-2">
@@ -296,6 +296,7 @@ function BiosEntryRow({ entry }: { entry: BiosEntryResult }) {
       biosStateBg(entry.state),
       entry.state === "PRESENT_VALID"    ? "border-romio-green/10"  :
       entry.state === "MISSING_REQUIRED" ? "border-romio-red/20"    :
+      entry.state === "NOT_APPLICABLE"   ? "border-border border-dashed" :
                                            "border-border"
     )}>
       <div className="flex items-start justify-between gap-3">
@@ -329,6 +330,9 @@ function BiosEntryRow({ entry }: { entry: BiosEntryResult }) {
               <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-px" aria-hidden />
               <span>Known bad dump: {entry.badDumpLabel}</span>
             </p>
+          )}
+          {entry.state === "NOT_APPLICABLE" && (
+            <p className="text-xs text-romio-gray mt-1">Your emulator doesn't need this file.</p>
           )}
           {entry.rule.notes && (
             <p className="text-xs text-romio-gray mt-1">{entry.rule.notes}</p>

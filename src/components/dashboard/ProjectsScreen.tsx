@@ -190,7 +190,7 @@ function NewProjectModal({
 
         {/* Name */}
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-romio-gray uppercase tracking-wider">
+          <label className="text-xs font-semibold text-romio-gray">
             Project Name
           </label>
           <input
@@ -205,7 +205,7 @@ function NewProjectModal({
 
         {/* Library roots */}
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-romio-gray uppercase tracking-wider">
+          <label className="text-xs font-semibold text-romio-gray">
             Library Roots
           </label>
           <div className="space-y-1">
@@ -232,7 +232,7 @@ function NewProjectModal({
 
         {/* Target frontends */}
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-romio-gray uppercase tracking-wider">
+          <label className="text-xs font-semibold text-romio-gray">
             Target Frontends
           </label>
           <div className="flex flex-wrap gap-2">
@@ -247,7 +247,7 @@ function NewProjectModal({
                   }`}
               >
                 {f.name}
-                {f.tier === 2 && <span className="ml-1 opacity-50">(T2)</span>}
+                {f.tier === 2 && <span className="ml-1 font-normal">(T2)</span>}
               </button>
             ))}
           </div>

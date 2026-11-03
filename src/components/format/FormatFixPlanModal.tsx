@@ -33,6 +33,7 @@ export function FormatFixPlanModal({ fixes, onClose }: Props) {
           <div className="flex items-start gap-3">
             <FileEdit className="w-5 h-5 text-romio-green flex-shrink-0 mt-0.5" />
             <div>
+              <p className="text-xs font-semibold text-romio-green">Step 2 of 2: review plan</p>
               <Dialog.Title className="font-bold text-romio-cream">Fix Plan</Dialog.Title>
               <Dialog.Description className="text-xs text-romio-gray mt-0.5">
                 Review all changes before applying. Nothing will be written without your confirmation.

@@ -228,7 +228,7 @@ function StatCard({ label, value, color, icon, onClick }: {
         {icon}
         <span className="text-2xl font-bold">{value.toLocaleString()}</span>
       </div>
-      <p className="text-xs opacity-70">{label}</p>
+      <p className="text-xs text-romio-gray">{label}</p>
     </button>
   );
 }

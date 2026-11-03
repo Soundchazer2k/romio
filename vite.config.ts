@@ -10,9 +10,9 @@ export default defineConfig(async () => ({
   plugins: [react()],
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
       // When VITE_TEST_MODE=true, swap real IPC and Tauri plugins for mocks
       // so Playwright can run against the Vite dev server without the Rust backend.
+      // Aliases match in key order, so these must come before "@" or "@" swallows "@/lib/ipc".
       ...(isTestMode
         ? {
             "@/lib/ipc": path.resolve(__dirname, "src/lib/ipc.mock.ts"),
@@ -30,6 +30,7 @@ export default defineConfig(async () => ({
             ),
           }
         : {}),
+      "@": path.resolve(__dirname, "./src"),
     },
   },
   clearScreen: false,

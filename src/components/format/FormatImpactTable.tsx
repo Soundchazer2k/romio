@@ -30,7 +30,7 @@ export function FormatImpactTable({ extension, system, rules }: Props) {
       exit={{ opacity: 0, height: 0 }}
       className="mt-2 overflow-hidden"
     >
-      <p className="text-xs text-romio-gray uppercase tracking-wider mb-1.5">
+      <p className="text-xs text-romio-gray font-semibold mb-1.5">
         Impact across emulators
       </p>
       <div className="space-y-1">

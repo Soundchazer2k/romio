@@ -35,23 +35,26 @@ pub fn discover_save_roots(
         let old_path = join_pattern(base, &rule.old_path_pattern);
         let new_path = join_pattern(base, &rule.new_path_pattern);
 
-        let old_exists = old_path.exists();
-        let new_exists = new_path.exists();
-
-        let migration_state = match (old_exists, new_exists) {
-            (true,  false) => SaveMigrationState::MigrationNeeded,
-            (true,  true)  => SaveMigrationState::ConflictDetected,
-            (false, true)  => SaveMigrationState::AlreadyMigrated,
-            (false, false) => SaveMigrationState::NotApplicable,
-        };
+        let old_probe = probe(&old_path);
+        let new_probe = probe(&new_path);
+        let old_exists = old_probe != Probe::Missing;
+        let new_exists = new_probe != Probe::Missing;
+        let migration_state = migration_state(old_probe, new_probe);
 
         // Only report roots that exist or are at risk
         if old_exists || new_exists {
-            // Point at the saves still to move; only an already-migrated root points at the destination
-            let (active_path, stats) = if !old_exists {
-                (new_path.clone(), count_files_and_size(&new_path))
+            // Point at the saves still to move (or the folder we can't read); only an
+            // already-migrated root points at the destination
+            let on_new_side = !old_exists || (new_probe == Probe::Unreadable && old_probe != Probe::Unreadable);
+            let active_path = if on_new_side {
+                new_path.clone()
             } else {
-                (old_path.clone(), count_files_and_size(&old_path))
+                old_path.clone()
+            };
+            let stats = if migration_state == SaveMigrationState::Unreadable {
+                (0, 0)
+            } else {
+                count_files_and_size(&active_path)
             };
 
             let symlink = is_symlink(&active_path);
@@ -151,6 +154,30 @@ pub fn build_migration_plan(
     })
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum Probe { Missing, Present, Unreadable }
+
+/// A folder we can't stat or list is reported as unreadable, never as missing:
+/// calling it missing could suggest moving saves on top of it.
+fn probe(path: &Path) -> Probe {
+    match path.try_exists() {
+        Ok(false) => Probe::Missing,
+        Err(_) => Probe::Unreadable,
+        Ok(true) if path.is_dir() && std::fs::read_dir(path).is_err() => Probe::Unreadable,
+        Ok(true) => Probe::Present,
+    }
+}
+
+fn migration_state(old: Probe, new: Probe) -> SaveMigrationState {
+    match (old, new) {
+        (Probe::Unreadable, _) | (_, Probe::Unreadable) => SaveMigrationState::Unreadable,
+        (Probe::Present, Probe::Missing) => SaveMigrationState::MigrationNeeded,
+        (Probe::Present, Probe::Present) => SaveMigrationState::ConflictDetected,
+        (Probe::Missing, Probe::Present) => SaveMigrationState::AlreadyMigrated,
+        (Probe::Missing, Probe::Missing) => SaveMigrationState::NotApplicable,
+    }
+}
+
 /// Join a "/"-separated rule pattern so the result uses the platform's separator throughout.
 fn join_pattern(base: &Path, pattern: &str) -> PathBuf {
     pattern.split('/').filter(|c| !c.is_empty()).fold(base.to_path_buf(), |p, c| p.join(c))
@@ -218,6 +245,24 @@ mod tests {
         assert_eq!(discover_save_roots(dir.path(), None, &[rule(None)]).len(), 1);
         // Frontend-root rules need a frontend root
         assert!(discover_save_roots(Path::new(""), None, &[rule(None)]).is_empty());
+    }
+
+    #[test]
+    fn unreadable_on_either_side_wins_over_every_other_state() {
+        use Probe::*;
+        for other in [Missing, Present, Unreadable] {
+            assert_eq!(migration_state(Unreadable, other), SaveMigrationState::Unreadable);
+            assert_eq!(migration_state(other, Unreadable), SaveMigrationState::Unreadable);
+        }
+        assert_eq!(migration_state(Present, Missing), SaveMigrationState::MigrationNeeded);
+        assert_eq!(migration_state(Missing, Missing), SaveMigrationState::NotApplicable);
+    }
+
+    #[test]
+    fn readable_folders_probe_as_present_and_absent_as_missing() {
+        let dir = tempfile::tempdir().unwrap();
+        assert_eq!(probe(dir.path()), Probe::Present);
+        assert_eq!(probe(&dir.path().join("nope")), Probe::Missing);
     }
 
     #[test]

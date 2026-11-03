@@ -66,7 +66,7 @@ export function FormatFileRow({ result, rules, stagedFixes, onStageFix }: Props)
               className={cn(
                 "flex items-center gap-1 px-2 py-1 rounded text-xs font-medium border transition-colors",
                 alreadyStaged
-                  ? "text-romio-gray border-border cursor-default opacity-50"
+                  ? "text-romio-gray border-border cursor-default"
                   : "text-romio-green border-romio-green/30 bg-romio-green/10 hover:bg-romio-green/20"
               )}
             >

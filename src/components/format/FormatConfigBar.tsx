@@ -38,7 +38,7 @@ export function FormatConfigBar({
     <div className="flex gap-3 flex-wrap items-end">
       {/* Library path */}
       <div className="flex-1 min-w-48 space-y-1">
-        <label className="text-xs font-medium text-romio-gray uppercase tracking-widest">Library root</label>
+        <label className="text-xs font-semibold text-romio-gray">Library root</label>
         <div className="flex gap-2">
           <input
             value={path}
@@ -61,7 +61,7 @@ export function FormatConfigBar({
 
       {/* Frontend select */}
       <div className="space-y-1">
-        <label className="text-xs font-medium text-romio-gray uppercase tracking-widest">Frontend</label>
+        <label className="text-xs font-semibold text-romio-gray">Frontend</label>
         <div className="relative">
           <select
             value={frontend}
@@ -78,7 +78,7 @@ export function FormatConfigBar({
 
       {/* Emulator select */}
       <div className="space-y-1">
-        <label className="text-xs font-medium text-romio-gray uppercase tracking-widest">Emulator</label>
+        <label className="text-xs font-semibold text-romio-gray">Emulator</label>
         <div className="relative">
           <select
             value={emulator}

@@ -156,7 +156,8 @@ export interface HostEnvironmentReport {
 // ── Save Migration ────────────────────────────────────────────────────────────
 
 export type SaveMigrationState =
-  | "migration_needed" | "conflict_detected" | "already_migrated" | "not_applicable";
+  | "migration_needed" | "conflict_detected" | "already_migrated" | "not_applicable"
+  | "unreadable";
 
 export interface SaveRoot {
   path:                 string;

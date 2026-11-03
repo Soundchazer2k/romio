@@ -47,6 +47,8 @@ pub enum SaveMigrationState {
     AlreadyMigrated,
     /// No migration rule applies
     NotApplicable,
+    /// A path exists but Romio can't read it (permissions or a lock), so its state is unknown
+    Unreadable,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
