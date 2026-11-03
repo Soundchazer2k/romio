@@ -192,12 +192,6 @@ export function DashboardScreen() {
             status="info"
             onClick={() => setScreen("format")}
           />
-          <ActionCard
-            title="Export"
-            description="Generate frontend-compatible artifacts from your library"
-            status={stats.blockingIssues > 0 ? "warning" : "ok"}
-            onClick={() => setScreen("export")}
-          />
         </div>
       )}
     </div>
