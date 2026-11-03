@@ -15,7 +15,7 @@ use romio_lib::engine::save_registry::discover_save_roots;
 use romio_lib::engine::scanner::scan_roots;
 use romio_lib::models::artifact::{ArtifactType, BiosValidationState as Bios, FormatCompatibilityState as Fmt};
 use romio_lib::models::bios::{BiosEntryResult, BiosSystemResult};
-use romio_lib::models::format::FormatFixType;
+use romio_lib::models::format::{FormatFixType, FormatSupport};
 use romio_lib::models::save::{SaveMigrationState as Save, SaveRoot};
 
 fn bios_entry<'a>(results: &'a [BiosSystemResult], filename: &str) -> &'a BiosEntryResult {
@@ -103,7 +103,13 @@ fn curator_retrobat_library_before_an_update() {
     assert!(xbox.notes.as_deref().unwrap_or("").starts_with("Must be an XISO"), "xemu warns about XISO");
     let x360 = check("roms/xbox360/Halo 3 (USA).iso", "xbox360", "xenia-canary");
     assert_eq!(x360.state, Fmt::Compatible);
-    assert!(!x360.notes.as_deref().unwrap_or("").contains("Must be"), "no XISO warning for Xenia");
+    // A Conditional rule is how a format requirement is expressed, whatever its wording
+    for emu in ["xenia", "xenia-canary"] {
+        let rule = rules.iter()
+            .find(|r| r.system == "xbox360" && r.extension == "iso" && r.emulator == emu)
+            .unwrap_or_else(|| panic!("{emu} .iso rule missing"));
+        assert!(matches!(rule.support, FormatSupport::Supported), "{emu} must not carry an XISO condition");
+    }
 
     // Saves against the shipped registry
     let save_rules = db::save::load_rules().unwrap();
