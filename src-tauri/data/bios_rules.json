@@ -71,7 +71,7 @@
   },
   {
     "filename": "scph39001.bin",
-    "knownGoodMd5": [],
+    "knownGoodMd5": ["d5ce2c7d119f563ce04bc04dbc3a323e"],
     "knownBadMd5": [],
     "system": "ps2",
     "region": "US",
@@ -345,7 +345,7 @@
   },
   {
     "filename": "neogeo.zip",
-    "knownGoodMd5": [],
+    "knownGoodMd5": ["00dad01abdbf8ea9e79ad2fe11bdb182"],
     "knownBadMd5": [],
     "system": "neogeo",
     "region": null,
@@ -358,7 +358,7 @@
       "launchbox": ""
     },
     "emulatorPaths": {},
-    "notes": "Neo Geo BIOS zip. ES-DE ONLY: must be in roms/arcade/ folder — NOT in bios/ or bios/mame/ (which work for every other frontend). MD5 varies by romset version — must match your FBNeo/MAME romset.",
+    "notes": "Neo Geo BIOS zip. ES-DE ONLY: must be in roms/arcade/ folder — NOT in bios/ or bios/mame/ (which work for every other frontend). Known-good hash is the FBNeo set listed in libretro's System.dat; other romset versions show as a hash mismatch, not as missing.",
     "dumpingGuideUrl": null
   }
 ]
