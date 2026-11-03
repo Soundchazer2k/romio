@@ -24,6 +24,13 @@ src-tauri/src/adapters/ ← Per-frontend translators (FrontendAdapter trait)
 src-tauri/data/*.json   ← Community-editable rules databases (BIOS, format, emulator matrix)
 ```
 
+## Design
+
+UI work follows `DESIGN.md` (brief, tokens, voice, do's and don'ts). Colors live in
+`tailwind.config.js`; `src/lib/design-tokens.test.ts` fails if DESIGN.md drifts from it.
+Lint it with `pnpm design:lint`. On Windows use the `designmd` bin, never `design.md`:
+that name resolves to the DESIGN.md file and opens it instead of running the CLI.
+
 ## Known Gotchas
 
 **Port:** Vite runs on 1444 (not default 1420). Port 1420 falls in Windows excluded range

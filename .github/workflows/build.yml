@@ -31,6 +31,8 @@ jobs:
 
       - run: pnpm lint
       - run: pnpm typecheck
+      # Fails on spec errors (broken token refs, AA contrast); warnings only print
+      - run: pnpm design:lint
       - run: pnpm vitest run
 
       # Must run before cargo: tauri's generate_context! embeds ../dist at compile time

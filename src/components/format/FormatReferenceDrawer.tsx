@@ -50,7 +50,7 @@ export function FormatReferenceDrawer({ open, rules, onClose }: Props) {
             exit={{ x: "100%" }}
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
             className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-md
-                       bg-romio-surface border-l border-border flex flex-col shadow-2xl"
+                       bg-background-surface border-l border-border flex flex-col shadow-2xl"
           >
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
@@ -100,7 +100,7 @@ export function FormatReferenceDrawer({ open, rules, onClose }: Props) {
             {/* Rules table */}
             <div className="flex-1 overflow-y-auto">
               <table className="w-full text-xs">
-                <thead className="sticky top-0 bg-romio-surface border-b border-border">
+                <thead className="sticky top-0 bg-background-surface border-b border-border">
                   <tr>
                     {["System", "Ext", "Emulator", "Support"].map((h) => (
                       <th key={h} className="text-left px-3 py-2 text-romio-gray font-medium">

@@ -3,20 +3,7 @@
 @tailwind utilities;
 
 /* ── Romio global styles ──────────────────────────────────────────────────── */
-
-:root {
-  --font-sans: "Nunito", "DM Sans", system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", "Fira Code", Consolas, monospace;
-
-  /* Romio brand tokens */
-  --romio-black:   #1C1C1E;
-  --romio-cream:   #F5F0E8;
-  --romio-red:     #FF6060;
-  --romio-green:   #58A76E;
-  --romio-gray:    #999999;
-  --romio-bg:      #0F0F11;
-  --romio-surface: #1C1C1E;
-}
+/* Colors and fonts come from tailwind.config.js via theme(); DESIGN.md documents them. */
 
 * {
   box-sizing: border-box;
@@ -28,9 +15,9 @@ html, body, #root {
   height: 100%;
   margin: 0;
   padding: 0;
-  background: var(--romio-bg);
-  color: var(--romio-cream);
-  font-family: var(--font-sans);
+  background: theme("colors.background.DEFAULT");
+  color: theme("colors.romio.cream");
+  font-family: theme("fontFamily.sans");
 }
 
 /* Subtle scanline texture on the app background */
@@ -61,28 +48,16 @@ body::before {
 
 /* Monospace text for file paths and hashes */
 .path-text, .hash-text, code, pre {
-  font-family: var(--font-mono);
+  font-family: theme("fontFamily.mono");
   font-size: 0.8125rem;
   letter-spacing: 0.01em;
 }
 
-/* Validation state colors as CSS classes */
-.state-valid    { color: #58A76E; }
-.state-warning  { color: #C47C1A; }
-.state-error    { color: #FF6060; }
-.state-advisory { color: #9399A5; }
-.state-info     { color: #5D98F8; }
-
-.bg-state-valid    { background-color: rgba(74, 140, 92, 0.15); }
-.bg-state-warning  { background-color: rgba(196, 124, 26, 0.15); }
-.bg-state-error    { background-color: rgba(224, 48, 48, 0.15); }
-.bg-state-advisory { background-color: rgba(107, 114, 128, 0.1); }
-
 /* Custom scrollbar — matches the dark theme */
 ::-webkit-scrollbar       { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #2E2E32; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #3E3E44; }
+::-webkit-scrollbar-thumb { background: theme("colors.border.DEFAULT"); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: theme("colors.romio.gray / 40%"); }
 
 /* Tauri drag region for custom titlebar */
 [data-tauri-drag-region] {

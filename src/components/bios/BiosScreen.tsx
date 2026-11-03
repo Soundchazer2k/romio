@@ -100,7 +100,7 @@ export function BiosScreen() {
                   onKeyDown={(e) => e.key === "Enter" && savePath()}
                   placeholder="/path/to/bios"
                   autoFocus
-                  className="w-full pl-11 pr-3 py-2 rounded-lg bg-romio-surface border border-white/10
+                  className="w-full pl-11 pr-3 py-2 rounded-lg bg-background-surface border border-white/10
                              text-sm font-mono text-romio-cream placeholder:text-romio-gray
                              focus:outline-none focus:border-romio-green/40"
                 />
@@ -133,7 +133,7 @@ export function BiosScreen() {
         ) : (
           /* Configured path display */
           <div className="flex items-center justify-between p-3 rounded-lg
-                          bg-romio-surface/50 border border-border">
+                          bg-background-surface/50 border border-border">
             <div className="flex items-center gap-2 min-w-0">
               <FolderOpen className="w-4 h-4 text-romio-gray flex-shrink-0" />
               <span className="font-mono text-sm text-romio-cream truncate">{biosRoot}</span>
@@ -213,7 +213,7 @@ function SystemResultRow({ result, expanded, onToggle, index }: {
   const borderColor = result.errored   ? "border-amber-600/30 bg-amber-600/5"
                     : result.blocking  ? "border-romio-red/30 bg-romio-red/5"
                     : allValid         ? "border-romio-green/20"
-                    :                   "border-border bg-romio-surface/40";
+                    :                   "border-border bg-background-surface/40";
 
   return (
     <motion.div

@@ -147,10 +147,10 @@ function DependencyRow({ check }: { check: DependencyCheck }) {
   return (
     <div className={cn(
       "px-4 py-3 rounded-lg border transition-colors",
-      check.state === "present"              ? "border-border bg-romio-surface/50" :
+      check.state === "present"              ? "border-border bg-background-surface/50" :
       check.state === "missing"              ? "border-romio-red/20 bg-romio-red/5" :
       check.state === "present_wrong_version"? "border-amber-600/20 bg-amber-600/5" :
-      "border-border bg-romio-surface/30"
+      "border-border bg-background-surface/30"
     )}>
       <div className="flex items-start gap-3">
         <div className="mt-0.5 flex-shrink-0">{icon}</div>
