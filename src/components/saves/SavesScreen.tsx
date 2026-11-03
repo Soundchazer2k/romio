@@ -17,7 +17,8 @@ import { cn, formatBytes, migrationStateLabel } from "@/lib/utils";
 export function SavesScreen() {
   const { activeProject, setRomioState } = useAppStore();
   const queryClient = useQueryClient();
-  const [frontendRoot, setFrontendRoot] = useState("");
+  // Starts at the project's library root, so it survives leaving the screen
+  const [frontendRoot, setFrontendRoot] = useState(activeProject?.libraryRoots?.[0] ?? "");
   const [selectedPlan, setSelectedPlan] = useState<MigrationPlan | null>(null);
   const [selectedRoot, setSelectedRoot] = useState<SaveRoot | null>(null);
   const [logExpanded, setLogExpanded] = useState(false);
@@ -39,7 +40,9 @@ export function SavesScreen() {
   });
 
   // ── Derived state ─────────────────────────────────────────────────────────
-  const atRisk     = roots.filter((r) => r.migrationState === "migration_needed");
+  // A conflict has saves at both paths: migrating without review can overwrite one side
+  const atRisk     = roots.filter((r) =>
+    r.migrationState === "migration_needed" || r.migrationState === "conflict_detected");
   const unreadable = roots.filter((r) => r.migrationState === "unreadable");
   // Unreadable roots and conflicts leave the risk unknown, so they never count as a pass
   const unresolved = roots.some((r) =>
@@ -90,7 +93,7 @@ export function SavesScreen() {
               {atRisk.length} save {atRisk.length === 1 ? "root" : "roots"} at risk
             </p>
             <p className="text-xs text-romio-gray mt-0.5">
-              These emulators have moved their save directories. Migrate before updating.
+              These emulators have moved their save directories. Migrate, or review the conflicts, before updating.
             </p>
           </div>
         </motion.div>
@@ -256,7 +259,7 @@ function SaveRootCard({ root, index, onMigrate }: {
         </div>
         {root.migrationState !== "unreadable" && (
           <div className="text-right text-xs text-romio-gray shrink-0">
-            <p>{root.fileCount.toLocaleString()} files</p>
+            <p>{root.fileCount.toLocaleString()} {root.fileCount === 1 ? "file" : "files"}</p>
             <p>{formatBytes(root.sizeBytes)}</p>
           </div>
         )}
@@ -424,7 +427,7 @@ function MigrationPlanModal({
           {checkpoint ? (
             <div className="text-xs text-romio-gray space-y-0.5">
               <p className="font-mono truncate">{checkpoint.archivePath}</p>
-              <p>{checkpoint.fileCount} files · {formatBytes(checkpoint.sizeBytes)}</p>
+              <p>{checkpoint.fileCount} {checkpoint.fileCount === 1 ? "file" : "files"} · {formatBytes(checkpoint.sizeBytes)}</p>
             </div>
           ) : checkpointError ? (
             <div className="text-xs text-romio-red">

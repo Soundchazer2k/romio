@@ -49,18 +49,29 @@ pub fn validate_system_bios(
         }
     }
 
-    let mut entries = Vec::new();
-    let mut blocking = false;
+    let mut entries: Vec<_> = rules.iter()
+        .map(|rule| evaluate_rule(rule, &found_files, bios_root, frontend, emulator))
+        .collect();
 
-    for rule in rules {
-        let entry = evaluate_rule(rule, &found_files, bios_root, frontend, emulator);
-        if entry.state == BiosValidationState::MissingRequired {
-            if rule.requirement == BiosRequirement::Required {
-                blocking = true;
+    // A region's BIOS is only needed for that region's games. Once every required file of
+    // one region is valid, the system plays, so other regions' missing files are optional.
+    let region_complete = |region: &str| rules.iter().zip(&entries)
+        .filter(|(r, _)| r.requirement == BiosRequirement::Required && r.region.as_deref() == Some(region))
+        .all(|(_, e)| e.state == BiosValidationState::PresentValid);
+    let any_region_complete = rules.iter()
+        .filter(|r| r.requirement == BiosRequirement::Required)
+        .filter_map(|r| r.region.as_deref())
+        .any(region_complete);
+    if any_region_complete {
+        for (rule, entry) in rules.iter().zip(entries.iter_mut()) {
+            if rule.region.is_some() && entry.state == BiosValidationState::MissingRequired {
+                entry.state = BiosValidationState::MissingOptional;
             }
         }
-        entries.push(entry);
     }
+
+    let blocking = rules.iter().zip(&entries).any(|(rule, entry)|
+        rule.requirement == BiosRequirement::Required && entry.state == BiosValidationState::MissingRequired);
 
     let system = rules.first()
         .map(|r| r.system.clone())
@@ -250,6 +261,33 @@ mod tests {
         let result = validate_system_bios(dir.path(), &[rule], "esde", "lr-test").unwrap();
         assert!(result.blocking);
         assert_eq!(result.entries[0].state, BiosValidationState::MissingRequired);
+    }
+
+    #[test]
+    fn one_complete_region_is_enough_to_play() {
+        let dir = TempDir::new().unwrap();
+        let us_bytes = b"fake us bios";
+        std::fs::write(dir.path().join("us.bin"), us_bytes).unwrap();
+        let regional = |file: &str, md5: &str, region: &str| BiosRule {
+            region: Some(region.into()),
+            ..make_rule(file, md5, BiosRequirement::Required)
+        };
+        let rules = [
+            regional("us.bin", &crate::engine::hash::md5_bytes(us_bytes), "US"),
+            regional("jp.bin", "00000000000000000000000000000001", "JP"),
+            regional("eu.bin", "00000000000000000000000000000002", "EU"),
+        ];
+
+        let result = validate_system_bios(dir.path(), &rules, "esde", "lr-test").unwrap();
+        assert!(!result.blocking, "a valid US BIOS plays US games");
+        assert_eq!(result.entries[1].state, BiosValidationState::MissingOptional, "JP only needed for JP games");
+        assert_eq!(result.entries[2].state, BiosValidationState::MissingOptional);
+
+        // A bad US dump completes no region, so the others stay required
+        std::fs::write(dir.path().join("us.bin"), b"bad dump").unwrap();
+        let result = validate_system_bios(dir.path(), &rules, "esde", "lr-test").unwrap();
+        assert!(result.blocking);
+        assert_eq!(result.entries[1].state, BiosValidationState::MissingRequired);
     }
 
     #[test]
