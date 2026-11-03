@@ -36,6 +36,7 @@
   --radius-md: 0.5rem;
   --radius-lg: 0.75rem;
   --radius-xl: 1rem;
+  --radius-full: 9999px; /* Tailwind 4's default is calc(infinity * 1px); DESIGN.md says 9999px */
 
   --background-image-scanlines: repeating-linear-gradient(
     0deg,

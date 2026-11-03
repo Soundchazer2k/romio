@@ -42,14 +42,16 @@ describe("DESIGN.md tokens", () => {
   });
 
   it("lists every Tailwind border radius with the same value", () => {
-    // --radius alone is the bare `rounded` default, not a named step
     const tailwind = themeTokens("radius");
     expect(Object.keys(tailwind).length).toBeGreaterThan(0);
     const design = designBlock("rounded");
 
-    expect(design).toMatchObject(tailwind);
-    // full is Tailwind's built-in `rounded-full`
-    expect(design.full).toBe("9999PX");
-    expect(Object.keys(design).filter((k) => !(k in tailwind) && k !== "full")).toEqual([]);
+    expect(tailwind).toEqual(design);
+  });
+
+  it("keeps the bare `rounded` default at the md radius", () => {
+    // --radius has no name after it, so themeTokens("radius") can't see it
+    const bare = globalsCss.match(/--radius:\s*([^;]+);/)?.[1].trim().toUpperCase();
+    expect(bare).toBe(designBlock("rounded").md);
   });
 });
