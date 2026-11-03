@@ -20,7 +20,6 @@ src/stores/index.ts     ← Zustand stores (App, Scan, Preflight, BIOS)
 src/types/index.ts      ← TS types — must stay in sync with src-tauri/src/models/
 src-tauri/src/engine/   ← Pure Rust business logic (no Tauri deps, unit-testable)
 src-tauri/src/commands/ ← Thin IPC handlers — call engine, return serializable results
-src-tauri/src/adapters/ ← Per-frontend translators (FrontendAdapter trait)
 src-tauri/data/*.json   ← Community-editable rules databases (BIOS, format, emulator matrix)
 ```
 
