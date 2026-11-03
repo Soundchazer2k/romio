@@ -93,3 +93,50 @@ pub fn with_bad_dump(mut rules: Vec<BiosRule>, filename: &str, bad_name: &str, l
     rule.known_bad_md5.push(BadDumpEntry { md5: fake_md5(bad_name), label: label.into() });
     rules
 }
+
+/// Takes away the current user's right to list `path` until dropped, then gives it back.
+pub struct ReadDenied(PathBuf);
+
+/// Make `path` unlistable for the current user. Returns `None` when the OS ignores
+/// it (for example tests running as root), so callers can skip instead of failing.
+pub fn deny_read(path: &Path) -> Option<ReadDenied> {
+    #[cfg(windows)]
+    {
+        let user = current_windows_user();
+        icacls(path, &["/deny", &format!("{user}:(RD)")]);
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(path, fs::Permissions::from_mode(0o000)).unwrap();
+    }
+    let guard = ReadDenied(path.to_path_buf());
+    fs::read_dir(path).is_err().then_some(guard)
+}
+
+impl Drop for ReadDenied {
+    fn drop(&mut self) {
+        // Restore access so the temp dir can be deleted
+        #[cfg(windows)]
+        icacls(&self.0, &["/remove:d", &current_windows_user()]);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let _ = fs::set_permissions(&self.0, fs::Permissions::from_mode(0o755));
+        }
+    }
+}
+
+#[cfg(windows)]
+fn current_windows_user() -> String {
+    let out = std::process::Command::new("whoami").output().expect("whoami runs");
+    String::from_utf8_lossy(&out.stdout).trim().to_string()
+}
+
+#[cfg(windows)]
+fn icacls(path: &Path, args: &[&str]) {
+    let status = std::process::Command::new("icacls").arg(path).args(args)
+        .stdout(std::process::Stdio::null())
+        .status().expect("icacls runs");
+    assert!(status.success(), "icacls {args:?} failed on {}", path.display());
+}

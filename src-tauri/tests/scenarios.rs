@@ -7,7 +7,7 @@ mod common;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
-use common::{fixture_bios_rules, with_bad_dump, Library};
+use common::{deny_read, fixture_bios_rules, with_bad_dump, Library};
 use romio_lib::db;
 use romio_lib::engine::bios_sweep::{run_sweep, BiosSweepConfig};
 use romio_lib::engine::format_matrix::check_format;
@@ -15,7 +15,7 @@ use romio_lib::engine::save_registry::{discover_save_roots, SaveAnchors};
 use romio_lib::engine::scanner::scan_roots;
 use romio_lib::models::artifact::{ArtifactType, BiosValidationState as Bios, FormatCompatibilityState as Fmt};
 use romio_lib::models::bios::{BiosEntryResult, BiosSystemResult};
-use romio_lib::models::format::FormatFixType;
+use romio_lib::models::format::{FormatFixType, FormatSupport};
 use romio_lib::models::save::{SaveMigrationState as Save, SaveRoot};
 
 fn bios_entry<'a>(results: &'a [BiosSystemResult], filename: &str) -> &'a BiosEntryResult {
@@ -54,6 +54,8 @@ fn curator_retrobat_library_before_an_update() {
         "roms/gamecube/Wind Waker (USA).rvz",
         "roms/daphne/lair.daphne",
         "roms/n64/Mario Kart 64 (USA).z64",
+        "roms/xbox/Halo (USA).iso",
+        "roms/xbox360/Halo 3 (USA).iso",
     ];
     for g in games { lib.game(g); }
     lib.file("roms/psx/gamelist.xml", b"<gameList/>");
@@ -94,6 +96,20 @@ fn curator_retrobat_library_before_an_update() {
     assert!(matches!(daphne.fix_action.map(|f| f.action_type), Some(FormatFixType::Rename)));
     assert_eq!(check("roms/n64/Mario Kart 64 (USA).z64", "n64", "mupen64plus").state, Fmt::Unknown,
         "no rule means unknown, never a guess");
+
+    // XISO is xemu's requirement (original Xbox), not Xenia's: Xenia reads full 360 disc images too
+    let xbox = check("roms/xbox/Halo (USA).iso", "xbox", "xemu");
+    assert_eq!(xbox.state, Fmt::Compatible);
+    assert!(xbox.notes.as_deref().unwrap_or("").starts_with("Must be an XISO"), "xemu warns about XISO");
+    let x360 = check("roms/xbox360/Halo 3 (USA).iso", "xbox360", "xenia-canary");
+    assert_eq!(x360.state, Fmt::Compatible);
+    // A Conditional rule is how a format requirement is expressed, whatever its wording
+    for emu in ["xenia", "xenia-canary"] {
+        let rule = rules.iter()
+            .find(|r| r.system == "xbox360" && r.extension == "iso" && r.emulator == emu)
+            .unwrap_or_else(|| panic!("{emu} .iso rule missing"));
+        assert!(matches!(rule.support, FormatSupport::Supported), "{emu} must not carry an XISO condition");
+    }
 
     // Saves against the shipped registry
     let save_rules = db::save::load_rules().unwrap();
@@ -153,16 +169,42 @@ fn handheld_batocera_fresh_setup_bios() {
     assert_eq!(bios_entry(&results, "dc_boot.bin").state, Bios::PresentValid);
 }
 
+/// ES-DE keeps neogeo.zip with the arcade ROMs, outside the BIOS folder.
+/// Romio must find it there, call it valid, and not block Neo Geo.
+#[test]
+fn esde_neogeo_bios_in_roms_arcade_is_found() {
+    let lib = Library::new();
+    let bios_root = lib.path("Emulation/bios");
+    std::fs::create_dir_all(&bios_root).unwrap();
+    let rules = fixture_bios_rules();
+
+    let results = sweep(&bios_root, "esde", &rules);
+    assert_eq!(bios_entry(&results, "neogeo.zip").state, Bios::MissingRequired);
+
+    // ES-DE's path is bios/../../roms/arcade/, i.e. roms/arcade beside Emulation/
+    lib.bios("roms/arcade/neogeo.zip", "neogeo.zip");
+    let results = sweep(&bios_root, "esde", &rules);
+    let neogeo = bios_entry(&results, "neogeo.zip");
+    assert_eq!(neogeo.state, Bios::PresentValid, "{neogeo:#?}");
+    assert!(!results.iter().find(|s| s.system == "neogeo").unwrap().blocking);
+
+    // The same file inside bios/ is in the wrong place for ES-DE
+    std::fs::rename(lib.path("roms/arcade/neogeo.zip"), lib.path("Emulation/bios/neogeo.zip")).unwrap();
+    let results = sweep(&bios_root, "esde", &rules);
+    assert_eq!(bios_entry(&results, "neogeo.zip").state, Bios::PresentWrongPath);
+}
+
 /// A rule shipped with no known-good hash can't be validated, fixture or not.
 #[test]
 fn bios_rule_without_shipped_hash_is_never_reported_valid() {
     let lib = Library::new();
-    let rules = fixture_bios_rules();
-    let unhashed = rules.iter().find(|r| r.known_good_md5.is_empty()).expect("shipped data has an unhashed rule");
-    lib.bios(&format!("bios/{}", unhashed.filename), &unhashed.filename);
+    let mut rules = fixture_bios_rules();
+    let unhashed = rules.iter_mut().find(|r| r.filename == "scph39001.bin").unwrap();
+    unhashed.known_good_md5.clear();
+    lib.bios("bios/scph39001.bin", "scph39001.bin");
 
     let results = sweep(&lib.path("bios"), "esde", &rules);
-    assert_ne!(bios_entry(&results, &unhashed.filename).state, Bios::PresentValid);
+    assert_ne!(bios_entry(&results, "scph39001.bin").state, Bios::PresentValid);
 }
 
 /// Rescuer after breakage: games stopped working after an update.
@@ -224,6 +266,34 @@ fn steam_deck_saves_under_xdg_data_home() {
     windows_style.saves("Citra/sdmc", 1);
     let anchors = SaveAnchors { xdg_data: Some(windows_style.root()), ..Default::default() };
     assert!(discover_save_roots(std::path::Path::new(""), &anchors, &db::save::load_rules().unwrap()).is_empty());
+}
+
+/// Rescuer whose saves are locked: a save root Romio can't read, wholly or in part,
+/// must say so instead of looking missing or reporting short totals.
+#[test]
+fn locked_save_roots_are_reported_unreadable_not_missing() {
+    let appdata = Library::new();
+    let rules = db::save::load_rules().unwrap();
+    let discover = || discover_save_roots(std::path::Path::new(""), &SaveAnchors { appdata: Some(appdata.root()), ..Default::default() }, &rules);
+
+    // Whole root locked: yuzu's save folder can't be listed at all
+    let yuzu = appdata.saves("yuzu/nand/user/save/0000000000000000", 4);
+    let Some(locked) = deny_read(&appdata.path("yuzu/nand/user/save")) else {
+        eprintln!("this OS ignores read denial (running as root?); skipping");
+        return;
+    };
+    let roots = discover();
+    let eden = save_root(&roots, "eden");
+    assert_eq!(eden.migration_state, Save::Unreadable, "{roots:#?}");
+    assert_eq!((eden.file_count, eden.size_bytes), (0, 0), "no guessed totals");
+    assert_eq!(eden.expected_destination.as_deref(),
+        Some(appdata.path("eden/nand/user/save").to_string_lossy().as_ref()));
+    drop(locked);
+    assert_eq!(save_root(&discover(), "eden").migration_state, Save::MigrationNeeded);
+
+    // Only one subfolder locked: the root opens, but its totals would be short
+    let _locked = deny_read(&yuzu).expect("read denial works here");
+    assert_eq!(save_root(&discover(), "eden").migration_state, Save::Unreadable);
 }
 
 /// Opt-in check against your own library. Never runs in CI.

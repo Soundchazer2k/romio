@@ -6,7 +6,7 @@
 //! The correct placement path depends on both the emulator and the target frontend.
 
 use anyhow::Result;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::collections::HashMap;
 use walkdir::WalkDir;
 
@@ -35,7 +35,19 @@ pub fn validate_system_bios(
 ) -> Result<BiosSystemResult> {
     // Step 1: Build a hash map of all files found in the bios directory tree.
     // Key: MD5 hash, Value: (actual path, filename)
-    let found_files = scan_bios_directory(bios_root)?;
+    let mut found_files = scan_bios_directory(bios_root)?;
+
+    // Some frontends keep a BIOS outside the BIOS folder (ES-DE wants neogeo.zip in
+    // roms/arcade/), where the scan above never looks. Check those spots directly.
+    let scanned_root = normalize_lexically(bios_root);
+    for rule in rules {
+        let expected = resolve_expected_path(rule, bios_root, frontend, emulator);
+        if !expected.starts_with(&scanned_root) && expected.is_file() {
+            if let Ok(hash) = md5_file(&expected) {
+                found_files.entry(hash).or_insert(expected);
+            }
+        }
+    }
 
     let mut entries = Vec::new();
     let mut blocking = false;
@@ -190,7 +202,21 @@ fn resolve_expected_path(
         .map(String::as_str)
         .unwrap_or(&rule.default_path);
 
-    bios_root.join(path_str).join(&rule.filename)
+    normalize_lexically(&bios_root.join(path_str).join(&rule.filename))
+}
+
+/// Resolve `.` and `..` without touching the disk, so a frontend path that climbs out
+/// of the BIOS folder compares equal to the path a file was actually found at.
+fn normalize_lexically(path: &Path) -> PathBuf {
+    let mut out = PathBuf::new();
+    for component in path.components() {
+        match component {
+            Component::CurDir => {}
+            Component::ParentDir => { out.pop(); }
+            other => out.push(other),
+        }
+    }
+    out
 }
 
 #[cfg(test)]
