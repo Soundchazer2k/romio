@@ -104,7 +104,7 @@ Romio checks a retro game library before something breaks: BIOS files, ROM forma
 
 ### Who it is for
 
-Romio serves three moments. On first run it asks which one the person is in and adapts to it. *(Not built yet: today every user gets the same flow.)*
+Romio serves three moments. The welcome screen asks which one the person is in. The answer picks where Romio starts after a project opens and the order of the dashboard's checks (`src/lib/scenario.ts`), and the dashboard's "Your situation" menu changes it. *(Companion tone does not follow the scenario yet.)*
 
 | Scenario | The person | What Romio leads with | Companion tone |
 |:--|:--|:--|:--|
@@ -222,5 +222,4 @@ Don't:
 ## Open questions
 
 - Should headings get a display face with more manual character (Nunito stays for body text)?
-- What does the first-run scenario question look like, and can a person switch scenario later?
 - Who writes the final companion lines? The drafts above are placeholders.
