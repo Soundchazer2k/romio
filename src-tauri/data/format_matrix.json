@@ -36,12 +36,21 @@
     "sinceVersion": null
   },
   {
+    "system": "xbox",
+    "extension": "iso",
+    "emulator": "xemu",
+    "frontend": null,
+    "support": { "conditional": { "condition": "Must be an XISO (the game partition only). Full Redump images will NOT load — extract the game partition with xdvdfs or extract-xiso. Same .iso extension, so check before import." } },
+    "notes": "xemu docs: \"xemu requires game discs to be in the form of xiso images.\" https://xemu.app/docs/disc-images/",
+    "sinceVersion": null
+  },
+  {
     "system": "xbox360",
     "extension": "iso",
     "emulator": "xenia",
     "frontend": null,
-    "support": { "conditional": { "condition": "Must be XISO-formatted. Standard ISO rips (e.g. from DVD decryption tools without XISO conversion) will NOT load. Visually identical extension — verify with extract-xiso or xdvdfs." } },
-    "notes": "Standard ISO ≠ XISO. Always verify Xbox 360 ISOs are properly formatted before import.",
+    "support": "supported",
+    "notes": "Xenia finds the game partition in a trimmed XISO or a full XGD2/XGD3 disc image, so no conversion is needed (src/xenia/vfs/devices/disc_image_device.cc).",
     "sinceVersion": null
   },
   {
@@ -49,8 +58,8 @@
     "extension": "iso",
     "emulator": "xenia-canary",
     "frontend": null,
-    "support": { "conditional": { "condition": "Must be XISO-formatted. Same requirement as base Xenia." } },
-    "notes": null,
+    "support": "supported",
+    "notes": "Same disc reader as Xenia: trimmed XISO and full XGD2/XGD3 images both load.",
     "sinceVersion": null
   },
   {
