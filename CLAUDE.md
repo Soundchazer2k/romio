@@ -7,6 +7,7 @@ pnpm tauri dev       # Start dev (Vite on :1444 + Rust backend)
 pnpm tauri build     # Production build
 pnpm test            # Vitest unit tests
 cargo check          # Rust-only type check (fast)
+cargo test --test scenarios  # Engine vs fake RetroBat/Batocera/ES-DE libraries (src-tauri/tests/, never bundled)
 cargo fix --lib -p romio  # Auto-fix unused import warnings
 ```
 
