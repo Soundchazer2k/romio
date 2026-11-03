@@ -288,6 +288,8 @@ fn default_emulators_judge_their_common_formats() {
         ("roms/ps2/Okami.cso", "ps2", "pcsx2"),
         ("roms/gc/Wind Waker.iso", "gamecube", "dolphin"),
         ("roms/wii/Mario Galaxy.wbfs", "wii", "dolphin"),
+        ("roms/pcenginecd/Ys Book I & II.chd", "tg16cd", "lr-beetle-pce"),
+        ("roms/pcenginecd/Ys Book I & II.cue", "tg16cd", "lr-beetle-pce-fast"),
     ] {
         assert_eq!(check(rel, system, emulator).state, Fmt::Compatible, "{rel}");
     }

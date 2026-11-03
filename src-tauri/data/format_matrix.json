@@ -430,5 +430,95 @@
     "support": "supported",
     "notes": "Dolphin Source/Core/DiscIO/Blob.cpp reads plain images, GCZ, CISO, WBFS, WIA and RVZ.",
     "sinceVersion": null
+  },
+  {
+    "system": "tg16cd",
+    "extension": "chd",
+    "emulator": "lr-beetle-pce",
+    "frontend": null,
+    "support": "supported",
+    "notes": "libretro core info: supported_extensions = pce|cue|ccd|chd|toc|m3u (Beetle PCE and Beetle PCE FAST). BIOS: syscard3.pce.",
+    "sinceVersion": null
+  },
+  {
+    "system": "tg16cd",
+    "extension": "cue",
+    "emulator": "lr-beetle-pce",
+    "frontend": null,
+    "support": "supported",
+    "notes": "libretro core info: supported_extensions = pce|cue|ccd|chd|toc|m3u (Beetle PCE and Beetle PCE FAST). BIOS: syscard3.pce.",
+    "sinceVersion": null
+  },
+  {
+    "system": "tg16cd",
+    "extension": "ccd",
+    "emulator": "lr-beetle-pce",
+    "frontend": null,
+    "support": "supported",
+    "notes": "libretro core info: supported_extensions = pce|cue|ccd|chd|toc|m3u (Beetle PCE and Beetle PCE FAST). BIOS: syscard3.pce.",
+    "sinceVersion": null
+  },
+  {
+    "system": "tg16cd",
+    "extension": "toc",
+    "emulator": "lr-beetle-pce",
+    "frontend": null,
+    "support": "supported",
+    "notes": "libretro core info: supported_extensions = pce|cue|ccd|chd|toc|m3u (Beetle PCE and Beetle PCE FAST). BIOS: syscard3.pce.",
+    "sinceVersion": null
+  },
+  {
+    "system": "tg16cd",
+    "extension": "m3u",
+    "emulator": "lr-beetle-pce",
+    "frontend": null,
+    "support": "supported",
+    "notes": "libretro core info: supported_extensions = pce|cue|ccd|chd|toc|m3u (Beetle PCE and Beetle PCE FAST). BIOS: syscard3.pce.",
+    "sinceVersion": null
+  },
+  {
+    "system": "tg16cd",
+    "extension": "chd",
+    "emulator": "lr-beetle-pce-fast",
+    "frontend": null,
+    "support": "supported",
+    "notes": "libretro core info: supported_extensions = pce|cue|ccd|chd|toc|m3u (Beetle PCE and Beetle PCE FAST). BIOS: syscard3.pce.",
+    "sinceVersion": null
+  },
+  {
+    "system": "tg16cd",
+    "extension": "cue",
+    "emulator": "lr-beetle-pce-fast",
+    "frontend": null,
+    "support": "supported",
+    "notes": "libretro core info: supported_extensions = pce|cue|ccd|chd|toc|m3u (Beetle PCE and Beetle PCE FAST). BIOS: syscard3.pce.",
+    "sinceVersion": null
+  },
+  {
+    "system": "tg16cd",
+    "extension": "ccd",
+    "emulator": "lr-beetle-pce-fast",
+    "frontend": null,
+    "support": "supported",
+    "notes": "libretro core info: supported_extensions = pce|cue|ccd|chd|toc|m3u (Beetle PCE and Beetle PCE FAST). BIOS: syscard3.pce.",
+    "sinceVersion": null
+  },
+  {
+    "system": "tg16cd",
+    "extension": "toc",
+    "emulator": "lr-beetle-pce-fast",
+    "frontend": null,
+    "support": "supported",
+    "notes": "libretro core info: supported_extensions = pce|cue|ccd|chd|toc|m3u (Beetle PCE and Beetle PCE FAST). BIOS: syscard3.pce.",
+    "sinceVersion": null
+  },
+  {
+    "system": "tg16cd",
+    "extension": "m3u",
+    "emulator": "lr-beetle-pce-fast",
+    "frontend": null,
+    "support": "supported",
+    "notes": "libretro core info: supported_extensions = pce|cue|ccd|chd|toc|m3u (Beetle PCE and Beetle PCE FAST). BIOS: syscard3.pce.",
+    "sinceVersion": null
   }
 ]
