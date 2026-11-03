@@ -10,6 +10,29 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+// Frontend roms/ folder names that differ from Romio's system IDs.
+// Sources: ES-DE es_systems.xml, RetroBat es_systems.cfg, Batocera es_systems.yml.
+const FOLDER_ALIASES: Record<string, string> = {
+  psx: "ps1",
+  gc: "gamecube",
+  n3ds: "3ds",
+  megadrive: "genesis", megadrivejp: "genesis",
+  megacd: "segacd", megacdjp: "segacd",
+  sega32xjp: "sega32x", sega32xna: "sega32x",
+  saturnjp: "saturn",
+  sfc: "snes", snesna: "snes",
+  famicom: "nes",
+  pcenginecd: "tg16cd", "tg-cd": "tg16cd",
+  amiga500: "amiga", amiga1200: "amiga",
+  mame: "arcade",
+};
+
+/** Romio system ID for a frontend's roms/ folder name */
+export function systemForFolder(folder: string): string {
+  const name = folder.toLowerCase();
+  return FOLDER_ALIASES[name] ?? name;
+}
+
 export function formatBytes(bytes: number): string {
   if (bytes === 0) return "0 B";
   const k = 1024;

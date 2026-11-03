@@ -5,8 +5,24 @@ import {
   formatStateLabel,
   formatSupportLabel,
   groupResultsBySystem,
+  systemForFolder,
 } from "./utils";
 import type { FormatCheckResult } from "@/types";
+
+describe("systemForFolder", () => {
+  it("maps frontend folder names to Romio system IDs", () => {
+    expect(systemForFolder("psx")).toBe("ps1");       // every frontend
+    expect(systemForFolder("gc")).toBe("gamecube");   // ES-DE
+    expect(systemForFolder("n3ds")).toBe("3ds");      // ES-DE
+    expect(systemForFolder("megadrive")).toBe("genesis"); // Batocera, RetroBat
+    expect(systemForFolder("megacd")).toBe("segacd");
+    expect(systemForFolder("PSX")).toBe("ps1");
+  });
+  it("passes through folders that already match", () => {
+    expect(systemForFolder("gamecube")).toBe("gamecube");
+    expect(systemForFolder("xbox360")).toBe("xbox360");
+  });
+});
 
 describe("formatStateColor", () => {
   it("returns green for Compatible", () =>
