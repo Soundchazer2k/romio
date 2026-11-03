@@ -37,7 +37,7 @@ tokio = { version = "1", features = ["full"] }
 walkdir = "2"
 
 # ZIP archive creation for save checkpoints
-zip = "2"
+zip = "9"
 
 # Hashing - MD5 for BIOS validation, Blake3 for fast file identity
 md5    = "0.7"
