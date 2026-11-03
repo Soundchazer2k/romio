@@ -10,7 +10,7 @@ import type {
   FormatSystemGroup, FormatRule, StagedFix,
   EmulatorMatrixEntry, FormatCheckResult,
 } from "@/types";
-import { groupResultsBySystem } from "@/lib/utils";
+import { groupResultsBySystem, systemForFolder } from "@/lib/utils";
 import { FormatConfigBar }       from "./FormatConfigBar";
 import { FormatSystemRow }       from "./FormatSystemRow";
 import { FormatFixTray }         from "./FormatFixTray";
@@ -72,9 +72,9 @@ export function FormatScreen() {
       const systemFolders = systemEntries.filter((e) => e.isDirectory);
 
       for (const sysEntry of systemFolders) {
-        const systemId = sysEntry.name;
-        if (!systemId) continue;
-        const systemPath = joinPath(libraryPath, systemId);
+        if (!sysEntry.name) continue;
+        const systemPath = joinPath(libraryPath, sysEntry.name);
+        const systemId = systemForFolder(sysEntry.name);
 
         // Determine emulator for this system
         const emu = emulatorOverride === "auto"
