@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 import type {
   Project, RomioState, ScanProgress,
   HostEnvironmentReport, BiosSystemResult,
 } from "@/types";
+import type { Scenario } from "@/lib/scenario";
 
 // ── App store — global UI state ───────────────────────────────────────────────
 
@@ -23,6 +25,10 @@ interface AppStore {
   // Sidebar open/closed
   sidebarOpen:    boolean;
   setSidebarOpen: (v: boolean) => void;
+
+  // Which of the three moments the person is in; remembered across launches
+  scenario:    Scenario | null;
+  setScenario: (s: Scenario) => void;
 }
 
 export type Screen =
@@ -41,7 +47,7 @@ export type Screen =
   | "rollback"
   | "smoketest";
 
-export const useAppStore = create<AppStore>((set) => ({
+export const useAppStore = create<AppStore>()(persist((set) => ({
   screen:        "welcome",
   setScreen:     (screen) => set({ screen }),
 
@@ -53,6 +59,13 @@ export const useAppStore = create<AppStore>((set) => ({
 
   sidebarOpen:    true,
   setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
+
+  scenario:    null,
+  setScenario: (scenario) => set({ scenario }),
+}), {
+  name:       "romio-app",
+  // Only the scenario outlives a launch; screens and projects start fresh
+  partialize: (s) => ({ scenario: s.scenario }),
 }));
 
 // ── Scan store ────────────────────────────────────────────────────────────────

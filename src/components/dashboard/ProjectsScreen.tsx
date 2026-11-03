@@ -7,10 +7,11 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { Modal, Dialog } from "@/components/shared/Modal";
 import { useAppStore } from "@/stores";
 import { ipc } from "@/lib/ipc";
+import { startScreen } from "@/lib/scenario";
 import type { CreateProjectRequest, FrontendInfo } from "@/types";
 
 export function ProjectsScreen() {
-  const { setActiveProject, setScreen, setRomioState } = useAppStore();
+  const { setActiveProject, setScreen, setRomioState, scenario } = useAppStore();
   const qc = useQueryClient();
   const [showNew, setShowNew] = useState(false);
 
@@ -30,7 +31,7 @@ export function ProjectsScreen() {
       qc.invalidateQueries({ queryKey: ["projects"] });
       setActiveProject(project);
       setRomioState("pondering");
-      setScreen("preflight");
+      setScreen(startScreen(scenario));
     },
   });
 
@@ -38,7 +39,7 @@ export function ProjectsScreen() {
     ipc.getProject(id).then((p) => {
       setActiveProject(p);
       setRomioState("pondering");
-      setScreen("preflight");
+      setScreen(startScreen(scenario));
     });
   }
 

@@ -5,6 +5,7 @@ import { Play, AlertTriangle, XCircle, Info, CheckCircle2 } from "lucide-react";
 import { useAppStore, useScanStore } from "@/stores";
 import { ipc } from "@/lib/ipc";
 import { cn } from "@/lib/utils";
+import { SCENARIOS, SCENARIO_ORDER, dashboardChecks, type DashboardCheck, type Scenario } from "@/lib/scenario";
 import type { Project } from "@/types";
 
 function biosBadge(project: Project): {
@@ -29,7 +30,7 @@ function biosBadge(project: Project): {
 }
 
 export function DashboardScreen() {
-  const { activeProject, setActiveProject, setScreen, setRomioState } = useAppStore();
+  const { activeProject, setActiveProject, setScreen, setRomioState, scenario, setScenario } = useAppStore();
   const { isScanning, setScanning, progress } = useScanStore();
 
   const scanMut = useMutation({
@@ -162,39 +163,53 @@ export function DashboardScreen() {
         <NoScanState onScan={() => scanMut.mutate()} />
       )}
 
-      {/* Quick-action cards */}
+      {/* Quick-action cards, ordered for the person's situation */}
       {stats && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {(() => {
-            const bBadge = biosBadge(activeProject);
-            const biosStatus = bBadge.color === "red"   ? "error"
-                             : bBadge.color === "green" ? "ok"
-                             : "warning";
-            return (
-              <ActionCard
-                title="BIOS Validation"
-                description="Check all BIOS files for your target frontend"
-                status={biosStatus}
-                onClick={() => setScreen("bios")}
-                badge={bBadge}
-              />
-            );
-          })()}
-          <ActionCard
-            title="Save Migration"
-            description="Check for save roots at risk after emulator updates"
-            status="info"
-            onClick={() => setScreen("saves")}
-          />
-          <ActionCard
-            title="Format Check"
-            description="Validate ROM container formats against active emulators"
-            status="info"
-            onClick={() => setScreen("format")}
-          />
+          {dashboardChecks(scenario).map((check) => (
+            <CheckCard key={check} check={check} project={activeProject} onOpen={setScreen} />
+          ))}
         </div>
       )}
+
+      <label className="flex items-center gap-2 text-xs text-romio-gray">
+        <span className="font-semibold">Your situation</span>
+        <select
+          value={scenario ?? ""}
+          onChange={(e) => setScenario(e.target.value as Scenario)}
+          className="bg-background-surface border border-border rounded-md px-2 py-1 text-romio-cream
+                     focus:outline-none focus-visible:ring-2 focus-visible:ring-romio-green"
+        >
+          {!scenario && <option value="" disabled>Not chosen</option>}
+          {SCENARIO_ORDER.map((id) => (
+            <option key={id} value={id}>{SCENARIOS[id].title}</option>
+          ))}
+        </select>
+      </label>
     </div>
+  );
+}
+
+function CheckCard({ check, project, onOpen }: {
+  check: DashboardCheck; project: Project; onOpen: (s: DashboardCheck) => void;
+}) {
+  if (check === "bios") {
+    const badge  = biosBadge(project);
+    const status = badge.color === "red" ? "error" : badge.color === "green" ? "ok" : "warning";
+    return (
+      <ActionCard title="BIOS Validation" description="Check all BIOS files for your target frontend"
+        status={status} onClick={() => onOpen("bios")} badge={badge} />
+    );
+  }
+  if (check === "saves") {
+    return (
+      <ActionCard title="Save Migration" description="Check for save roots at risk after emulator updates"
+        status="info" onClick={() => onOpen("saves")} />
+    );
+  }
+  return (
+    <ActionCard title="Format Check" description="Validate ROM container formats against active emulators"
+      status="info" onClick={() => onOpen("format")} />
   );
 }
 
