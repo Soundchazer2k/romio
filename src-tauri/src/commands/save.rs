@@ -12,11 +12,29 @@ pub async fn discover_save_roots(frontend_root: String) -> Result<Vec<SaveRoot>,
     let appdata = std::env::var_os("APPDATA")
         .filter(|v| cfg!(windows) && !v.is_empty())
         .map(std::path::PathBuf::from);
+    let xdg_data = cfg!(target_os = "linux").then(xdg_data_home).flatten();
+    let anchors = crate::engine::save_registry::SaveAnchors {
+        appdata:  appdata.as_deref(),
+        xdg_data: xdg_data.as_deref(),
+    };
     Ok(crate::engine::save_registry::discover_save_roots(
         std::path::Path::new(frontend_root.trim()),
-        appdata.as_deref(),
+        &anchors,
         &rules,
     ))
+}
+
+/// $XDG_DATA_HOME if it's set to an absolute path (the spec says ignore anything else),
+/// otherwise ~/.local/share.
+fn xdg_data_home() -> Option<std::path::PathBuf> {
+    std::env::var_os("XDG_DATA_HOME")
+        .map(std::path::PathBuf::from)
+        .filter(|p| p.is_absolute())
+        .or_else(|| {
+            std::env::var_os("HOME")
+                .filter(|h| !h.is_empty())
+                .map(|h| std::path::PathBuf::from(h).join(".local").join("share"))
+        })
 }
 
 #[tauri::command]

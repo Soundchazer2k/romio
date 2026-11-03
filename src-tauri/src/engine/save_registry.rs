@@ -12,11 +12,21 @@ use crate::models::save::{
 };
 use crate::engine::path_normalizer::{is_symlink, resolve_symlink};
 
+/// Per-user base folders that rule anchors resolve to. `None` where the platform has
+/// no such folder, so rules anchored there are skipped.
+#[derive(Debug, Default, Clone, Copy)]
+pub struct SaveAnchors<'a> {
+    /// Windows %APPDATA% (Roaming)
+    pub appdata:  Option<&'a Path>,
+    /// Linux $XDG_DATA_HOME, usually ~/.local/share
+    pub xdg_data: Option<&'a Path>,
+}
+
 /// Discover save roots for all known emulators, relative to the frontend root
-/// or, for rules anchored to "appdata", the user's %APPDATA% folder.
+/// or to the per-user folder a rule's anchor names.
 pub fn discover_save_roots(
     frontend_root: &Path,
-    appdata: Option<&Path>,
+    anchors: &SaveAnchors,
     rules: &[SavePathRule],
 ) -> Vec<SaveRoot> {
     let mut roots = Vec::new();
@@ -26,7 +36,11 @@ pub fn discover_save_roots(
             // An empty root would resolve against the working directory
             None if frontend_root.as_os_str().is_empty() => continue,
             None => frontend_root,
-            Some("appdata") => match appdata {
+            Some("appdata") => match anchors.appdata {
+                Some(dir) => dir,
+                None => continue,
+            },
+            Some("xdg_data") => match anchors.xdg_data {
                 Some(dir) => dir,
                 None => continue,
             },
@@ -225,7 +239,7 @@ mod tests {
         std::fs::create_dir_all(appdata.path().join("yuzu/nand/user/save")).unwrap();
         std::fs::write(appdata.path().join("yuzu/nand/user/save/a.bin"), b"save").unwrap();
 
-        let roots = discover_save_roots(frontend.path(), Some(appdata.path()), &[rule(Some("appdata"))]);
+        let roots = discover_save_roots(frontend.path(), &SaveAnchors { appdata: Some(appdata.path()), ..Default::default() }, &[rule(Some("appdata"))]);
         assert_eq!(roots.len(), 1);
         assert_eq!(roots[0].migration_state, SaveMigrationState::MigrationNeeded);
         assert_eq!(roots[0].file_count, 1);
@@ -235,8 +249,23 @@ mod tests {
         );
 
         // Same layout under the frontend root is ignored for an appdata rule
-        let roots = discover_save_roots(appdata.path(), Some(frontend.path()), &[rule(Some("appdata"))]);
+        let roots = discover_save_roots(appdata.path(), &SaveAnchors { appdata: Some(frontend.path()), ..Default::default() }, &[rule(Some("appdata"))]);
         assert!(roots.is_empty());
+    }
+
+    #[test]
+    fn xdg_data_rules_resolve_under_xdg_data_only() {
+        let xdg = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(xdg.path().join("yuzu/nand/user/save")).unwrap();
+        let anchors = SaveAnchors { xdg_data: Some(xdg.path()), ..Default::default() };
+
+        let roots = discover_save_roots(Path::new(""), &anchors, &[rule(Some("xdg_data"))]);
+        assert_eq!(roots.len(), 1);
+        assert_eq!(roots[0].migration_state, SaveMigrationState::MigrationNeeded);
+
+        // The same layout under APPDATA doesn't satisfy an xdg_data rule
+        let appdata_only = SaveAnchors { appdata: Some(xdg.path()), ..Default::default() };
+        assert!(discover_save_roots(Path::new(""), &appdata_only, &[rule(Some("xdg_data"))]).is_empty());
     }
 
     #[test]
@@ -244,11 +273,11 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         std::fs::create_dir_all(dir.path().join("yuzu/nand/user/save")).unwrap();
 
-        assert!(discover_save_roots(dir.path(), None, &[rule(Some("appdata"))]).is_empty());
-        assert!(discover_save_roots(dir.path(), Some(dir.path()), &[rule(Some("home"))]).is_empty());
-        assert_eq!(discover_save_roots(dir.path(), None, &[rule(None)]).len(), 1);
+        assert!(discover_save_roots(dir.path(), &SaveAnchors::default(), &[rule(Some("appdata"))]).is_empty());
+        assert!(discover_save_roots(dir.path(), &SaveAnchors { appdata: Some(dir.path()), ..Default::default() }, &[rule(Some("home"))]).is_empty());
+        assert_eq!(discover_save_roots(dir.path(), &SaveAnchors::default(), &[rule(None)]).len(), 1);
         // Frontend-root rules need a frontend root
-        assert!(discover_save_roots(Path::new(""), None, &[rule(None)]).is_empty());
+        assert!(discover_save_roots(Path::new(""), &SaveAnchors::default(), &[rule(None)]).is_empty());
     }
 
     #[test]
@@ -291,7 +320,7 @@ mod tests {
         // Citra first: its source is missing, so alone it would say AlreadyMigrated
         let rules = [shared("Citra/sdmc"), shared("Lime3DS/sdmc")];
 
-        let roots = discover_save_roots(Path::new(""), Some(appdata.path()), &rules);
+        let roots = discover_save_roots(Path::new(""), &SaveAnchors { appdata: Some(appdata.path()), ..Default::default() }, &rules);
         assert_eq!(roots.len(), 1);
         assert_eq!(roots[0].migration_state, SaveMigrationState::ConflictDetected);
         assert_eq!(roots[0].path, appdata.path().join("Lime3DS").join("sdmc").to_string_lossy());
@@ -299,7 +328,7 @@ mod tests {
 
         // Neither source: one bare AlreadyMigrated row, no move notes
         std::fs::remove_dir_all(appdata.path().join("Lime3DS")).unwrap();
-        let roots = discover_save_roots(Path::new(""), Some(appdata.path()), &rules);
+        let roots = discover_save_roots(Path::new(""), &SaveAnchors { appdata: Some(appdata.path()), ..Default::default() }, &rules);
         assert_eq!(roots.len(), 1);
         assert_eq!(roots[0].migration_state, SaveMigrationState::AlreadyMigrated);
         assert!(roots[0].notes.is_none());
