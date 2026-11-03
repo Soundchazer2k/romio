@@ -9,7 +9,7 @@ import type {
   HostEnvironmentReport,
   SaveRoot, MigrationPlan, SaveCheckpoint, OperationLogEntry,
   FrontendInfo,
-  FormatRule, FormatCheckResult, EmulatorMatrixEntry,
+  FormatRule, FormatCheckResult, EmulatorMatrixEntry, SystemFolder,
 } from "@/types";
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -242,6 +242,13 @@ export const ipc = {
           fixAction: { actionType: "rename", description: "Rename to .cue/.bin pair", safe: true } }
       : { ...FIXTURE_FORMAT_RESULT, path, extension: path.split(".").pop() ?? "" },
   getFormatMatrix: async (): Promise<FormatRule[]> => [],
+  listLibraryFolders: async (root: string): Promise<SystemFolder[]> =>
+    ["psx", "gba"].map((name) => ({
+      name,
+      path: `${root}/${name}`,
+      files: [`${root}/${name}/game1.bin`, `${root}/${name}/game2.chd`],
+      error: null,
+    })),
   getEmulatorMatrix: async (): Promise<EmulatorMatrixEntry[]> =>
     FIXTURE_EMULATOR_MATRIX,
 

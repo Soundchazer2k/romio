@@ -362,3 +362,17 @@ fn real_library_smoke() {
     }
     assert!(results.iter().all(|s| !s.errored), "no system errored");
 }
+
+/// The Format screen's "auto" emulator comes from the emulator matrix. A system with
+/// format rules but no matrix entry gets emulator "unknown", and none of its rules fire.
+#[test]
+fn every_system_with_format_rules_has_a_recommended_emulator() {
+    let matrix = db::emulator::load_emulator_matrix().unwrap();
+    let rules = db::format::load_rules().unwrap();
+    let mut missing: Vec<&str> = rules.iter()
+        .map(|r| r.system.as_str())
+        .filter(|s| !matrix.iter().any(|m| m.system == *s))
+        .collect();
+    missing.dedup();
+    assert!(missing.is_empty(), "no emulator_matrix entry for: {missing:?}");
+}

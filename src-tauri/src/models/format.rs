@@ -40,6 +40,17 @@ pub struct FormatCheckResult {
     pub fix_action: Option<FormatFixAction>,
 }
 
+/// One system folder of a library, with the game files the Format check should look at.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SystemFolder {
+    pub name:  String,
+    pub path:  String,
+    pub files: Vec<String>,
+    /// Set when the folder couldn't be listed; `files` is then empty
+    pub error: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FormatFixAction {

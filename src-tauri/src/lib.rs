@@ -50,6 +50,7 @@ pub fn run() {
             // Format compatibility
             commands::format::check_format_compatibility,
             commands::format::get_format_matrix,
+            commands::format::list_library_folders,
 
             // Save migration
             commands::save::discover_save_roots,
