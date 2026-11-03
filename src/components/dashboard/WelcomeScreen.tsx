@@ -26,7 +26,7 @@ export function WelcomeScreen() {
           <img
             src="/romio/romio_welcome.png"
             alt="Romio"
-            className="w-24 h-24 object-contain flex-shrink-0"
+            className="w-24 h-24 object-contain shrink-0"
           />
           <div className="space-y-1">
             <h1 className="text-2xl font-bold text-romio-cream">Welcome to Romio</h1>
@@ -48,7 +48,7 @@ export function WelcomeScreen() {
                 aria-current={current || undefined}
                 className={cn(
                   "group w-full flex items-start gap-3 px-4 py-3 rounded-lg border text-left transition-colors",
-                  "focus:outline-none focus-visible:ring-2 focus-visible:ring-romio-green",
+                  "focus:outline-hidden focus-visible:ring-2 focus-visible:ring-romio-green",
                   current
                     ? "border-romio-green/40 bg-romio-green/10"
                     : "border-border bg-background-surface hover:border-romio-green/30 hover:bg-romio-green/5"
@@ -59,8 +59,8 @@ export function WelcomeScreen() {
                   <p className="text-xs text-romio-gray mt-0.5">{s.description}</p>
                 </div>
                 {current
-                  ? <Check className="w-4 h-4 text-romio-green flex-shrink-0 mt-0.5" aria-label="Your last choice" />
-                  : <ArrowRight className="w-4 h-4 text-romio-gray group-hover:text-romio-green flex-shrink-0 mt-0.5" aria-hidden />}
+                  ? <Check className="w-4 h-4 text-romio-green shrink-0 mt-0.5" aria-label="Your last choice" />
+                  : <ArrowRight className="w-4 h-4 text-romio-gray group-hover:text-romio-green shrink-0 mt-0.5" aria-hidden />}
               </button>
             );
           })}

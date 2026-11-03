@@ -84,7 +84,7 @@ export function SavesScreen() {
           className="flex items-start gap-3 px-4 py-3 rounded-xl
                      bg-romio-red/10 border border-romio-red/20"
         >
-          <AlertTriangle className="w-5 h-5 text-romio-red flex-shrink-0 mt-0.5" />
+          <AlertTriangle className="w-5 h-5 text-romio-red shrink-0 mt-0.5" />
           <div>
             <p className="text-sm font-semibold text-romio-cream">
               {atRisk.length} save {atRisk.length === 1 ? "root" : "roots"} at risk
@@ -99,7 +99,7 @@ export function SavesScreen() {
       {unreadable.length > 0 && (
         <div className="flex items-start gap-3 px-4 py-3 rounded-xl
                         bg-amber-600/10 border border-amber-600/20">
-          <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" aria-hidden />
+          <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" aria-hidden />
           <div>
             <p className="text-sm font-semibold text-romio-cream">
               {unreadable.length} save {unreadable.length === 1 ? "root" : "roots"} can't be read
@@ -122,7 +122,7 @@ export function SavesScreen() {
           placeholder="C:\RetroBat  or  /home/user/retrobat"
           className="w-full px-3 py-2.5 rounded-lg bg-black/30 border border-border
                      font-mono text-sm text-romio-cream placeholder:text-romio-gray
-                     focus:outline-none focus:border-romio-green/40"
+                     focus:outline-hidden focus:border-romio-green/40"
         />
       </div>
 
@@ -255,7 +255,7 @@ function SaveRootCard({ root, index, onMigrate }: {
           )}
         </div>
         {root.migrationState !== "unreadable" && (
-          <div className="text-right text-xs text-romio-gray flex-shrink-0">
+          <div className="text-right text-xs text-romio-gray shrink-0">
             <p>{root.fileCount.toLocaleString()} files</p>
             <p>{formatBytes(root.sizeBytes)}</p>
           </div>
@@ -272,7 +272,7 @@ function SaveRootCard({ root, index, onMigrate }: {
             disabled={!canPlan}
             className={cn(
               "flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold",
-              "rounded-lg border flex-shrink-0 ml-3 transition-colors",
+              "rounded-lg border shrink-0 ml-3 transition-colors",
               canPlan
                 ? "bg-amber-600/20 text-amber-400 border-amber-600/30 hover:bg-amber-600/30"
                 : "cursor-not-allowed bg-white/5 text-romio-gray border-border"
@@ -300,7 +300,7 @@ function SaveRootCard({ root, index, onMigrate }: {
 
       {root.isSymlink && (
         <p className="flex items-start gap-1.5 text-xs text-amber-400">
-          <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-px" aria-hidden />
+          <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-px" aria-hidden />
           <span>This path is a symlink. A move operation may redirect the symlink target
           rather than move the actual files. Review carefully.</span>
         </p>
@@ -360,7 +360,7 @@ function MigrationPlanModal({
                  shadow-romio p-6 space-y-5 mx-4"
     >
         <div className="flex items-start gap-3">
-          <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+          <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
           <div>
             <Dialog.Title className="font-bold text-romio-cream">Migration Plan — {plan.emulator}</Dialog.Title>
             <Dialog.Description className="text-xs text-romio-gray mt-0.5">
@@ -387,7 +387,7 @@ function MigrationPlanModal({
             <div key={step.order} className="flex items-start gap-3 px-3 py-2.5 rounded-lg
                                               bg-black/20 border border-border text-sm">
               <span className="w-5 h-5 rounded-full bg-romio-green/20 text-romio-green
-                               flex items-center justify-center text-xs font-bold flex-shrink-0">
+                               flex items-center justify-center text-xs font-bold shrink-0">
                 {step.order}
               </span>
               <div>
@@ -404,7 +404,7 @@ function MigrationPlanModal({
         {plan.symlinkWarning && (
           <div className="px-3 py-2.5 rounded-lg bg-amber-600/10 border border-amber-600/20
                           text-xs text-amber-400 flex items-start gap-1.5">
-            <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-px" aria-hidden />
+            <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-px" aria-hidden />
             <span>{plan.symlinkWarning}</span>
           </div>
         )}

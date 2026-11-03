@@ -89,7 +89,7 @@ export function ProjectsScreen() {
                     {p.libraryRoots.join(" · ")}
                   </p>
                 </div>
-                <div className="flex flex-col items-end gap-1 text-right flex-shrink-0">
+                <div className="flex flex-col items-end gap-1 text-right shrink-0">
                   {p.scanStats && p.scanStats.blockingIssues > 0 && (
                     <span className="flex items-center gap-1 text-xs text-romio-red">
                       <AlertTriangle className="w-3 h-3" />
@@ -200,7 +200,7 @@ function NewProjectModal({
             placeholder="My Retro Library"
             className="w-full px-3 py-2 rounded-lg bg-black/30 border border-border
                        text-romio-cream text-sm placeholder:text-romio-gray
-                       focus:outline-none focus:border-romio-green/50"
+                       focus:outline-hidden focus:border-romio-green/50"
           />
         </div>
 
@@ -213,7 +213,7 @@ function NewProjectModal({
             {roots.map((r) => (
               <div key={r} className="flex items-center gap-2 px-3 py-1.5 rounded-lg
                                        bg-black/20 border border-border">
-                <FolderOpen className="w-3 h-3 text-romio-gray flex-shrink-0" />
+                <FolderOpen className="w-3 h-3 text-romio-gray shrink-0" />
                 <span className="text-xs text-romio-cream font-mono truncate flex-1">{r}</span>
                 <button onClick={() => setRoots((p) => p.filter((x) => x !== r))}
                   aria-label={`Remove ${r}`}

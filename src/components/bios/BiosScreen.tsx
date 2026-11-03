@@ -102,7 +102,7 @@ export function BiosScreen() {
                   autoFocus
                   className="w-full pl-11 pr-3 py-2 rounded-lg bg-background-surface border border-white/10
                              text-sm font-mono text-romio-cream placeholder:text-romio-gray
-                             focus:outline-none focus:border-romio-green/40"
+                             focus:outline-hidden focus:border-romio-green/40"
                 />
               </div>
               <button
@@ -135,13 +135,13 @@ export function BiosScreen() {
           <div className="flex items-center justify-between p-3 rounded-lg
                           bg-background-surface/50 border border-border">
             <div className="flex items-center gap-2 min-w-0">
-              <FolderOpen className="w-4 h-4 text-romio-gray flex-shrink-0" />
+              <FolderOpen className="w-4 h-4 text-romio-gray shrink-0" />
               <span className="font-mono text-sm text-romio-cream truncate">{biosRoot}</span>
             </div>
             <button
               onClick={() => { setEditingPath(true); setPathInput(biosRoot ?? ""); }}
               className="flex items-center gap-1.5 ml-3 text-xs text-romio-gray
-                         hover:text-romio-cream transition-colors flex-shrink-0"
+                         hover:text-romio-cream transition-colors shrink-0"
             >
               <Pencil className="w-3 h-3" /> Edit path
             </button>
@@ -229,8 +229,8 @@ function SystemResultRow({ result, expanded, onToggle, index }: {
       >
         <div className="flex items-center gap-3">
           {expanded
-            ? <ChevronDown  className="w-4 h-4 text-romio-gray flex-shrink-0" />
-            : <ChevronRight className="w-4 h-4 text-romio-gray flex-shrink-0" />
+            ? <ChevronDown  className="w-4 h-4 text-romio-gray shrink-0" />
+            : <ChevronRight className="w-4 h-4 text-romio-gray shrink-0" />
           }
           <span className="font-medium text-sm text-romio-cream font-mono">{result.system}</span>
         </div>
@@ -327,7 +327,7 @@ function BiosEntryRow({ entry }: { entry: BiosEntryResult }) {
           )}
           {entry.badDumpLabel && (
             <p className="flex items-start gap-1.5 text-xs text-romio-red mt-1">
-              <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-px" aria-hidden />
+              <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-px" aria-hidden />
               <span>Known bad dump: {entry.badDumpLabel}</span>
             </p>
           )}
@@ -339,7 +339,7 @@ function BiosEntryRow({ entry }: { entry: BiosEntryResult }) {
           )}
         </div>
 
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
           {entry.foundMd5 && (
             <button onClick={copyMd5} title="Copy MD5"
               className="text-romio-gray hover:text-romio-cream transition-colors">

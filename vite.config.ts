@@ -15,22 +15,22 @@ export default defineConfig(async () => ({
       // Aliases match in key order, so these must come before "@" or "@" swallows "@/lib/ipc".
       ...(isTestMode
         ? {
-            "@/lib/ipc": path.resolve(__dirname, "src/lib/ipc.mock.ts"),
+            "@/lib/ipc": path.resolve(import.meta.dirname, "src/lib/ipc.mock.ts"),
             "@tauri-apps/plugin-fs": path.resolve(
-              __dirname,
+              import.meta.dirname,
               "src/lib/tauri-plugins.mock.ts"
             ),
             "@tauri-apps/plugin-dialog": path.resolve(
-              __dirname,
+              import.meta.dirname,
               "src/lib/tauri-plugins.mock.ts"
             ),
             "@tauri-apps/api/event": path.resolve(
-              __dirname,
+              import.meta.dirname,
               "src/lib/tauri-api-event.mock.ts"
             ),
           }
         : {}),
-      "@": path.resolve(__dirname, "./src"),
+      "@": path.resolve(import.meta.dirname, "./src"),
     },
   },
   clearScreen: false,

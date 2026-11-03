@@ -151,7 +151,7 @@ export function FormatScreen() {
           onClick={() => setDrawerOpen(true)}
           title="Format rules reference"
           className="p-2 rounded-lg text-romio-gray hover:text-romio-cream
-                     hover:bg-white/5 transition-colors flex-shrink-0"
+                     hover:bg-white/5 transition-colors shrink-0"
         >
           <HelpCircle className="w-5 h-5" />
         </button>

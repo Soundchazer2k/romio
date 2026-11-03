@@ -29,7 +29,7 @@ export function Sidebar() {
     <motion.aside
       initial={{ x: -240 }}
       animate={{ x: 0 }}
-      className="w-56 flex-shrink-0 flex flex-col bg-background-surface border-r border-border
+      className="w-56 shrink-0 flex flex-col bg-background-surface border-r border-border
                  h-full overflow-hidden"
     >
       {/* Project name */}
@@ -79,13 +79,13 @@ function NavButton({
       onClick={onClick}
       className={cn(
         "w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors",
-        "text-left focus:outline-none focus-visible:ring-1 focus-visible:ring-romio-green",
+        "text-left focus:outline-hidden focus-visible:ring-1 focus-visible:ring-romio-green",
         active
           ? "bg-romio-green/15 text-romio-green font-medium"
           : "text-romio-gray hover:text-romio-cream hover:bg-white/5"
       )}
     >
-      <Icon className={cn("w-4 h-4 flex-shrink-0", active && "text-romio-green")} />
+      <Icon className={cn("w-4 h-4 shrink-0", active && "text-romio-green")} />
       <span className="truncate">{item.label}</span>
     </button>
   );

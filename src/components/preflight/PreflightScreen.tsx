@@ -112,7 +112,7 @@ function SummaryBanner({ allPass, blockingCount, total }: {
     return (
       <div className="flex items-center gap-3 px-4 py-3 rounded-xl
                       bg-romio-green/10 border border-romio-green/20">
-        <CheckCircle className="w-5 h-5 text-romio-green flex-shrink-0" />
+        <CheckCircle className="w-5 h-5 text-romio-green shrink-0" />
         <p className="text-sm text-romio-cream">
           All {total} checks passed. Your machine is ready.
         </p>
@@ -123,7 +123,7 @@ function SummaryBanner({ allPass, blockingCount, total }: {
     return (
       <div className="flex items-center gap-3 px-4 py-3 rounded-xl
                       bg-romio-red/10 border border-romio-red/20">
-        <XCircle className="w-5 h-5 text-romio-red flex-shrink-0" />
+        <XCircle className="w-5 h-5 text-romio-red shrink-0" />
         <p className="text-sm text-romio-cream">
           <strong>{blockingCount}</strong> missing {blockingCount === 1 ? "dependency" : "dependencies"} will
           prevent some emulators from launching. Fix before scanning.
@@ -134,7 +134,7 @@ function SummaryBanner({ allPass, blockingCount, total }: {
   return (
     <div className="flex items-center gap-3 px-4 py-3 rounded-xl
                     bg-amber-600/10 border border-amber-600/20">
-      <AlertCircle className="w-5 h-5 text-amber-400 flex-shrink-0" />
+      <AlertCircle className="w-5 h-5 text-amber-400 shrink-0" />
       <p className="text-sm text-romio-cream">
         Some optional dependencies are missing. Certain features may be limited.
       </p>
@@ -153,7 +153,7 @@ function DependencyRow({ check }: { check: DependencyCheck }) {
       "border-border bg-background-surface/30"
     )}>
       <div className="flex items-start gap-3">
-        <div className="mt-0.5 flex-shrink-0">{icon}</div>
+        <div className="mt-0.5 shrink-0">{icon}</div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <p className="text-sm font-medium text-romio-cream">{check.name}</p>

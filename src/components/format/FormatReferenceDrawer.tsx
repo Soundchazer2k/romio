@@ -41,7 +41,7 @@ function DrawerContent({ rules, onClose }: Omit<Props, "open">) {
       variant="drawer"
       onClose={onClose}
       className="h-full w-full max-w-md bg-background-surface border-l border-border
-                 flex flex-col shadow-2xl focus:outline-none"
+                 flex flex-col shadow-2xl focus:outline-hidden"
     >
       {/* Header */}
       <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-border">
@@ -63,14 +63,14 @@ function DrawerContent({ rules, onClose }: Omit<Props, "open">) {
       <div className="px-5 py-3 border-b border-border">
         <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-black/30 border border-border
                         focus-within:border-romio-green focus-within:ring-2 focus-within:ring-romio-green/30">
-          <Search className="w-3.5 h-3.5 text-romio-gray flex-shrink-0" aria-hidden />
+          <Search className="w-3.5 h-3.5 text-romio-gray shrink-0" aria-hidden />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             aria-label="Filter rules"
             placeholder="Filter by system, extension, emulator…"
             className="flex-1 bg-transparent text-sm text-romio-cream
-                       placeholder:text-romio-gray focus:outline-none"
+                       placeholder:text-romio-gray focus:outline-hidden"
           />
         </div>
       </div>
@@ -84,7 +84,7 @@ function DrawerContent({ rules, onClose }: Omit<Props, "open">) {
           {SUPPORT_STATES.map((s) => (
             <div key={s.label} className="flex gap-2">
               <span className={cn(
-                "font-medium flex-shrink-0 w-20",
+                "font-medium shrink-0 w-20",
                 s.label === "Supported"   ? "text-romio-green" :
                 s.label === "Deprecated"  ? "text-amber-400"   :
                 s.label === "Unsupported" ? "text-romio-red"   :
