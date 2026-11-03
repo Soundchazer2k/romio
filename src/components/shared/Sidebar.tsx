@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0
 import { motion } from "framer-motion";
-import {
-  Home, FolderOpen, Shield, Disc, HardDrive,
-  GamepadIcon, Save, Upload, RotateCcw, Cpu, FileCode2
-} from "lucide-react";
+import { Home, Shield, Save, Cpu, FileCode2 } from "lucide-react";
 import { useAppStore, type Screen } from "@/stores";
 import { RomioCompanion } from "@/components/romio/RomioCompanion";
 import { cn } from "@/lib/utils";
@@ -15,18 +12,14 @@ interface NavItem {
   divider?: boolean;
 }
 
+// Only finished screens. Multi-Disc, ScummVM, Installed, Export, Change Preview and
+// Rollback stay out until they're built (DESIGN.md: no sidebar items to "Coming soon").
 const NAV: NavItem[] = [
   { id: "dashboard",  label: "Dashboard",     icon: Home },
   { id: "preflight",  label: "Pre-flight",    icon: Cpu,        divider: true },
   { id: "bios",       label: "BIOS",          icon: Shield },
   { id: "format",     label: "Format Check",  icon: FileCode2 },
-  { id: "multidisc",  label: "Multi-Disc",    icon: Disc },
-  { id: "scummvm",    label: "ScummVM",        icon: GamepadIcon },
-  { id: "installed",  label: "Installed",     icon: HardDrive, divider: true },
-  { id: "saves",      label: "Save Migration",icon: Save },
-  { id: "export",     label: "Export",        icon: Upload,    divider: true },
-  { id: "preview",    label: "Change Preview",icon: FolderOpen },
-  { id: "rollback",   label: "Rollback",      icon: RotateCcw },
+  { id: "saves",      label: "Save Migration",icon: Save,       divider: true },
 ];
 
 export function Sidebar() {
