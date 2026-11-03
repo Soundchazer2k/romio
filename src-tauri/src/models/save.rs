@@ -9,6 +9,10 @@ use chrono::{DateTime, Utc};
 pub struct SavePathRule {
     pub emulator:        String,
     pub frontend:        Option<String>,
+    /// Where the path patterns start: absent = the frontend root,
+    /// "appdata" = the user's %APPDATA% (Windows only; skipped elsewhere).
+    #[serde(default)]
+    pub anchor:          Option<String>,
     pub version_from:    Option<String>,
     pub version_to:      Option<String>,
     pub old_path_pattern: String,
@@ -28,6 +32,8 @@ pub struct SaveRoot {
     pub size_bytes:           u64,
     pub migration_state:      SaveMigrationState,
     pub expected_destination: Option<String>,
+    /// The matching rule's notes from save_paths.json
+    pub notes:                Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

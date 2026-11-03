@@ -167,6 +167,7 @@ export interface SaveRoot {
   sizeBytes:            number;
   migrationState:       SaveMigrationState;
   expectedDestination?: string;
+  notes?:               string;
 }
 
 export type MigrationAction =

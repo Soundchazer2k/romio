@@ -8,8 +8,13 @@ use crate::models::validation::OperationLogEntry;
 #[tauri::command]
 pub async fn discover_save_roots(frontend_root: String) -> Result<Vec<SaveRoot>, String> {
     let rules = crate::db::save::load_rules().map_err(|e| e.to_string())?;
+    // appdata rules are Windows paths; never resolve them against an empty or foreign APPDATA
+    let appdata = std::env::var_os("APPDATA")
+        .filter(|v| cfg!(windows) && !v.is_empty())
+        .map(std::path::PathBuf::from);
     Ok(crate::engine::save_registry::discover_save_roots(
-        std::path::Path::new(&frontend_root),
+        std::path::Path::new(frontend_root.trim()),
+        appdata.as_deref(),
         &rules,
     ))
 }

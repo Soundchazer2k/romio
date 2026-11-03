@@ -28,7 +28,8 @@ export function SavesScreen() {
   const { data: roots = [], isLoading } = useQuery({
     queryKey: ["save-roots", frontendRoot],
     queryFn:  () => ipc.discoverSaveRoots(frontendRoot),
-    enabled:  !!activeProject && frontendRoot.length > 0,
+    // %APPDATA% rules need no frontend root, so discover as soon as a project is open
+    enabled:  !!activeProject,
   });
 
   const { data: log = [] } = useQuery({
@@ -136,10 +137,10 @@ export function SavesScreen() {
         </div>
       )}
 
-      {frontendRoot && !isLoading && roots.length === 0 && (
+      {!isLoading && roots.length === 0 && (
         <div className="text-center py-12 text-romio-gray space-y-2">
           <ShieldCheck className="w-10 h-10 mx-auto opacity-30" />
-          <p>No save roots found at risk in this directory.</p>
+          <p>No save roots found at risk{frontendRoot ? " in this directory or AppData" : " in AppData"}.</p>
         </div>
       )}
 
@@ -264,6 +265,8 @@ function SaveRootCard({ root, index, onMigrate }: {
           Saves found at both old and new paths. Manual review required before migrating.
         </p>
       )}
+
+      {root.notes && <p className="text-xs text-romio-gray">{root.notes}</p>}
 
       {root.isSymlink && (
         <p className="flex items-start gap-1.5 text-xs text-amber-400/80">
