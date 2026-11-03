@@ -1,0 +1,28 @@
+# Checks Cargo.lock against the RustSec advisory database. Free and unlimited,
+# so it keeps working when an AI reviewer's quota runs out. Weekly runs catch
+# advisories published after a dependency was added.
+name: Audit
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    paths: ["Cargo.lock", "**/Cargo.toml", ".github/workflows/audit.yml"]
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cargo-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09  # v5
+      - uses: taiki-e/install-action@b80e2bb2635f28eb98b9fce1e2f0887e1535c6b2  # v2
+        with:
+          tool: cargo-audit
+      # Fails on vulnerabilities; unmaintained/unsound notices stay warnings.
+      # Known warnings, both from Tauri's Linux GTK stack: RUSTSEC-2024-0429 (glib), RUSTSEC-2024-0370 (proc-macro-error)
+      - run: cargo audit
