@@ -7,7 +7,7 @@ mod common;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
-use common::{fixture_bios_rules, with_bad_dump, Library};
+use common::{deny_read, fixture_bios_rules, with_bad_dump, Library};
 use romio_lib::db;
 use romio_lib::engine::bios_sweep::{run_sweep, BiosSweepConfig};
 use romio_lib::engine::format_matrix::check_format;
@@ -223,6 +223,34 @@ fn rescuer_finds_bad_dump_renamed_bios_and_split_saves() {
     assert_eq!(azahar.migration_state, Save::ConflictDetected);
     assert_eq!(azahar.file_count, 5, "counts the saves still to move, not the fresh ones");
     assert!(azahar.notes.is_some(), "the rule's note explains the move");
+}
+
+/// Rescuer whose saves are locked: a save root Romio can't read, wholly or in part,
+/// must say so instead of looking missing or reporting short totals.
+#[test]
+fn locked_save_roots_are_reported_unreadable_not_missing() {
+    let appdata = Library::new();
+    let rules = db::save::load_rules().unwrap();
+    let discover = || discover_save_roots(std::path::Path::new(""), Some(appdata.root()), &rules);
+
+    // Whole root locked: yuzu's save folder can't be listed at all
+    let yuzu = appdata.saves("yuzu/nand/user/save/0000000000000000", 4);
+    let Some(locked) = deny_read(&appdata.path("yuzu/nand/user/save")) else {
+        eprintln!("this OS ignores read denial (running as root?); skipping");
+        return;
+    };
+    let roots = discover();
+    let eden = save_root(&roots, "eden");
+    assert_eq!(eden.migration_state, Save::Unreadable, "{roots:#?}");
+    assert_eq!((eden.file_count, eden.size_bytes), (0, 0), "no guessed totals");
+    assert_eq!(eden.expected_destination.as_deref(),
+        Some(appdata.path("eden/nand/user/save").to_string_lossy().as_ref()));
+    drop(locked);
+    assert_eq!(save_root(&discover(), "eden").migration_state, Save::MigrationNeeded);
+
+    // Only one subfolder locked: the root opens, but its totals would be short
+    let _locked = deny_read(&yuzu).expect("read denial works here");
+    assert_eq!(save_root(&discover(), "eden").migration_state, Save::Unreadable);
 }
 
 /// Opt-in check against your own library. Never runs in CI.
