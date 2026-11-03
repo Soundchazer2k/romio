@@ -18,7 +18,7 @@ describe("formatStateColor", () => {
   it("returns gray for Unknown", () =>
     expect(formatStateColor("Unknown")).toBe("text-romio-gray"));
   it("returns muted for NotApplicable", () =>
-    expect(formatStateColor("NotApplicable")).toBe("text-romio-gray opacity-50"));
+    expect(formatStateColor("NotApplicable")).toBe("text-romio-gray"));
 });
 
 describe("formatStateBg", () => {

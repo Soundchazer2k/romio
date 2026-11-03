@@ -131,7 +131,7 @@ What the manuals contribute, following Arnold Hendrick's "Manuals: They Can Be G
 Colors come from the mascot (black body, cream face, red antenna and high-tops, green floppy disk), adjusted so every text color meets WCAG AA (4.5:1) on every surface, including the lightest hover tint (#252528).
 
 - **romio-cream (#F5F0E8):** primary text. The mascot's face.
-- **romio-gray (#999999):** secondary text, captions, file paths. Never fade it with opacity; the faded versions failed contrast. *(Known debt: "not applicable" BIOS rows still add `opacity-50`.)*
+- **romio-gray (#999999):** secondary text, captions, file paths. Never fade it with opacity; the faded versions failed contrast.
 - **romio-green (#58A76E):** valid states, active navigation, links, tints. The floppy disk.
 - **romio-green-fill (#437F53):** solid buttons that carry white text. Darker than `romio-green` so white passes 4.5:1.
 - **romio-red (#FF6060):** errors and blocking problems. Brighter than the mascot's #E03030, which fails 4.5:1 on dark surfaces.
@@ -210,8 +210,8 @@ Do:
 Don't:
 
 - Emoji as icons. Use `lucide-react`.
-- Uppercase labels with wide letter spacing. *(Known debt: 11 left in `src/`.)*
-- Purple or indigo gradients, glowing gradients, glassmorphism or `backdrop-blur`. *(Known debt: 1 left in `FormatFixTray`.)*
+- Uppercase labels with wide letter spacing.
+- Purple or indigo gradients, glowing gradients, glassmorphism or `backdrop-blur`.
 - Pulsing dots or "Live" badges on things that are not happening right now. The scan indicator is allowed because a scan is running.
 - Inter or Roboto.
 - Text or labels laid over screenshots or data.

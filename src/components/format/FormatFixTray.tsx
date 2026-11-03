@@ -1,7 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0
 import { motion } from "framer-motion";
 import { Trash2, ArrowRight } from "lucide-react";
-import type { StagedFix } from "@/types";
+import type { FormatFixType, StagedFix } from "@/types";
+
+const FIX_NOUN: Record<FormatFixType, [string, string]> = {
+  rename:  ["rename", "renames"],
+  convert: ["convert", "converts"],
+  redump:  ["re-dump", "re-dumps"],
+};
 
 interface Props {
   fixes:        StagedFix[];
@@ -10,6 +16,12 @@ interface Props {
 }
 
 export function FormatFixTray({ fixes, onClear, onReviewPlan }: Props) {
+  const breakdown = (Object.keys(FIX_NOUN) as FormatFixType[])
+    .map((type) => [type, fixes.filter((f) => f.fix.actionType === type).length] as const)
+    .filter(([, n]) => n > 0)
+    .map(([type, n]) => `${n} ${FIX_NOUN[type][n === 1 ? 0 : 1]}`)
+    .join(", ");
+
   // Note: parent mounts/unmounts this component — do NOT add a null guard here,
   // as that would prevent AnimatePresence from seeing the exit transition.
   return (
@@ -19,13 +31,17 @@ export function FormatFixTray({ fixes, onClear, onReviewPlan }: Props) {
       exit={{   y: 80, opacity: 0 }}
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
       className="fixed bottom-0 left-0 right-0 z-40
-                 border-t border-border bg-background-surface/95 backdrop-blur-sm
+                 border-t-2 border-romio-green bg-background-surface
                  px-6 py-3 flex items-center justify-between gap-4"
     >
       <div className="flex items-center gap-3">
-        <span className="text-sm text-romio-cream font-medium">
-          {fixes.length} {fixes.length === 1 ? "fix" : "fixes"} staged
-        </span>
+        <div>
+          <p className="text-xs font-semibold text-romio-green">Step 1 of 2: stage fixes</p>
+          <p className="text-sm text-romio-cream font-medium">
+            {fixes.length} {fixes.length === 1 ? "fix" : "fixes"} staged
+            {breakdown && <span className="ml-2 font-mono text-xs font-normal text-romio-gray">{breakdown}</span>}
+          </p>
+        </div>
         <button
           onClick={onClear}
           className="flex items-center gap-1 text-xs text-romio-gray hover:text-romio-cream

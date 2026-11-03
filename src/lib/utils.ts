@@ -25,7 +25,7 @@ export function biosStateColor(state: BiosValidationState): string {
     case "PRESENT_HASH_MISMATCH": return "text-romio-red";
     case "MISSING_REQUIRED":      return "text-romio-red";
     case "MISSING_OPTIONAL":      return "text-romio-gray";
-    case "NOT_APPLICABLE":        return "text-romio-gray opacity-50";
+    case "NOT_APPLICABLE":        return "text-romio-gray";
   }
 }
 
@@ -47,7 +47,7 @@ export function biosStateLabel(state: BiosValidationState): string {
     case "PRESENT_HASH_MISMATCH": return "Hash mismatch";
     case "MISSING_REQUIRED":      return "Missing — required";
     case "MISSING_OPTIONAL":      return "Missing — optional";
-    case "NOT_APPLICABLE":        return "N/A";
+    case "NOT_APPLICABLE":        return "Not applicable";
   }
 }
 
@@ -67,6 +67,7 @@ export function migrationStateLabel(state: SaveMigrationState): string {
     case "conflict_detected":  return "Conflict — saves at both paths";
     case "already_migrated":   return "Already migrated";
     case "not_applicable":     return "No migration rule";
+    case "unreadable":         return "Can't read";
   }
 }
 
@@ -86,7 +87,7 @@ export function formatStateColor(state: FormatCompatibilityState): string {
     case "FormatDeprecated":   return "text-amber-400";
     case "FormatIncompatible": return "text-romio-red";
     case "Unknown":            return "text-romio-gray";
-    case "NotApplicable":      return "text-romio-gray opacity-50";
+    case "NotApplicable":      return "text-romio-gray";
   }
 }
 

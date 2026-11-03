@@ -43,7 +43,7 @@ export function Sidebar() {
       <div className="px-4 py-3 border-b border-border">
         {activeProject ? (
           <>
-            <p className="text-xs text-romio-gray uppercase tracking-widest">Project</p>
+            <p className="text-xs text-romio-gray font-semibold">Project</p>
             <p className="text-sm font-semibold text-romio-cream truncate mt-0.5">
               {activeProject.name}
             </p>

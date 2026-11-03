@@ -39,12 +39,17 @@ export function SavesScreen() {
   });
 
   // ── Derived state ─────────────────────────────────────────────────────────
-  const atRisk = roots.filter((r) => r.migrationState === "migration_needed");
+  const atRisk     = roots.filter((r) => r.migrationState === "migration_needed");
+  const unreadable = roots.filter((r) => r.migrationState === "unreadable");
+  // Unreadable roots and conflicts leave the risk unknown, so they never count as a pass
+  const unresolved = roots.some((r) =>
+    r.migrationState === "unreadable" || r.migrationState === "conflict_detected");
 
   useEffect(() => {
     if (atRisk.length > 0)     setRomioState("difficult_save");
+    else if (unresolved)       setRomioState("concerned");
     else if (roots.length > 0) setRomioState("success");
-  }, [atRisk.length, roots.length, setRomioState]);
+  }, [atRisk.length, unresolved, roots.length, setRomioState]);
 
   // ── Project guard ─────────────────────────────────────────────────────────
   if (!activeProject) {
@@ -91,9 +96,24 @@ export function SavesScreen() {
         </motion.div>
       )}
 
+      {unreadable.length > 0 && (
+        <div className="flex items-start gap-3 px-4 py-3 rounded-xl
+                        bg-amber-600/10 border border-amber-600/20">
+          <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" aria-hidden />
+          <div>
+            <p className="text-sm font-semibold text-romio-cream">
+              {unreadable.length} save {unreadable.length === 1 ? "root" : "roots"} can't be read
+            </p>
+            <p className="text-xs text-romio-gray mt-0.5">
+              Romio can't tell whether {unreadable.length === 1 ? "it is" : "they are"} at risk until it can read every file.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Frontend root input */}
       <div className="space-y-1.5">
-        <label className="text-xs text-romio-gray uppercase tracking-wider">
+        <label className="text-xs text-romio-gray font-semibold">
           Frontend installation root
         </label>
         <input
@@ -195,11 +215,12 @@ export function SavesScreen() {
 function SaveRootCard({ root, index, onMigrate }: {
   root: SaveRoot; index: number; onMigrate: () => void;
 }) {
-  const stateColors: Record<string, string> = {
+  const stateColors: Record<SaveRoot["migrationState"], string> = {
     migration_needed:  "border-romio-red/30 bg-romio-red/5",
     conflict_detected: "border-amber-600/30 bg-amber-600/5",
     already_migrated:  "border-romio-green/20 bg-romio-green/5",
     not_applicable:    "border-border",
+    unreadable:        "border-amber-600/40 bg-amber-600/5",
   };
 
   const canPlan = root.migrationState === "migration_needed" && !!root.expectedDestination;
@@ -233,10 +254,12 @@ function SaveRootCard({ root, index, onMigrate }: {
             </p>
           )}
         </div>
-        <div className="text-right text-xs text-romio-gray flex-shrink-0">
-          <p>{root.fileCount.toLocaleString()} files</p>
-          <p>{formatBytes(root.sizeBytes)}</p>
-        </div>
+        {root.migrationState !== "unreadable" && (
+          <div className="text-right text-xs text-romio-gray flex-shrink-0">
+            <p>{root.fileCount.toLocaleString()} files</p>
+            <p>{formatBytes(root.sizeBytes)}</p>
+          </div>
+        )}
       </div>
 
       {root.migrationState === "migration_needed" && (
@@ -252,7 +275,7 @@ function SaveRootCard({ root, index, onMigrate }: {
               "rounded-lg border flex-shrink-0 ml-3 transition-colors",
               canPlan
                 ? "bg-amber-600/20 text-amber-400 border-amber-600/30 hover:bg-amber-600/30"
-                : "opacity-40 cursor-not-allowed bg-white/5 text-romio-gray border-border"
+                : "cursor-not-allowed bg-white/5 text-romio-gray border-border"
             )}
           >
             Plan Migration <ArrowRight className="w-3 h-3" />
@@ -266,10 +289,17 @@ function SaveRootCard({ root, index, onMigrate }: {
         </p>
       )}
 
+      {root.migrationState === "unreadable" && (
+        <p className="text-xs text-romio-cream">
+          Romio can't read every file in this save root, so its file count and risk are unknown.
+          Close any emulator using it, check the save root's permissions, then check again.
+        </p>
+      )}
+
       {root.notes && <p className="text-xs text-romio-gray">{root.notes}</p>}
 
       {root.isSymlink && (
-        <p className="flex items-start gap-1.5 text-xs text-amber-400/80">
+        <p className="flex items-start gap-1.5 text-xs text-amber-400">
           <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-px" aria-hidden />
           <span>This path is a symlink. A move operation may redirect the symlink target
           rather than move the actual files. Review carefully.</span>
@@ -282,11 +312,12 @@ function SaveRootCard({ root, index, onMigrate }: {
 // ── MigrationStateBadge ───────────────────────────────────────────────────────
 
 function MigrationStateBadge({ state }: { state: SaveRoot["migrationState"] }) {
-  const styles: Record<string, string> = {
+  const styles: Record<SaveRoot["migrationState"], string> = {
     migration_needed:  "bg-romio-red/15 text-romio-red border-romio-red/20",
     conflict_detected: "bg-amber-600/15 text-amber-400 border-amber-600/20",
     already_migrated:  "bg-romio-green/15 text-romio-green border-romio-green/20",
     not_applicable:    "bg-white/5 text-romio-gray border-border",
+    unreadable:        "bg-amber-600/15 text-amber-400 border-amber-600/20",
   };
   return (
     <span className={cn("text-xs px-2 py-0.5 rounded-full border", styles[state])}>
@@ -362,7 +393,7 @@ function MigrationPlanModal({
               <div>
                 <p className="text-romio-cream text-xs">{step.description}</p>
                 {!step.reversible && (
-                  <p className="text-xs text-amber-400/70 mt-0.5">Not reversible</p>
+                  <p className="text-xs text-amber-400 mt-0.5">Not reversible</p>
                 )}
               </div>
             </div>
@@ -413,7 +444,7 @@ function MigrationPlanModal({
                 "flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-lg",
                 "transition-colors border",
                 checkpointMut.isPending
-                  ? "opacity-60 cursor-not-allowed bg-white/5 text-romio-gray border-border"
+                  ? "cursor-not-allowed bg-white/5 text-romio-gray border-border"
                   : "bg-romio-green/10 text-romio-green border-romio-green/20 hover:bg-romio-green/20"
               )}
             >
@@ -437,7 +468,7 @@ function MigrationPlanModal({
             Close
           </button>
           <div className="flex-1 flex flex-col items-center justify-center px-4 py-2
-                          rounded-lg border border-border bg-black/10 text-center opacity-50
+                          rounded-lg border border-border bg-black/10 text-center border-dashed
                           cursor-not-allowed select-none">
             <span className="text-xs font-semibold text-romio-gray">Execute Migration</span>
             <span className="text-xs text-romio-gray mt-0.5">Execution not yet available</span>
