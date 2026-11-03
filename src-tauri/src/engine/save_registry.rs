@@ -2,7 +2,7 @@
 //! Save-path migration registry.
 //! Detects save roots at risk and generates migration plans.
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
@@ -51,20 +51,20 @@ pub fn discover_save_roots(
             } else {
                 old_path.clone()
             };
-            let stats = if migration_state == SaveMigrationState::Unreadable {
-                (0, 0)
-            } else {
-                count_files_and_size(&active_path)
+            // A root we can open but not fully walk would report short totals; treat it as unreadable
+            let (migration_state, stats) = match migration_state {
+                SaveMigrationState::Unreadable => (SaveMigrationState::Unreadable, (0, 0)),
+                state => match try_count_files_and_size(&active_path) {
+                    Ok(stats) => (state, stats),
+                    Err(_) => (SaveMigrationState::Unreadable, (0, 0)),
+                },
             };
 
             let symlink = is_symlink(&active_path);
             let real = if symlink { resolve_symlink(&active_path) } else { None };
 
-            let expected_destination = match &migration_state {
-                SaveMigrationState::MigrationNeeded | SaveMigrationState::ConflictDetected =>
-                    Some(new_path.to_string_lossy().to_string()),
-                _ => None,
-            };
+            // Source-side rows point at where their saves are heading; destination rows don't
+            let expected_destination = (!on_new_side).then(|| new_path.to_string_lossy().to_string());
             let root = SaveRoot {
                 path:                 active_path.to_string_lossy().to_string(),
                 emulator:             rule.emulator.clone(),
@@ -78,15 +78,16 @@ pub fn discover_save_roots(
                 notes:                if old_exists { rule.notes.clone() } else { None },
             };
             // Rules can share a destination (Citra and Lime3DS both move to Azahar). Report a
-            // bare AlreadyMigrated destination only when no rule still has saves heading there.
+            // bare destination row (migrated or unreadable) only once, and only when no rule
+            // still has saves heading there.
             let dest = new_path.to_string_lossy().to_string();
-            if root.migration_state == SaveMigrationState::AlreadyMigrated {
+            if on_new_side {
                 let covered = roots.iter().any(|r: &SaveRoot| {
                     r.path == dest || r.expected_destination.as_deref() == Some(dest.as_str())
                 });
                 if !covered { roots.push(root); }
             } else {
-                roots.retain(|r| !(r.migration_state == SaveMigrationState::AlreadyMigrated && r.path == dest));
+                roots.retain(|r| !(r.expected_destination.is_none() && r.path == dest));
                 roots.push(root);
             }
         }
@@ -102,7 +103,8 @@ pub fn build_migration_plan(
     destination: &Path,
     emulator: &str,
 ) -> Result<MigrationPlan> {
-    let (file_count, size_bytes) = count_files_and_size(source);
+    let (file_count, size_bytes) = try_count_files_and_size(source)
+        .with_context(|| format!("can't read every file under {}", source.display()))?;
     let symlink_warning = if is_symlink(source) {
         Some(format!(
             "{} is a symlink. Moving files may change the symlink target rather than the actual files. Review carefully before proceeding.",
@@ -183,17 +185,19 @@ fn join_pattern(base: &Path, pattern: &str) -> PathBuf {
     pattern.split('/').filter(|c| !c.is_empty()).fold(base.to_path_buf(), |p, c| p.join(c))
 }
 
-fn count_files_and_size(path: &Path) -> (u64, u64) {
-    if !path.exists() { return (0, 0); }
+/// Count files and bytes under `path`, failing if any entry can't be read, so a
+/// partly readable root never reports short totals as if they were complete.
+fn try_count_files_and_size(path: &Path) -> Result<(u64, u64)> {
     let mut count = 0u64;
     let mut size  = 0u64;
-    for entry in WalkDir::new(path).into_iter().filter_map(|e| e.ok()) {
+    for entry in WalkDir::new(path) {
+        let entry = entry?;
         if entry.file_type().is_file() {
             count += 1;
-            size  += entry.metadata().map(|m| m.len()).unwrap_or(0);
+            size  += entry.metadata()?.len();
         }
     }
-    (count, size)
+    Ok((count, size))
 }
 
 #[cfg(test)]
@@ -263,6 +267,14 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         assert_eq!(probe(dir.path()), Probe::Present);
         assert_eq!(probe(&dir.path().join("nope")), Probe::Missing);
+    }
+
+    #[test]
+    fn counting_fails_on_a_missing_root_instead_of_reporting_zero() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("a.sav"), b"12345").unwrap();
+        assert_eq!(try_count_files_and_size(dir.path()).unwrap(), (1, 5));
+        assert!(try_count_files_and_size(&dir.path().join("gone")).is_err());
     }
 
     #[test]

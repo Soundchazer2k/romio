@@ -39,12 +39,17 @@ export function SavesScreen() {
   });
 
   // ── Derived state ─────────────────────────────────────────────────────────
-  const atRisk = roots.filter((r) => r.migrationState === "migration_needed");
+  const atRisk     = roots.filter((r) => r.migrationState === "migration_needed");
+  const unreadable = roots.filter((r) => r.migrationState === "unreadable");
+  // Unreadable roots and conflicts leave the risk unknown, so they never count as a pass
+  const unresolved = roots.some((r) =>
+    r.migrationState === "unreadable" || r.migrationState === "conflict_detected");
 
   useEffect(() => {
     if (atRisk.length > 0)     setRomioState("difficult_save");
+    else if (unresolved)       setRomioState("concerned");
     else if (roots.length > 0) setRomioState("success");
-  }, [atRisk.length, roots.length, setRomioState]);
+  }, [atRisk.length, unresolved, roots.length, setRomioState]);
 
   // ── Project guard ─────────────────────────────────────────────────────────
   if (!activeProject) {
@@ -89,6 +94,21 @@ export function SavesScreen() {
             </p>
           </div>
         </motion.div>
+      )}
+
+      {unreadable.length > 0 && (
+        <div className="flex items-start gap-3 px-4 py-3 rounded-xl
+                        bg-amber-600/10 border border-amber-600/20">
+          <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" aria-hidden />
+          <div>
+            <p className="text-sm font-semibold text-romio-cream">
+              {unreadable.length} save {unreadable.length === 1 ? "root" : "roots"} can't be read
+            </p>
+            <p className="text-xs text-romio-gray mt-0.5">
+              Romio can't tell whether {unreadable.length === 1 ? "it is" : "they are"} at risk until it can read every file.
+            </p>
+          </div>
+        </div>
       )}
 
       {/* Frontend root input */}
@@ -271,8 +291,8 @@ function SaveRootCard({ root, index, onMigrate }: {
 
       {root.migrationState === "unreadable" && (
         <p className="text-xs text-romio-cream">
-          Romio can't read this folder, so it can't tell whether these saves are at risk.
-          Close any emulator using it, check the folder's permissions, then check again.
+          Romio can't read every file in this save root, so its file count and risk are unknown.
+          Close any emulator using it, check the save root's permissions, then check again.
         </p>
       )}
 
