@@ -63,6 +63,10 @@ const ROM_EXTENSIONS: &[&str] = &[
     "p8", "png",  // pico-8
 ];
 
+pub fn is_rom_extension(ext: &str) -> bool {
+    ROM_EXTENSIONS.contains(&ext)
+}
+
 /// Scan a set of library roots and return classified artifacts.
 ///
 /// The `cancel` flag allows the scan to be interrupted by the user.

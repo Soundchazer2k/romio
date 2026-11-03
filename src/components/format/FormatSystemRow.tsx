@@ -23,7 +23,9 @@ export function FormatSystemRow({
   ).length;
   const hasRed   = group.results.some((r) => r.state === "FormatIncompatible");
   const hasAmber = group.results.some((r) => r.state === "FormatDeprecated");
-  const allOk    = issueCount === 0;
+  // Unknown means no rule covers the file: not checked, so never "All OK"
+  const uncheckedCount = group.results.filter((r) => r.state === "Unknown").length;
+  const allOk    = issueCount === 0 && uncheckedCount === 0;
 
   return (
     <motion.div
@@ -59,7 +61,7 @@ export function FormatSystemRow({
           </div>
         </div>
 
-        <SystemBadge issueCount={issueCount} hasRed={hasRed} hasAmber={hasAmber} />
+        <SystemBadge issueCount={issueCount} uncheckedCount={uncheckedCount} hasRed={hasRed} hasAmber={hasAmber} />
       </button>
 
       {/* Expanded rows */}
@@ -90,9 +92,12 @@ export function FormatSystemRow({
   );
 }
 
-function SystemBadge({ issueCount, hasRed, hasAmber: _hasAmber }: {
-  issueCount: number; hasRed: boolean; hasAmber: boolean;
+function SystemBadge({ issueCount, uncheckedCount, hasRed, hasAmber: _hasAmber }: {
+  issueCount: number; uncheckedCount: number; hasRed: boolean; hasAmber: boolean;
 }) {
+  if (issueCount === 0 && uncheckedCount > 0) {
+    return <span className="text-xs font-medium text-romio-gray">No rules yet</span>;
+  }
   if (issueCount === 0) {
     return <span className="text-xs font-medium text-romio-green">All OK</span>;
   }

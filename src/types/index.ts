@@ -293,6 +293,13 @@ export interface FormatCheckResult {
   fixAction?: FormatFixAction;
 }
 
+export interface SystemFolder {
+  name:   string;
+  path:   string;
+  files:  string[];
+  error?: string | null;
+}
+
 // Client-side only — not from Rust
 export interface FormatSystemGroup {
   system:  string;

@@ -2,7 +2,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
-import { readDir } from "@tauri-apps/plugin-fs";
 import { FileSearch, HelpCircle } from "lucide-react";
 import { useAppStore } from "@/stores";
 import { ipc } from "@/lib/ipc";
@@ -16,11 +15,6 @@ import { FormatSystemRow }       from "./FormatSystemRow";
 import { FormatFixTray }         from "./FormatFixTray";
 import { FormatFixPlanModal }    from "./FormatFixPlanModal";
 import { FormatReferenceDrawer } from "./FormatReferenceDrawer";
-
-function joinPath(root: string, ...parts: string[]): string {
-  const sep = root.includes("\\") ? "\\" : "/";
-  return [root, ...parts].join(sep);
-}
 
 export function FormatScreen() {
   const { activeProject } = useAppStore();
@@ -37,6 +31,7 @@ export function FormatScreen() {
   // Scan state
   const [isScanning,  setIsScanning]  = useState(false);
   const [scanError,   setScanError]   = useState<string | null>(null);
+  const [scanned,     setScanned]     = useState(false);
   const [groups,      setGroups]      = useState<FormatSystemGroup[]>([]);
   const [expandedSys, setExpandedSys] = useState<string | null>(null);
 
@@ -62,38 +57,26 @@ export function FormatScreen() {
     setIsScanning(true);
     setScanError(null);
     setGroups([]);
+    setScanned(false);
     setStagedFixes([]);
 
     try {
       const allResults: FormatCheckResult[] = [];
 
-      // Walk one level: top-level folders = systems
-      const systemEntries = await readDir(libraryPath);
-      const systemFolders = systemEntries.filter((e) => e.isDirectory);
+      // System folders and their game files, listed by the backend (uses roms/ when present)
+      const folders = await ipc.listLibraryFolders(libraryPath);
+      const unreadable = folders.filter((f) => f.error).map((f) => f.name);
 
-      for (const sysEntry of systemFolders) {
-        if (!sysEntry.name) continue;
-        const systemPath = joinPath(libraryPath, sysEntry.name);
-        const systemId = systemForFolder(sysEntry.name);
+      for (const folder of folders) {
+        const systemId = systemForFolder(folder.name);
 
         // Determine emulator for this system
         const emu = emulatorOverride === "auto"
           ? (emulatorMatrix.find((m) => m.system === systemId)?.recommended ?? "unknown")
           : emulatorOverride;
 
-        // Walk files in this system folder (non-recursive)
-        let fileEntries;
-        try {
-          fileEntries = await readDir(systemPath);
-        } catch {
-          continue; // skip unreadable dirs
-        }
-
-        const files = fileEntries.filter((e) => e.isFile && !!e.name);
-
-        for (const file of files) {
-          const name = file.name!;
-          const filePath = joinPath(systemPath, name);
+        for (const filePath of folder.files) {
+          const name = filePath.split(/[\\/]/).pop() ?? filePath;
           try {
             const result = await ipc.checkFormat(filePath, systemId, emu, frontend);
             allResults.push(result);
@@ -115,6 +98,10 @@ export function FormatScreen() {
       }
 
       setGroups(groupResultsBySystem(allResults));
+      setScanned(true);
+      if (unreadable.length > 0) {
+        setScanError(`Romio couldn't read these folders, so their games weren't checked: ${unreadable.join(", ")}.`);
+      }
     } catch (err) {
       setScanError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -206,7 +193,9 @@ export function FormatScreen() {
       {!hasResults && !isScanning && !scanError && (
         <div className="text-center py-16 text-romio-gray space-y-2">
           <FileSearch className="w-10 h-10 mx-auto opacity-30" />
-          <p>Run a scan to check your library</p>
+          <p>{scanned
+            ? `No game files found in ${libraryPath}. Point it at your frontend folder or its roms folder.`
+            : "Run a scan to check your library"}</p>
         </div>
       )}
 
