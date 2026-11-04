@@ -4,23 +4,22 @@ Development documentation only. Not part of the app or its installer.
 Follow [AGENTS.md](../AGENTS.md) for commands and architecture and [DESIGN.md](../DESIGN.md) for UI rules, with the corrections listed under "Outdated instructions" below.
 This repository is public: don't put personal paths, saves or BIOS files in handoff files.
 
-**Next reviewer: Gemini (Antigravity).** Add findings under a new "Round 3" heading in [GEMINI-QA.md](GEMINI-QA.md). Keep earlier rounds as written. Codex's rounds 1 and 2 are in [CODEX-REVIEW.md](CODEX-REVIEW.md).
+**Next reviewer: Codex (final pass, round 3).** Add findings under a new "Round 3" heading in [CODEX-REVIEW.md](CODEX-REVIEW.md). Keep earlier rounds as written. Gemini's rounds are in [GEMINI-QA.md](GEMINI-QA.md).
 
 ## Task
 
-QA the updated UI for PR [#29](https://github.com/Soundchazer2k/romio/pull/29) at commit `76201d1`, after the fixes for Codex's round 2.
+Final independent review of PR [#29](https://github.com/Soundchazer2k/romio/pull/29) at commit `76201d1`, before merge. It's the commit that fixed your round 2 findings, and you haven't reviewed it. It changed which files count as correctly placed.
 
-## What to test
+## Review focus for Codex
 
-1. **Saves root:** typing a path, clearing it, leaving and returning, and separate values per project.
-2. **Regional BIOS wording:** "Missing — needed for JP games" and "Missing — optional". Does a non-blocked system suggest more readiness than it should?
-3. **BIOS verdicts:** "Blocking", "Wrong path", "Hash mismatch", "Not applicable" and "N to check", on the BIOS screen.
-4. **Badge consistency:** the Dashboard BIOS badge against the BIOS screen for the same project. It was never seen on desktop, because the card asked for a scan first; run a scan.
-5. **Saves banner:** conflicts counted, and "1 file".
+- **Your round 2 findings:** are all three actually fixed? `git diff 8f5d175 76201d1`.
+- **Regressions:** `is_in_place`, `any_name_emulators`, `also_accepted_paths` (folder versus exact file), `hash_is_inconclusive`, and how they combine with the region rule and `NotApplicable`. Check every system in `bios_rules.json`.
+- **False passes:** the fixes make Romio more accepting. Could a file an emulator can't use now show as valid? For example, a Saturn revision under `sega_101.bin` for Kronos, or a wrong-region file under an any-name emulator.
+- **False blocks:** limitations 2 and 3 below. Is any other shipped rule likely to block a working setup? xemu is unverified.
+- **Unverified assumption:** that Beetle Saturn and Beetle PSX open exact filenames. Romio treats them that way, and only libretro's doc tables support it so far. Cite source if you can confirm or refute it.
+- **Save safety:** still no route to overwriting saves.
 
-Test in the real desktop app if your environment allows it. In round 1, port binding was blocked in your sandbox; if that still happens, say so and separate what you verified in `jsdom` from what you didn't see. Native emulator checks of the Kronos and PCSX2 cases are welcome only if you have your own dumps and emulators; otherwise report them as not covered. Don't commit dumps or screenshots with private paths.
-
-Cite the exact source line for any compatibility claim, and mark anything you couldn't confirm as unverified. Keep any journey tests you want preserved outside application code, and say where they can be read.
+Report severity against merging #29. Issues already listed as deferred or as known limitations only count if you think they should block the merge. If you find nothing blocking, say so plainly.
 
 ## Requirements
 
@@ -48,8 +47,8 @@ Use a fresh working copy, because earlier review branches may already exist:
 
 ```bash
 git fetch origin
-git worktree add -b gemini/qa-3 ../romio-gemini-3 origin/docs/handoffs
-git -C ../romio-gemini-3 merge --no-edit 76201d1eddc7af73cef172cdca71908ae6e7140d
+git worktree add -b codex/review-3 ../romio-codex-3 origin/docs/handoffs
+git -C ../romio-codex-3 merge --no-edit 76201d1eddc7af73cef172cdca71908ae6e7140d
 ```
 
 ## What happened to the review findings
@@ -66,12 +65,15 @@ git -C ../romio-gemini-3 merge --no-edit 76201d1eddc7af73cef172cdca71908ae6e7140
 | Codex round 2: PCSX2 filename | Fixed in `76201d1`: `anyNameEmulators`. Confirmed in PCSX2's `BiosTools.cpp`, which isn't recursive. The same behaviour applies to DuckStation (`bios.cpp`), so its PS1 rules got it too, and to Ymir, per its README. |
 | Codex round 2: zip location | Fixed in `76201d1`: an unknown hash is only a warning where the core reads the file |
 | Gemini 7: PPSSPP `.zso` | **Rejected.** Upstream `Core/FileSystems/BlockDevices.cpp` and `.h` contain no `ZISO` or LZ4 handling, only `CISO`. Show current source if you disagree. |
+| Gemini round 3 | PASS on all nine requirements, in `jsdom` only: its sandbox still blocks the desktop app. No blocking bugs. Its tests are in a private scratch folder, so they weren't re-run. Some citations were wrong (Sega CD's source, `yabause/kronos`), and the Beetle Saturn source claim wasn't confirmed. |
+| Gemini round 3 notes | **Deferred.** "1 systems incomplete"; hash-mismatch rows and an unrecognised zip flagged Wrong path don't show the file's path. |
 | Gemini 4: failed scans look like empty libraries | **Deferred, separate PR, next.** Still present. |
 | Gemini 8: stuck companion, optional files showing amber, conflict card actions, design drift | **Deferred, separate PRs.** Still present; no need to re-report. |
+| Found by Claude on desktop: Dashboard summary row says "0 Blocking" above a "9 blocking" BIOS card | **Deferred, separate PR.** The summary comes from scan results, not the BIOS check. Not traced further; appears to predate #29. |
 
 ## Checks performed
 
-All at commit `76201d1`, on Windows 11. GitHub CI on this commit hadn't finished at the time of writing.
+All at commit `76201d1`, on Windows 11. GitHub CI on this commit passes: `check` and CodeQL (actions, javascript-typescript, rust).
 
 ### Automated tests
 
@@ -97,6 +99,7 @@ Kronos and PCSX2 cases use fixture hashes and placeholder bytes, not real BIOS f
 
 | Check | Commit | Result |
 |:--|:--|:--|
+| Real scan, then the Dashboard BIOS card against the BIOS screen | `76201d1` | "9 blocking" on the card; the same 9 systems on the BIOS screen |
 | New rule fields through real IPC (`get_bios_rules`) | `76201d1` | `onlyEmulators`, `anyNameEmulators`, `alsoAcceptedPaths` all arrive |
 | Unrecognised `neogeo.zip` in `bios/misc/` | `76201d1` | "Wrong path"; Neo Geo "Blocking" |
 | Unrecognised `my-ps2.bin` in the BIOS folder | `76201d1` | PS2 "Missing — required", "Blocking": unknown bytes aren't accepted as a BIOS |
@@ -109,7 +112,7 @@ Kronos and PCSX2 cases use fixture hashes and placeholder bytes, not real BIOS f
 Not checked on desktop:
 
 - **A valid BIOS of any kind:** the region-complete path, "Missing — needed for JP games", and the Kronos and any-filename paths. They need genuine dumps; only automated tests cover them.
-- **The Dashboard BIOS badge.** Only `biosIssueLabel`'s unit test covers it.
+- **The Dashboard's "N to check" and "All valid" badges.** Only "N blocking" was seen on desktop; `biosIssueLabel`'s unit test covers the rest.
 - Plan Migration, migration execution and checkpoints, `pnpm tauri build`, the installer, Linux and macOS.
 
 ## Known limitations
@@ -126,9 +129,9 @@ Not checked on desktop:
 
 Sourcery's budget is used up, and Qodo hasn't reviewed this commit.
 
-## After Gemini
+## After Codex
 
-Bring both reports back to Claude. Codex hasn't reviewed `76201d1`; decide after Gemini whether a third Codex pass is worthwhile.
+Bring the report back to Claude. If nothing blocks, #29 is ready for the user's merge decision. Visual QA in the real app is still outstanding, and Gemini can't do it from its sandbox.
 
 ## Outdated instructions
 
