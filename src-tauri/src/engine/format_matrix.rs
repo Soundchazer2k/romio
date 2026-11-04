@@ -73,7 +73,7 @@ pub fn system_for_folder(folder: &str) -> String {
 /// Formats that are rarely games outside their own system, so a system's rules can rule
 /// them out. Rules aren't a full format list, so any other known extension stays listed:
 /// a wrong Unknown row beats a game silently left unchecked.
-const SCOPED_EXTENSIONS: &[&str] = &["car", "ids", "min", "bs", "easyrpg"];
+const SCOPED_EXTENSIONS: &[&str] = &["car", "ids", "min", "bs", "easyrpg", "dat", "lst"];
 
 /// A file is a game when its system's rules name its extension, or the extension is known
 /// and nothing rules it out. That leaves out gamelist.xml, .m3u playlists and artwork.
