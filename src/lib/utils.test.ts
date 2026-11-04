@@ -44,6 +44,10 @@ describe("systemForFolder", () => {
     expect(systemForFolder("megadrive")).toBe("genesis"); // Batocera, RetroBat
     expect(systemForFolder("megacd")).toBe("segacd");
     expect(systemForFolder("PSX")).toBe("ps1");
+    expect(systemForFolder("atarijaguar")).toBe("jaguar"); // ES-DE
+    expect(systemForFolder("tg16")).toBe("pcengine");      // ES-DE
+    expect(systemForFolder("neogeocdjp")).toBe("neogeocd"); // ES-DE
+    expect(systemForFolder("naomigd")).toBe("naomi");       // ES-DE
   });
   it("passes through folders that already match", () => {
     expect(systemForFolder("gamecube")).toBe("gamecube");

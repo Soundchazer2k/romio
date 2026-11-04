@@ -520,5 +520,2444 @@
     "support": "supported",
     "notes": "libretro core info: supported_extensions = pce|cue|ccd|chd|toc|m3u (Beetle PCE and Beetle PCE FAST). BIOS: syscard3.pce.",
     "sinceVersion": null
+  },
+  {
+    "system": "nes",
+    "extension": "nes",
+    "emulator": "mesen2",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "nes",
+    "extension": "fds",
+    "emulator": "mesen2",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "nes",
+    "extension": "unf",
+    "emulator": "mesen2",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "nes",
+    "extension": "unif",
+    "emulator": "mesen2",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "nes",
+    "extension": "qd",
+    "emulator": "mesen2",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "nes",
+    "extension": "studybox",
+    "emulator": "mesen2",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "nes",
+    "extension": "zip",
+    "emulator": "mesen2",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "nes",
+    "extension": "7z",
+    "emulator": "mesen2",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "nes",
+    "extension": "nes",
+    "emulator": "lr-mesen",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "nes",
+    "extension": "fds",
+    "emulator": "lr-mesen",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "nes",
+    "extension": "unf",
+    "emulator": "lr-mesen",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "nes",
+    "extension": "unif",
+    "emulator": "lr-mesen",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "nes",
+    "extension": "zip",
+    "emulator": "lr-mesen",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "nes",
+    "extension": "7z",
+    "emulator": "lr-mesen",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "nes",
+    "extension": "nes",
+    "emulator": "lr-nestopia",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "nes",
+    "extension": "fds",
+    "emulator": "lr-nestopia",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "nes",
+    "extension": "unf",
+    "emulator": "lr-nestopia",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "nes",
+    "extension": "unif",
+    "emulator": "lr-nestopia",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "nes",
+    "extension": "zip",
+    "emulator": "lr-nestopia",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "nes",
+    "extension": "7z",
+    "emulator": "lr-nestopia",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "snes",
+    "extension": "sfc",
+    "emulator": "snes9x",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "snes",
+    "extension": "smc",
+    "emulator": "snes9x",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "snes",
+    "extension": "fig",
+    "emulator": "snes9x",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "snes",
+    "extension": "swc",
+    "emulator": "snes9x",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "snes",
+    "extension": "bs",
+    "emulator": "snes9x",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "snes",
+    "extension": "jma",
+    "emulator": "snes9x",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "snes",
+    "extension": "gd3",
+    "emulator": "snes9x",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "snes",
+    "extension": "gz",
+    "emulator": "snes9x",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "snes",
+    "extension": "zip",
+    "emulator": "snes9x",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "snes",
+    "extension": "sfc",
+    "emulator": "lr-snes9x",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "snes",
+    "extension": "smc",
+    "emulator": "lr-snes9x",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "snes",
+    "extension": "fig",
+    "emulator": "lr-snes9x",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "snes",
+    "extension": "swc",
+    "emulator": "lr-snes9x",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "snes",
+    "extension": "bs",
+    "emulator": "lr-snes9x",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "snes",
+    "extension": "zip",
+    "emulator": "lr-snes9x",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "snes",
+    "extension": "7z",
+    "emulator": "lr-snes9x",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "snes-msu1",
+    "extension": "sfc",
+    "emulator": "lr-snes9x",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "snes-msu1",
+    "extension": "smc",
+    "emulator": "lr-snes9x",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "n64",
+    "extension": "z64",
+    "emulator": "gopher64",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "n64",
+    "extension": "n64",
+    "emulator": "gopher64",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "n64",
+    "extension": "v64",
+    "emulator": "gopher64",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "n64",
+    "extension": "bin",
+    "emulator": "gopher64",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "n64",
+    "extension": "zip",
+    "emulator": "gopher64",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "n64",
+    "extension": "7z",
+    "emulator": "gopher64",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "n64",
+    "extension": "z64",
+    "emulator": "lr-mupen64plus-next",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "n64",
+    "extension": "n64",
+    "emulator": "lr-mupen64plus-next",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "n64",
+    "extension": "v64",
+    "emulator": "lr-mupen64plus-next",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "n64",
+    "extension": "bin",
+    "emulator": "lr-mupen64plus-next",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "n64",
+    "extension": "zip",
+    "emulator": "lr-mupen64plus-next",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "n64",
+    "extension": "7z",
+    "emulator": "lr-mupen64plus-next",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "n64dd",
+    "extension": "ndd",
+    "emulator": "lr-mupen64plus-next",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "gb",
+    "extension": "gb",
+    "emulator": "mgba",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "gb",
+    "extension": "gbc",
+    "emulator": "mgba",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "gb",
+    "extension": "zip",
+    "emulator": "mgba",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "gb",
+    "extension": "7z",
+    "emulator": "mgba",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "gb",
+    "extension": "gb",
+    "emulator": "lr-sameboy",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "gb",
+    "extension": "gbc",
+    "emulator": "lr-sameboy",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "gb",
+    "extension": "zip",
+    "emulator": "lr-sameboy",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "gb",
+    "extension": "7z",
+    "emulator": "lr-sameboy",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "gb",
+    "extension": "gb",
+    "emulator": "lr-gambatte",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "gb",
+    "extension": "gbc",
+    "emulator": "lr-gambatte",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "gb",
+    "extension": "zip",
+    "emulator": "lr-gambatte",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "gb",
+    "extension": "7z",
+    "emulator": "lr-gambatte",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "gb",
+    "extension": "dmg",
+    "emulator": "lr-gambatte",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "gbc",
+    "extension": "gb",
+    "emulator": "mgba",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "gbc",
+    "extension": "gbc",
+    "emulator": "mgba",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "gbc",
+    "extension": "zip",
+    "emulator": "mgba",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "gbc",
+    "extension": "7z",
+    "emulator": "mgba",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "gbc",
+    "extension": "gb",
+    "emulator": "lr-sameboy",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "gbc",
+    "extension": "gbc",
+    "emulator": "lr-sameboy",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "gbc",
+    "extension": "zip",
+    "emulator": "lr-sameboy",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "gbc",
+    "extension": "7z",
+    "emulator": "lr-sameboy",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "gbc",
+    "extension": "gb",
+    "emulator": "lr-gambatte",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "gbc",
+    "extension": "gbc",
+    "emulator": "lr-gambatte",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "gbc",
+    "extension": "zip",
+    "emulator": "lr-gambatte",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "gbc",
+    "extension": "7z",
+    "emulator": "lr-gambatte",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "gbc",
+    "extension": "dmg",
+    "emulator": "lr-gambatte",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "gba",
+    "extension": "gba",
+    "emulator": "mgba",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "gba",
+    "extension": "zip",
+    "emulator": "mgba",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "gba",
+    "extension": "7z",
+    "emulator": "mgba",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "gba",
+    "extension": "gba",
+    "emulator": "lr-mgba",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "gba",
+    "extension": "zip",
+    "emulator": "lr-mgba",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "gba",
+    "extension": "7z",
+    "emulator": "lr-mgba",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "nds",
+    "extension": "nds",
+    "emulator": "melonds",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "nds",
+    "extension": "srl",
+    "emulator": "melonds",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "nds",
+    "extension": "dsi",
+    "emulator": "melonds",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "nds",
+    "extension": "ids",
+    "emulator": "melonds",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "nds",
+    "extension": "zip",
+    "emulator": "melonds",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "nds",
+    "extension": "7z",
+    "emulator": "melonds",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "nds",
+    "extension": "nds",
+    "emulator": "lr-melonds-ds",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "nds",
+    "extension": "dsi",
+    "emulator": "lr-melonds-ds",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "nds",
+    "extension": "ids",
+    "emulator": "lr-melonds-ds",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "nds",
+    "extension": "zip",
+    "emulator": "lr-melonds-ds",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "nds",
+    "extension": "7z",
+    "emulator": "lr-melonds-ds",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "genesis",
+    "extension": "md",
+    "emulator": "lr-genesis-plus-gx",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "genesis",
+    "extension": "gen",
+    "emulator": "lr-genesis-plus-gx",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "genesis",
+    "extension": "smd",
+    "emulator": "lr-genesis-plus-gx",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "genesis",
+    "extension": "bin",
+    "emulator": "lr-genesis-plus-gx",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "genesis",
+    "extension": "zip",
+    "emulator": "lr-genesis-plus-gx",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "genesis",
+    "extension": "7z",
+    "emulator": "lr-genesis-plus-gx",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "genesis",
+    "extension": "md",
+    "emulator": "lr-picodrive",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "genesis",
+    "extension": "gen",
+    "emulator": "lr-picodrive",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "genesis",
+    "extension": "smd",
+    "emulator": "lr-picodrive",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "genesis",
+    "extension": "bin",
+    "emulator": "lr-picodrive",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "genesis",
+    "extension": "zip",
+    "emulator": "lr-picodrive",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "genesis",
+    "extension": "7z",
+    "emulator": "lr-picodrive",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "sega32x",
+    "extension": "32x",
+    "emulator": "lr-picodrive",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "sega32x",
+    "extension": "md",
+    "emulator": "lr-picodrive",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "sega32x",
+    "extension": "smd",
+    "emulator": "lr-picodrive",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "sega32x",
+    "extension": "bin",
+    "emulator": "lr-picodrive",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "sega32x",
+    "extension": "zip",
+    "emulator": "lr-picodrive",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "sega32x",
+    "extension": "7z",
+    "emulator": "lr-picodrive",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "segacd",
+    "extension": "cue",
+    "emulator": "lr-genesis-plus-gx",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "segacd",
+    "extension": "iso",
+    "emulator": "lr-genesis-plus-gx",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "segacd",
+    "extension": "chd",
+    "emulator": "lr-genesis-plus-gx",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "segacd",
+    "extension": "m3u",
+    "emulator": "lr-genesis-plus-gx",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "segacd",
+    "extension": "cue",
+    "emulator": "lr-picodrive",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "segacd",
+    "extension": "iso",
+    "emulator": "lr-picodrive",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "segacd",
+    "extension": "chd",
+    "emulator": "lr-picodrive",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "segacd",
+    "extension": "m3u",
+    "emulator": "lr-picodrive",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "mastersystem",
+    "extension": "sms",
+    "emulator": "lr-genesis-plus-gx",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "mastersystem",
+    "extension": "zip",
+    "emulator": "lr-genesis-plus-gx",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "mastersystem",
+    "extension": "7z",
+    "emulator": "lr-genesis-plus-gx",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "mastersystem",
+    "extension": "sms",
+    "emulator": "lr-picodrive",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "mastersystem",
+    "extension": "zip",
+    "emulator": "lr-picodrive",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "mastersystem",
+    "extension": "7z",
+    "emulator": "lr-picodrive",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "pcengine",
+    "extension": "pce",
+    "emulator": "lr-beetle-pce",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "pcengine",
+    "extension": "sgx",
+    "emulator": "lr-beetle-pce",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "pcengine",
+    "extension": "zip",
+    "emulator": "lr-beetle-pce",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "pcengine",
+    "extension": "7z",
+    "emulator": "lr-beetle-pce",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "pcengine",
+    "extension": "pce",
+    "emulator": "lr-beetle-pce-fast",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "pcengine",
+    "extension": "zip",
+    "emulator": "lr-beetle-pce-fast",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "pcengine",
+    "extension": "7z",
+    "emulator": "lr-beetle-pce-fast",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "3do",
+    "extension": "chd",
+    "emulator": "lr-opera",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "3do",
+    "extension": "cue",
+    "emulator": "lr-opera",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "3do",
+    "extension": "iso",
+    "emulator": "lr-opera",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "amiga",
+    "extension": "adf",
+    "emulator": "lr-puae",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "amiga",
+    "extension": "adz",
+    "emulator": "lr-puae",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "amiga",
+    "extension": "dms",
+    "emulator": "lr-puae",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "amiga",
+    "extension": "ipf",
+    "emulator": "lr-puae",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "amiga",
+    "extension": "hdf",
+    "emulator": "lr-puae",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "amiga",
+    "extension": "hdz",
+    "emulator": "lr-puae",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "amiga",
+    "extension": "lha",
+    "emulator": "lr-puae",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "amiga",
+    "extension": "rp9",
+    "emulator": "lr-puae",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "amiga",
+    "extension": "m3u",
+    "emulator": "lr-puae",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "amiga",
+    "extension": "zip",
+    "emulator": "lr-puae",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "amiga",
+    "extension": "7z",
+    "emulator": "lr-puae",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "amigacd32",
+    "extension": "cue",
+    "emulator": "lr-puae",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "amigacd32",
+    "extension": "ccd",
+    "emulator": "lr-puae",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "amigacd32",
+    "extension": "iso",
+    "emulator": "lr-puae",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "amigacd32",
+    "extension": "chd",
+    "emulator": "lr-puae",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "amigacd32",
+    "extension": "nrg",
+    "emulator": "lr-puae",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "amigacd32",
+    "extension": "mds",
+    "emulator": "lr-puae",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "amigacd32",
+    "extension": "m3u",
+    "emulator": "lr-puae",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "amigacd32",
+    "extension": "zip",
+    "emulator": "lr-puae",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "amigacd32",
+    "extension": "7z",
+    "emulator": "lr-puae",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "atari2600",
+    "extension": "a26",
+    "emulator": "lr-stella",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "atari2600",
+    "extension": "bin",
+    "emulator": "lr-stella",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "atari2600",
+    "extension": "zip",
+    "emulator": "lr-stella",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "atari2600",
+    "extension": "7z",
+    "emulator": "lr-stella",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "atari7800",
+    "extension": "a78",
+    "emulator": "lr-prosystem",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "atari7800",
+    "extension": "bin",
+    "emulator": "lr-prosystem",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "atari7800",
+    "extension": "zip",
+    "emulator": "lr-prosystem",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "atari7800",
+    "extension": "7z",
+    "emulator": "lr-prosystem",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "atari800",
+    "extension": "atr",
+    "emulator": "lr-atari800",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "atari800",
+    "extension": "atx",
+    "emulator": "lr-atari800",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "atari800",
+    "extension": "xfd",
+    "emulator": "lr-atari800",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "atari800",
+    "extension": "dcm",
+    "emulator": "lr-atari800",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "atari800",
+    "extension": "cas",
+    "emulator": "lr-atari800",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "atari800",
+    "extension": "car",
+    "emulator": "lr-atari800",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "atari800",
+    "extension": "xex",
+    "emulator": "lr-atari800",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "atari800",
+    "extension": "rom",
+    "emulator": "lr-atari800",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "atari800",
+    "extension": "bin",
+    "emulator": "lr-atari800",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "atari800",
+    "extension": "zip",
+    "emulator": "lr-atari800",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "jaguar",
+    "extension": "j64",
+    "emulator": "lr-virtualjaguar",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "jaguar",
+    "extension": "jag",
+    "emulator": "lr-virtualjaguar",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "jaguar",
+    "extension": "rom",
+    "emulator": "lr-virtualjaguar",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "jaguar",
+    "extension": "bin",
+    "emulator": "lr-virtualjaguar",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "jaguar",
+    "extension": "zip",
+    "emulator": "lr-virtualjaguar",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "jaguar",
+    "extension": "7z",
+    "emulator": "lr-virtualjaguar",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "pokemini",
+    "extension": "min",
+    "emulator": "lr-pokemini",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "pokemini",
+    "extension": "zip",
+    "emulator": "lr-pokemini",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "pokemini",
+    "extension": "7z",
+    "emulator": "lr-pokemini",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "pico8",
+    "extension": "p8",
+    "emulator": "lr-retro8",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "pico8",
+    "extension": "zip",
+    "emulator": "lr-retro8",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "pico8",
+    "extension": "7z",
+    "emulator": "lr-retro8",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "prboom",
+    "extension": "wad",
+    "emulator": "lr-prboom",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "prboom",
+    "extension": "iwad",
+    "emulator": "lr-prboom",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "prboom",
+    "extension": "pwad",
+    "emulator": "lr-prboom",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "prboom",
+    "extension": "pk3",
+    "emulator": "lr-prboom",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "gzdoom",
+    "extension": "wad",
+    "emulator": "gzdoom",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "gzdoom",
+    "extension": "pk3",
+    "emulator": "gzdoom",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "gzdoom",
+    "extension": "iwad",
+    "emulator": "gzdoom",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "gzdoom",
+    "extension": "ipk3",
+    "emulator": "gzdoom",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "gzdoom",
+    "extension": "ipk7",
+    "emulator": "gzdoom",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "easyrpg",
+    "extension": "easyrpg",
+    "emulator": "lr-easyrpg",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "easyrpg",
+    "extension": "zip",
+    "emulator": "lr-easyrpg",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "easyrpg",
+    "extension": "lzh",
+    "emulator": "lr-easyrpg",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "lutro",
+    "extension": "lutro",
+    "emulator": "lr-lutro",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "dos",
+    "extension": "zip",
+    "emulator": "lr-dosbox-pure",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "dos",
+    "extension": "dosz",
+    "emulator": "lr-dosbox-pure",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "dos",
+    "extension": "iso",
+    "emulator": "lr-dosbox-pure",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "dos",
+    "extension": "cue",
+    "emulator": "lr-dosbox-pure",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "dos",
+    "extension": "chd",
+    "emulator": "lr-dosbox-pure",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "dos",
+    "extension": "img",
+    "emulator": "lr-dosbox-pure",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "dos",
+    "extension": "ima",
+    "emulator": "lr-dosbox-pure",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "dos",
+    "extension": "vhd",
+    "emulator": "lr-dosbox-pure",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "dos",
+    "extension": "m3u",
+    "emulator": "lr-dosbox-pure",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "naomi",
+    "extension": "zip",
+    "emulator": "lr-flycast",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "naomi",
+    "extension": "7z",
+    "emulator": "lr-flycast",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "naomi2",
+    "extension": "zip",
+    "emulator": "lr-flycast",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "naomi2",
+    "extension": "7z",
+    "emulator": "lr-flycast",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "atomiswave",
+    "extension": "zip",
+    "emulator": "lr-flycast",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "atomiswave",
+    "extension": "7z",
+    "emulator": "lr-flycast",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "cps1",
+    "extension": "zip",
+    "emulator": "lr-fbneo",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "cps1",
+    "extension": "7z",
+    "emulator": "lr-fbneo",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "cps2",
+    "extension": "zip",
+    "emulator": "lr-fbneo",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "cps2",
+    "extension": "7z",
+    "emulator": "lr-fbneo",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "cps3",
+    "extension": "zip",
+    "emulator": "lr-fbneo",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "cps3",
+    "extension": "7z",
+    "emulator": "lr-fbneo",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "fbneo",
+    "extension": "zip",
+    "emulator": "lr-fbneo",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "fbneo",
+    "extension": "7z",
+    "emulator": "lr-fbneo",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "neogeo",
+    "extension": "zip",
+    "emulator": "lr-fbneo",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "neogeo",
+    "extension": "7z",
+    "emulator": "lr-fbneo",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "arcade",
+    "extension": "zip",
+    "emulator": "mame",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "arcade",
+    "extension": "7z",
+    "emulator": "mame",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "arcade",
+    "extension": "zip",
+    "emulator": "lr-mame",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "arcade",
+    "extension": "7z",
+    "emulator": "lr-mame",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "arcade",
+    "extension": "zip",
+    "emulator": "lr-fbneo",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "arcade",
+    "extension": "7z",
+    "emulator": "lr-fbneo",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "neogeocd",
+    "extension": "chd",
+    "emulator": "lr-neocd",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "neogeocd",
+    "extension": "cue",
+    "emulator": "lr-neocd",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "ps1",
+    "extension": "cue",
+    "emulator": "duckstation",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "ps1",
+    "extension": "img",
+    "emulator": "duckstation",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "ps1",
+    "extension": "iso",
+    "emulator": "duckstation",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "ps1",
+    "extension": "ecm",
+    "emulator": "duckstation",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "ps1",
+    "extension": "mds",
+    "emulator": "duckstation",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "ps1",
+    "extension": "pbp",
+    "emulator": "duckstation",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "ps1",
+    "extension": "ccd",
+    "emulator": "duckstation",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "ps1",
+    "extension": "m3u",
+    "emulator": "duckstation",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "ps1",
+    "extension": "cue",
+    "emulator": "lr-beetle-psx",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "ps1",
+    "extension": "toc",
+    "emulator": "lr-beetle-psx",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "ps1",
+    "extension": "ccd",
+    "emulator": "lr-beetle-psx",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "ps1",
+    "extension": "pbp",
+    "emulator": "lr-beetle-psx",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "ps1",
+    "extension": "m3u",
+    "emulator": "lr-beetle-psx",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "ps1",
+    "extension": "chd",
+    "emulator": "lr-swanstation",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "ps1",
+    "extension": "cue",
+    "emulator": "lr-swanstation",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "ps1",
+    "extension": "img",
+    "emulator": "lr-swanstation",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "ps1",
+    "extension": "iso",
+    "emulator": "lr-swanstation",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "ps1",
+    "extension": "ecm",
+    "emulator": "lr-swanstation",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "ps1",
+    "extension": "mds",
+    "emulator": "lr-swanstation",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "ps1",
+    "extension": "pbp",
+    "emulator": "lr-swanstation",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "ps1",
+    "extension": "m3u",
+    "emulator": "lr-swanstation",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "saturn",
+    "extension": "cue",
+    "emulator": "ymir",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "saturn",
+    "extension": "ccd",
+    "emulator": "ymir",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "saturn",
+    "extension": "iso",
+    "emulator": "ymir",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "saturn",
+    "extension": "mds",
+    "emulator": "ymir",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "saturn",
+    "extension": "cue",
+    "emulator": "lr-beetle-saturn",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "saturn",
+    "extension": "ccd",
+    "emulator": "lr-beetle-saturn",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "saturn",
+    "extension": "toc",
+    "emulator": "lr-beetle-saturn",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "saturn",
+    "extension": "m3u",
+    "emulator": "lr-beetle-saturn",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "dreamcast",
+    "extension": "gdi",
+    "emulator": "flycast",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "dreamcast",
+    "extension": "cue",
+    "emulator": "flycast",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "dreamcast",
+    "extension": "cdi",
+    "emulator": "flycast",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "dreamcast",
+    "extension": "chd",
+    "emulator": "lr-flycast",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "dreamcast",
+    "extension": "cdi",
+    "emulator": "lr-flycast",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "dreamcast",
+    "extension": "cue",
+    "emulator": "lr-flycast",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "dreamcast",
+    "extension": "gdi",
+    "emulator": "lr-flycast",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "dreamcast",
+    "extension": "m3u",
+    "emulator": "lr-flycast",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "psvita",
+    "extension": "vpk",
+    "emulator": "vita3k",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Vita3K installs this file rather than running it directly.",
+    "sinceVersion": null
+  },
+  {
+    "system": "psvita",
+    "extension": "zip",
+    "emulator": "vita3k",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Vita3K installs this file rather than running it directly.",
+    "sinceVersion": null
   }
 ]

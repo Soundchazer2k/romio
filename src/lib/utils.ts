@@ -25,6 +25,10 @@ const FOLDER_ALIASES: Record<string, string> = {
   pcenginecd: "tg16cd", "tg-cd": "tg16cd",
   amiga500: "amiga", amiga1200: "amiga",
   mame: "arcade",
+  atarijaguar: "jaguar",
+  tg16: "pcengine",
+  neogeocdjp: "neogeocd",
+  naomigd: "naomi",
 };
 
 /** Romio system ID for a frontend's roms/ folder name */
