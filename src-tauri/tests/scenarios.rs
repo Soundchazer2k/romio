@@ -463,6 +463,40 @@ fn neogeo_zip_location_matters_whatever_its_hash() {
     assert_eq!(at("roms/neogeo/neogeo.zip", false), (Bios::PresentHashMismatch, false));
     assert_eq!(at("bios/misc/neogeo.zip", true), (Bios::PresentWrongPath, true));
     assert_eq!(at("bios/misc/neogeo.zip", false), (Bios::PresentWrongPath, true));
+
+    // Found on a real RetroBat drive: a different version where FBNeo reads it, plus a
+    // recognised copy in MAME's folder. FBNeo has a BIOS, so this warns and doesn't block.
+    let lib = Library::new();
+    lib.file("bios/neogeo.zip", b"another romset version");
+    lib.bios("bios/mame/neogeo.zip", "neogeo.zip");
+    let results = sweep(&lib.path("bios"), "retrobat", &rules);
+    let neogeo = bios_entry(&results, "neogeo.zip");
+    assert_eq!(neogeo.state, Bios::PresentHashMismatch, "{neogeo:#?}");
+    assert!(neogeo.found_path.as_deref().unwrap_or("").ends_with("neogeo.zip"));
+    assert!(!neogeo.found_path.as_deref().unwrap_or("").contains("mame"), "names the file FBNeo reads");
+    assert!(!is_blocking(&results, "neogeo"));
+}
+
+/// Found on a real RetroBat drive: PCSX2 boots any PS2 BIOS in its folder, so a valid
+/// one must not block just because it isn't the one file a rule happens to name.
+#[test]
+fn any_recognised_ps2_bios_is_enough() {
+    let mut rules = fixture_bios_rules();
+    // Fixture hash stands in for the revisions the shipped rule lists
+    rules.iter_mut().find(|r| r.filename == "SCPH-70012_BIOS_V12_USA_200.bin").unwrap()
+        .known_good_md5.push(fake_md5("scph39001.bin"));
+
+    let lib = Library::new();
+    lib.bios("bios/scph39001.bin", "scph39001.bin");
+    let results = sweep(&lib.path("bios"), "retrobat", &rules);
+    assert_eq!(bios_entry(&results, "SCPH-70012_BIOS_V12_USA_200.bin").state, Bios::PresentValid);
+    assert!(!is_blocking(&results, "ps2"));
+
+    // An unrecognised file isn't a BIOS
+    let lib = Library::new();
+    lib.file("bios/my-ps2.bin", b"not a bios");
+    let results = sweep(&lib.path("bios"), "retrobat", &rules);
+    assert!(is_blocking(&results, "ps2"));
 }
 
 /// Hashes from the libretro docs for each core that reads the file.
@@ -473,6 +507,11 @@ fn shipped_bios_data_has_the_documented_hashes() {
     for hash in ["854b9150240a198070150e4566ae1290", "2efd74e3232ff260e371b99f84024f7f"] {
         assert!(sega_cd_us.known_good_md5.iter().any(|h| h == hash), "{hash}");
     }
+    // PCSX2 takes any PS2 BIOS: the required rule must recognise the optional rule's file too
+    let ps2 = rules.iter().find(|r| r.filename == "SCPH-70012_BIOS_V12_USA_200.bin").unwrap();
+    assert!(ps2.known_good_md5.len() > 50, "the PS2 revisions in libretro's System.dat");
+    let optional = rules.iter().find(|r| r.filename == "scph39001.bin").unwrap();
+    assert!(optional.known_good_md5.iter().all(|h| ps2.known_good_md5.contains(h)));
     // Kronos falls back to these files, so their bytes must validate as its BIOS
     let kronos = rules.iter().find(|r| r.filename == "saturn_bios.bin").unwrap();
     for hash in ["af5828fdff51384f99b3c4926be27762", "85ec9ca47d8f6807718151cbcca8b964", "3240872c70984b6cbfda1586cab68dbe"] {

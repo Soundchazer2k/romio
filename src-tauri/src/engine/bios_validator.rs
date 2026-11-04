@@ -188,6 +188,18 @@ fn evaluate_rule(
         };
     }
 
+    // Files with the rule's name, and whether any is where the emulator reads it.
+    let same_name: Vec<&PathBuf> = found_files.values().flatten()
+        .filter(|p| p.file_name()
+            .and_then(|n| n.to_str())
+            .map(|n| n.to_lowercase() == rule.filename.to_lowercase())
+            .unwrap_or(false))
+        .collect();
+    let readable = same_name.iter().find(|p| {
+        let p = normalize_lexically(p);
+        accepted.iter().any(|a| same_path(&p, a))
+    });
+
     match (hash_match, bad_dump_match) {
         // Bad dump detected — highest priority flag
         (_, Some(label)) => BiosEntryResult {
@@ -203,6 +215,18 @@ fn evaluate_rule(
         (Some((hash, actual_path)), None) => {
             let at_correct_path = is_in_place(&actual_path);
             let rename_needed = !at_correct_path && actual_path.file_name() != expected_path.file_name();
+
+            // A recognised copy it can't reach, beside another version it can: judge what it reads.
+            if let (false, true, Some(file)) = (at_correct_path, hash_is_inconclusive(rule), readable) {
+                return BiosEntryResult {
+                    rule: rule.clone(),
+                    found_path: Some(file.to_string_lossy().to_string()),
+                    found_md5: None,
+                    state: BiosValidationState::PresentHashMismatch,
+                    rename_from: None,
+                    bad_dump_label: None,
+                };
+            }
 
             BiosEntryResult {
                 rule: rule.clone(),
@@ -227,18 +251,7 @@ fn evaluate_rule(
         // No valid hash found anywhere
         (None, None) => {
             // Check if the filename exists but with wrong hash (possible corruption)
-            let same_name: Vec<&PathBuf> = found_files.values().flatten()
-                .filter(|p| p.file_name()
-                    .and_then(|n| n.to_str())
-                    .map(|n| n.to_lowercase() == rule.filename.to_lowercase())
-                    .unwrap_or(false))
-                .collect();
-            let readable = same_name.iter().any(|p| {
-                let p = normalize_lexically(p);
-                accepted.iter().any(|a| same_path(&p, a))
-            });
-
-            let state = if !same_name.is_empty() && !readable && hash_is_inconclusive(rule) {
+            let state = if !same_name.is_empty() && readable.is_none() && hash_is_inconclusive(rule) {
                 // The hash can't condemn it, but the emulator still can't find it there
                 BiosValidationState::PresentWrongPath
             } else if !same_name.is_empty() {
