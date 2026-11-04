@@ -18,6 +18,8 @@ vi.mock("@/stores", () => ({
   useAppStore: () => ({
     activeProject: mocks.activeProject,
     setRomioState: mocks.setRomioState,
+    saveRoots: {},
+    setSaveRoot: () => undefined,
   }),
 }));
 
@@ -55,6 +57,20 @@ describe("SavesScreen", () => {
     renderScreen();
     expect(screen.getByText("Save Migration")).toBeTruthy();
     expect(screen.queryByText("Open a project to use Save Migration.")).toBeNull();
+  });
+
+  it("starts at the project's library root and counts conflicts as at risk", async () => {
+    mocks.activeProject = { id: "proj-1", name: "My Library", libraryRoots: ["C:\\RetroBat"] };
+    const conflict: SaveRoot = {
+      path: "C:\\Users\\me\\AppData\\Roaming\\yuzu\\nand\\user\\save", emulator: "eden",
+      isSymlink: false, fileCount: 1, sizeBytes: 10, migrationState: "conflict_detected",
+    };
+    mocks.discoverSaveRoots.mockResolvedValue([conflict]);
+
+    renderScreen();
+    expect((screen.getByPlaceholderText(/RetroBat/i) as HTMLInputElement).value).toBe("C:\\RetroBat");
+    await waitFor(() => expect(screen.getByText("1 save root at risk")).toBeTruthy());
+    expect(screen.getByText("1 file")).toBeTruthy();
   });
 
   it("Plan Migration button is disabled when root has no expectedDestination", async () => {

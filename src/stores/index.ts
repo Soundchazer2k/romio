@@ -26,6 +26,10 @@ interface AppStore {
   sidebarOpen:    boolean;
   setSidebarOpen: (v: boolean) => void;
 
+  // Frontend root typed on the Saves screen, per project; lasts until the app closes
+  saveRoots:   Record<string, string>;
+  setSaveRoot: (projectId: string, root: string) => void;
+
   // Which of the three moments the person is in; remembered across launches
   scenario:    Scenario | null;
   setScenario: (s: Scenario) => void;
@@ -59,6 +63,10 @@ export const useAppStore = create<AppStore>()(persist((set) => ({
 
   sidebarOpen:    true,
   setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
+
+  saveRoots:   {},
+  setSaveRoot: (projectId, root) =>
+    set((s) => ({ saveRoots: { ...s.saveRoots, [projectId]: root } })),
 
   scenario:    null,
   setScenario: (scenario) => set({ scenario }),

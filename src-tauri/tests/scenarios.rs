@@ -7,7 +7,7 @@ mod common;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
-use common::{deny_read, fixture_bios_rules, with_bad_dump, Library};
+use common::{deny_read, fake_md5, fixture_bios_rules, with_bad_dump, Library};
 use romio_lib::db;
 use romio_lib::engine::bios_sweep::{run_sweep, BiosSweepConfig};
 use romio_lib::engine::format_matrix::check_format;
@@ -38,6 +38,20 @@ fn sweep(bios_root: &std::path::Path, frontend: &str, rules: &[romio_lib::models
         emulator_prefs: Default::default(),
     };
     run_sweep(&config, rules).expect("sweep runs")
+}
+
+/// The same sweep, with one system set to a chosen emulator.
+fn sweep_as(bios_root: &std::path::Path, system: &str, emulator: &str, rules: &[romio_lib::models::bios::BiosRule]) -> Vec<BiosSystemResult> {
+    let config = BiosSweepConfig {
+        bios_root: bios_root.to_path_buf(),
+        frontend: "retrobat".into(),
+        emulator_prefs: [(system.to_string(), emulator.to_string())].into_iter().collect(),
+    };
+    run_sweep(&config, rules).expect("sweep runs")
+}
+
+fn is_blocking(results: &[BiosSystemResult], system: &str) -> bool {
+    results.iter().find(|s| s.system == system).unwrap().blocking
 }
 
 /// Curator before a change: a big RetroBat install about to update emulators.
@@ -169,10 +183,10 @@ fn handheld_batocera_fresh_setup_bios() {
     assert_eq!(bios_entry(&results, "dc_boot.bin").state, Bios::PresentValid);
 }
 
-/// ES-DE keeps neogeo.zip with the arcade ROMs, outside the BIOS folder.
-/// Romio must find it there, call it valid, and not block Neo Geo.
+/// FBNeo looks for neogeo.zip beside the romset, then in the system folder, and ES-DE's
+/// guide puts BIOS files with the ROMs. All of those must count as correctly placed.
 #[test]
-fn esde_neogeo_bios_in_roms_arcade_is_found() {
+fn neogeo_bios_is_valid_wherever_fbneo_looks() {
     let lib = Library::new();
     let bios_root = lib.path("Emulation/bios");
     std::fs::create_dir_all(&bios_root).unwrap();
@@ -181,31 +195,343 @@ fn esde_neogeo_bios_in_roms_arcade_is_found() {
     let results = sweep(&bios_root, "esde", &rules);
     assert_eq!(bios_entry(&results, "neogeo.zip").state, Bios::MissingRequired);
 
-    // ES-DE's path is bios/../../roms/arcade/, i.e. roms/arcade beside Emulation/
-    lib.bios("roms/arcade/neogeo.zip", "neogeo.zip");
-    let results = sweep(&bios_root, "esde", &rules);
-    let neogeo = bios_entry(&results, "neogeo.zip");
-    assert_eq!(neogeo.state, Bios::PresentValid, "{neogeo:#?}");
-    assert!(!results.iter().find(|s| s.system == "neogeo").unwrap().blocking);
+    for place in ["roms/arcade/neogeo.zip", "roms/neogeo/neogeo.zip", "Emulation/roms/neogeo/neogeo.zip",
+                  "Emulation/bios/neogeo.zip", "Emulation/bios/fbneo/neogeo.zip"] {
+        let file = lib.bios(place, "neogeo.zip");
+        let results = sweep(&bios_root, "esde", &rules);
+        let neogeo = bios_entry(&results, "neogeo.zip");
+        assert_eq!(neogeo.state, Bios::PresentValid, "{place}: {neogeo:#?}");
+        assert!(!results.iter().find(|s| s.system == "neogeo").unwrap().blocking, "{place}");
+        std::fs::remove_file(file).unwrap();
+    }
 
-    // The same file inside bios/ is in the wrong place for ES-DE
-    std::fs::rename(lib.path("roms/arcade/neogeo.zip"), lib.path("Emulation/bios/neogeo.zip")).unwrap();
+    // Anywhere else in the BIOS folder, the core won't find it
+    lib.bios("Emulation/bios/misc/neogeo.zip", "neogeo.zip");
     let results = sweep(&bios_root, "esde", &rules);
     assert_eq!(bios_entry(&results, "neogeo.zip").state, Bios::PresentWrongPath);
+    assert!(results.iter().find(|s| s.system == "neogeo").unwrap().blocking);
 }
 
-/// EmuDeck and RetroDECK run ES-DE, so ES-DE's placement rules must apply to them too.
+/// A corrupt or misplaced required BIOS won't boot anything, so it must block,
+/// not fall through to a green "All valid".
+#[test]
+fn bad_or_misplaced_required_bios_blocks() {
+    let lib = Library::new();
+    let bios_root = lib.path("bios");
+    let rules = fixture_bios_rules();
+    let blocking = |results: &[BiosSystemResult], id: &str| results.iter().find(|s| s.system == id).unwrap().blocking;
+
+    lib.file("bios/mcpx_1.0.bin", b"corrupt dump");
+    let results = sweep(&bios_root, "retrobat", &rules);
+    assert_eq!(bios_entry(&results, "mcpx_1.0.bin").state, Bios::PresentHashMismatch);
+    assert!(blocking(&results, "xbox"), "bad required BIOS blocks");
+
+    lib.bios("bios/misc/disksys.rom", "disksys.rom");
+    let results = sweep(&bios_root, "retrobat", &rules);
+    assert_eq!(bios_entry(&results, "disksys.rom").state, Bios::PresentWrongPath);
+    assert!(blocking(&results, "fds"), "misplaced required BIOS blocks");
+
+    // A zip's hash changes when it's rebuilt, so a different neogeo.zip is a warning only
+    lib.file("bios/neogeo.zip", b"another romset version");
+    let results = sweep(&bios_root, "retrobat", &rules);
+    assert_eq!(bios_entry(&results, "neogeo.zip").state, Bios::PresentHashMismatch);
+    assert!(!blocking(&results, "neogeo"));
+
+    // Another region's bad file doesn't stop a complete region from playing
+    lib.bios("bios/scph5501.bin", "scph5501.bin");
+    lib.file("bios/scph5500.bin", b"corrupt dump");
+    let results = sweep(&bios_root, "retrobat", &rules);
+    assert_eq!(bios_entry(&results, "scph5500.bin").state, Bios::PresentHashMismatch);
+    assert!(!blocking(&results, "ps1"));
+}
+
+/// A valid BIOS in place stays valid, whatever other copies sit elsewhere in the folder.
+#[test]
+fn backup_copies_do_not_hide_a_correctly_placed_bios() {
+    let lib = Library::new();
+    let bios_root = lib.path("bios");
+
+    lib.bios("bios/scph5501.bin", "scph5501.bin");
+    lib.bios("bios/a_backup/scph5501.bin", "scph5501.bin");
+    lib.bios("bios/z_backup/scph5501.bin", "scph5501.bin");
+    let results = sweep(&bios_root, "retrobat", &fixture_bios_rules());
+    assert_eq!(bios_entry(&results, "scph5501.bin").state, Bios::PresentValid);
+
+    // Even an old bad dump kept as a backup doesn't overrule the good file in place
+    lib.bios("bios/old/old-dump.bin", "old-dump.bin");
+    let rules = with_bad_dump(fixture_bios_rules(), "scph5501.bin", "old-dump.bin", "Known bad revision");
+    let results = sweep(&bios_root, "retrobat", &rules);
+    assert_eq!(bios_entry(&results, "scph5501.bin").state, Bios::PresentValid);
+}
+
+/// Beetle Saturn needs mpr-17933.bin, Kronos needs saturn_bios.bin. Each emulator's
+/// US file must complete the US region alone, and the other shows as not applicable.
+#[test]
+fn saturn_us_bios_depends_on_the_emulator() {
+    let rules = fixture_bios_rules();
+    let saturn = |lib: &Library, emulator: &str| {
+        let config = BiosSweepConfig {
+            bios_root: lib.path("bios"),
+            frontend: "retrobat".into(),
+            emulator_prefs: [("saturn".to_string(), emulator.to_string())].into_iter().collect(),
+        };
+        run_sweep(&config, &rules).unwrap().into_iter().find(|s| s.system == "saturn").unwrap()
+    };
+    let state = |result: &BiosSystemResult, file: &str| {
+        result.entries.iter().find(|e| e.rule.filename == file).unwrap().state.clone()
+    };
+
+    let beetle = Library::new();
+    beetle.bios("bios/mpr-17933.bin", "mpr-17933.bin");
+    for emulator in ["lr-beetle-saturn", "ymir"] {
+        let result = saturn(&beetle, emulator);
+        assert!(!result.blocking, "{emulator}: {result:#?}");
+        assert_eq!(state(&result, "saturn_bios.bin"), Bios::NotApplicable);
+        assert_eq!(state(&result, "sega_101.bin"), Bios::MissingOptional);
+    }
+
+    let kronos = Library::new();
+    kronos.bios("bios/kronos/saturn_bios.bin", "saturn_bios.bin");
+    let result = saturn(&kronos, "lr-kronos");
+    assert!(!result.blocking, "{result:#?}");
+    assert_eq!(state(&result, "mpr-17933.bin"), Bios::NotApplicable);
+}
+
+/// Kronos reads one file for every region: kronos/saturn_bios.bin, then saturn_bios.bin,
+/// sega_101.bin and mpr-17933.bin in the BIOS folder (retro_load_game in its libretro.c).
+#[test]
+fn kronos_reads_its_fallback_files() {
+    let mut rules = fixture_bios_rules();
+    // Fixture hashes stand in for the Saturn revisions the shipped rule lists
+    let accepted = ["saturn_bios.bin", "sega_101.bin", "mpr-17933.bin"].map(fake_md5);
+    rules.iter_mut().find(|r| r.filename == "saturn_bios.bin").unwrap().known_good_md5 = accepted.to_vec();
+
+    for (place, bytes_of) in [
+        ("bios/kronos/saturn_bios.bin", "saturn_bios.bin"),
+        ("bios/saturn_bios.bin", "saturn_bios.bin"),
+        ("bios/sega_101.bin", "sega_101.bin"),
+        ("bios/mpr-17933.bin", "mpr-17933.bin"),
+        ("bios/kronos/saturn_bios.bin", "mpr-17933.bin"), // another revision under the preferred name
+    ] {
+        let lib = Library::new();
+        lib.bios(place, bytes_of);
+        let results = sweep_as(&lib.path("bios"), "saturn", "lr-kronos", &rules);
+        assert!(!is_blocking(&results, "saturn"), "{place} holding {bytes_of}: {results:#?}");
+        assert_eq!(bios_entry(&results, "saturn_bios.bin").state, Bios::PresentValid, "{place}");
+        assert_eq!(bios_entry(&results, "sega_101.bin").state, Bios::NotApplicable, "one file for every region");
+    }
+
+    // Kronos takes the first file that exists without checking it, so a good fallback
+    // can't rescue a corrupt file ahead of it in that order
+    let lib = Library::new();
+    lib.file("bios/kronos/saturn_bios.bin", b"corrupt dump");
+    lib.bios("bios/mpr-17933.bin", "mpr-17933.bin");
+    let results = sweep_as(&lib.path("bios"), "saturn", "lr-kronos", &rules);
+    let kronos = bios_entry(&results, "saturn_bios.bin");
+    assert_eq!(kronos.state, Bios::PresentHashMismatch, "{kronos:#?}");
+    assert!(kronos.found_path.as_deref().unwrap_or("").ends_with("saturn_bios.bin"), "names the file it read");
+    assert!(is_blocking(&results, "saturn"));
+
+    // A bad file after the one it reads doesn't matter
+    let lib = Library::new();
+    lib.bios("bios/kronos/saturn_bios.bin", "saturn_bios.bin");
+    lib.file("bios/mpr-17933.bin", b"corrupt dump");
+    let results = sweep_as(&lib.path("bios"), "saturn", "lr-kronos", &rules);
+    assert_eq!(bios_entry(&results, "saturn_bios.bin").state, Bios::PresentValid);
+
+    // Kronos doesn't look anywhere else
+    let lib = Library::new();
+    lib.bios("bios/misc/mpr-17933.bin", "mpr-17933.bin");
+    let results = sweep_as(&lib.path("bios"), "saturn", "lr-kronos", &rules);
+    assert!(is_blocking(&results, "saturn"), "not where Kronos looks");
+}
+
+/// PCSX2, DuckStation, Ymir and Beetle PSX find a BIOS by its contents at the top of
+/// their folder, so the filename doesn't matter there. Subfolders aren't searched, and
+/// cores that open an exact name still need it.
+#[test]
+fn emulators_that_read_contents_accept_any_filename() {
+    let rules = fixture_bios_rules();
+
+    let lib = Library::new();
+    lib.bios("bios/my-ps2.bin", "SCPH-70012_BIOS_V12_USA_200.bin");
+    let results = sweep(&lib.path("bios"), "retrobat", &rules);
+    let ps2 = bios_entry(&results, "SCPH-70012_BIOS_V12_USA_200.bin");
+    assert_eq!(ps2.state, Bios::PresentValid);
+    assert_eq!(ps2.rename_from, None, "nothing to rename");
+    assert!(!is_blocking(&results, "ps2"));
+
+    let lib = Library::new();
+    lib.bios("bios/misc/my-ps2.bin", "SCPH-70012_BIOS_V12_USA_200.bin");
+    let results = sweep(&lib.path("bios"), "retrobat", &rules);
+    assert_eq!(bios_entry(&results, "SCPH-70012_BIOS_V12_USA_200.bin").state, Bios::PresentWrongPath);
+    assert!(is_blocking(&results, "ps2"), "PCSX2 doesn't search subfolders");
+
+    let lib = Library::new();
+    lib.bios("bios/PS1 US.bin", "scph5501.bin");
+    let results = sweep_as(&lib.path("bios"), "ps1", "duckstation", &rules);
+    assert_eq!(bios_entry(&results, "scph5501.bin").state, Bios::PresentValid);
+    assert!(!is_blocking(&results, "ps1"));
+    // Beetle PSX searches by checksum when its named files are absent
+    let results = sweep_as(&lib.path("bios"), "ps1", "lr-beetle-psx", &rules);
+    assert_eq!(bios_entry(&results, "scph5501.bin").state, Bios::PresentValid);
+    assert!(!is_blocking(&results, "ps1"));
+
+    // ...but a named file stops that search, even when it's corrupt. DuckStation
+    // goes by contents, so the same corrupt file doesn't get in its way.
+    lib.file("bios/scph5501.bin", b"corrupt dump");
+    let results = sweep_as(&lib.path("bios"), "ps1", "lr-beetle-psx", &rules);
+    assert_eq!(bios_entry(&results, "scph5501.bin").state, Bios::PresentHashMismatch);
+    assert!(is_blocking(&results, "ps1"));
+    let results = sweep_as(&lib.path("bios"), "ps1", "duckstation", &rules);
+    assert_eq!(bios_entry(&results, "scph5501.bin").state, Bios::PresentValid);
+
+    // Beetle PSX's other names work the same way: a corrupt one stops the search...
+    let lib = Library::new();
+    lib.bios("bios/PS1 US.bin", "scph5501.bin");
+    lib.file("bios/scph7003.bin", b"corrupt dump");
+    let results = sweep_as(&lib.path("bios"), "ps1", "lr-beetle-psx", &rules);
+    let beetle = bios_entry(&results, "scph5501.bin");
+    assert_eq!(beetle.state, Bios::PresentHashMismatch, "{beetle:#?}");
+    assert!(beetle.found_path.as_deref().unwrap_or("").ends_with("scph7003.bin"), "names the file it read");
+    assert!(is_blocking(&results, "ps1"));
+
+    // ...and a good one is the BIOS it reads
+    let lib = Library::new();
+    lib.bios("bios/scph7003.bin", "scph5501.bin");
+    let results = sweep_as(&lib.path("bios"), "ps1", "lr-beetle-psx", &rules);
+    assert_eq!(bios_entry(&results, "scph5501.bin").state, Bios::PresentValid);
+
+    // An uppercase name is on Beetle PSX's list on every platform
+    let lib = Library::new();
+    lib.bios("bios/SCPH5501.BIN", "scph5501.bin");
+    let results = sweep_as(&lib.path("bios"), "ps1", "lr-beetle-psx", &rules);
+    assert_eq!(bios_entry(&results, "scph5501.bin").state, Bios::PresentValid);
+    assert!(!is_blocking(&results, "ps1"));
+
+    // Neither searches subfolders
+    let lib = Library::new();
+    lib.bios("bios/misc/PS1 US.bin", "scph5501.bin");
+    let results = sweep_as(&lib.path("bios"), "ps1", "lr-beetle-psx", &rules);
+    assert_eq!(bios_entry(&results, "scph5501.bin").state, Bios::PresentWrongPath);
+    assert!(is_blocking(&results, "ps1"));
+
+    let lib = Library::new();
+    lib.bios("bios/saturn us.bin", "mpr-17933.bin");
+    let results = sweep_as(&lib.path("bios"), "saturn", "ymir", &rules);
+    assert_eq!(bios_entry(&results, "mpr-17933.bin").state, Bios::PresentValid);
+    // Beetle Saturn opens exactly this name (mednafen/ss/ss.c)
+    let results = sweep_as(&lib.path("bios"), "saturn", "lr-beetle-saturn", &rules);
+    assert_eq!(bios_entry(&results, "mpr-17933.bin").state, Bios::PresentWrongPath);
+}
+
+/// Windows filenames ignore case, so an emulator asking for mpr-17933.bin opens
+/// MPR-17933.BIN. Romio's path comparison has to agree.
+#[cfg(windows)]
+#[test]
+fn filename_case_does_not_matter_on_windows() {
+    let rules = fixture_bios_rules();
+    let lib = Library::new();
+    lib.bios("bios/MPR-17933.BIN", "mpr-17933.bin");
+    let results = sweep_as(&lib.path("bios"), "saturn", "lr-beetle-saturn", &rules);
+    let saturn = bios_entry(&results, "mpr-17933.bin");
+    assert_eq!(saturn.state, Bios::PresentValid, "{saturn:#?}");
+    assert_eq!(saturn.rename_from, None);
+
+    // A first-existing emulator too: the same file, whatever the spelling
+    let lib = Library::new();
+    lib.bios("bios/KRONOS/SATURN_BIOS.BIN", "saturn_bios.bin");
+    let results = sweep_as(&lib.path("bios"), "saturn", "lr-kronos", &rules);
+    assert_eq!(bios_entry(&results, "saturn_bios.bin").state, Bios::PresentValid);
+    assert!(!is_blocking(&results, "saturn"));
+}
+
+/// A rebuilt zip changes its hash, so a different hash is only a warning where the core
+/// reads the file. A zip the core can't find is misplaced whatever its hash.
+#[test]
+fn neogeo_zip_location_matters_whatever_its_hash() {
+    let rules = fixture_bios_rules();
+    let at = |place: &str, known_bytes: bool| {
+        let lib = Library::new();
+        if known_bytes { lib.bios(place, "neogeo.zip"); } else { lib.file(place, b"rebuilt zip"); }
+        let results = sweep(&lib.path("bios"), "retrobat", &rules);
+        (bios_entry(&results, "neogeo.zip").state.clone(), is_blocking(&results, "neogeo"))
+    };
+
+    assert_eq!(at("bios/neogeo.zip", true), (Bios::PresentValid, false));
+    assert_eq!(at("bios/neogeo.zip", false), (Bios::PresentHashMismatch, false));
+    assert_eq!(at("roms/neogeo/neogeo.zip", false), (Bios::PresentHashMismatch, false));
+    assert_eq!(at("bios/misc/neogeo.zip", true), (Bios::PresentWrongPath, true));
+    assert_eq!(at("bios/misc/neogeo.zip", false), (Bios::PresentWrongPath, true));
+
+    // Found on a real RetroBat drive: a different version where FBNeo reads it, plus a
+    // recognised copy in MAME's folder. FBNeo has a BIOS, so this warns and doesn't block.
+    let lib = Library::new();
+    lib.file("bios/neogeo.zip", b"another romset version");
+    lib.bios("bios/mame/neogeo.zip", "neogeo.zip");
+    let results = sweep(&lib.path("bios"), "retrobat", &rules);
+    let neogeo = bios_entry(&results, "neogeo.zip");
+    assert_eq!(neogeo.state, Bios::PresentHashMismatch, "{neogeo:#?}");
+    assert!(neogeo.found_path.as_deref().unwrap_or("").ends_with("neogeo.zip"));
+    assert!(!neogeo.found_path.as_deref().unwrap_or("").contains("mame"), "names the file FBNeo reads");
+    assert!(!is_blocking(&results, "neogeo"));
+}
+
+/// Found on a real RetroBat drive: PCSX2 boots any PS2 BIOS in its folder, so a valid
+/// one must not block just because it isn't the one file a rule happens to name.
+#[test]
+fn any_recognised_ps2_bios_is_enough() {
+    let mut rules = fixture_bios_rules();
+    // Fixture hash stands in for the revisions the shipped rule lists
+    rules.iter_mut().find(|r| r.filename == "SCPH-70012_BIOS_V12_USA_200.bin").unwrap()
+        .known_good_md5.push(fake_md5("scph39001.bin"));
+
+    let lib = Library::new();
+    lib.bios("bios/scph39001.bin", "scph39001.bin");
+    let results = sweep(&lib.path("bios"), "retrobat", &rules);
+    assert_eq!(bios_entry(&results, "SCPH-70012_BIOS_V12_USA_200.bin").state, Bios::PresentValid);
+    assert!(!is_blocking(&results, "ps2"));
+
+    // An unrecognised file isn't a BIOS
+    let lib = Library::new();
+    lib.file("bios/my-ps2.bin", b"not a bios");
+    let results = sweep(&lib.path("bios"), "retrobat", &rules);
+    assert!(is_blocking(&results, "ps2"));
+}
+
+/// Hashes from the libretro docs for each core that reads the file.
+#[test]
+fn shipped_bios_data_has_the_documented_hashes() {
+    let rules = db::bios::load_all_rules().unwrap();
+    let sega_cd_us = rules.iter().find(|r| r.filename == "bios_CD_U.bin").unwrap();
+    for hash in ["854b9150240a198070150e4566ae1290", "2efd74e3232ff260e371b99f84024f7f"] {
+        assert!(sega_cd_us.known_good_md5.iter().any(|h| h == hash), "{hash}");
+    }
+    // PCSX2 takes any PS2 BIOS: the required rule must recognise the optional rule's file too
+    let ps2 = rules.iter().find(|r| r.filename == "SCPH-70012_BIOS_V12_USA_200.bin").unwrap();
+    assert!(ps2.known_good_md5.len() > 50, "the PS2 revisions in libretro's System.dat");
+    let optional = rules.iter().find(|r| r.filename == "scph39001.bin").unwrap();
+    assert!(optional.known_good_md5.iter().all(|h| ps2.known_good_md5.contains(h)));
+    // Kronos falls back to these files, so their bytes must validate as its BIOS
+    let kronos = rules.iter().find(|r| r.filename == "saturn_bios.bin").unwrap();
+    for hash in ["af5828fdff51384f99b3c4926be27762", "85ec9ca47d8f6807718151cbcca8b964", "3240872c70984b6cbfda1586cab68dbe"] {
+        assert!(kronos.known_good_md5.iter().any(|h| h == hash), "{hash}");
+    }
+}
+
+/// EmuDeck and RetroDECK run ES-DE, so a rule's ES-DE path must apply to them too.
 #[test]
 fn emudeck_and_retrodeck_follow_esde_bios_rules() {
     let lib = Library::new();
     let bios_root = lib.path("Emulation/bios");
-    std::fs::create_dir_all(&bios_root).unwrap();
-    lib.bios("roms/arcade/neogeo.zip", "neogeo.zip");
-    let rules = fixture_bios_rules();
+    lib.bios("Emulation/bios/esde-only/disksys.rom", "disksys.rom");
+    let mut rules = fixture_bios_rules();
+    rules.iter_mut().find(|r| r.filename == "disksys.rom").unwrap()
+        .frontend_paths.insert("esde".into(), "esde-only/".into());
 
     for frontend in ["emudeck", "retrodeck"] {
         let results = sweep(&bios_root, frontend, &rules);
-        assert_eq!(bios_entry(&results, "neogeo.zip").state, Bios::PresentValid, "{frontend}");
+        assert_eq!(bios_entry(&results, "disksys.rom").state, Bios::PresentValid, "{frontend}");
     }
 }
 
@@ -230,9 +556,9 @@ fn rescuer_finds_bad_dump_renamed_bios_and_split_saves() {
     let appdata = Library::new();
     let rules = with_bad_dump(fixture_bios_rules(), "scph5502.bin", "scph5502-overdump", "Overdump (1 MB)");
 
-    // A bad EU dump under the right name, and a good US dump under the wrong name
+    // A bad EU PS1 dump under the right name, and a good Saturn BIOS under the wrong name
     lib.bios("bios/scph5502.bin", "scph5502-overdump");
-    lib.bios("bios/SCPH5501 (backup).bin", "scph5501.bin");
+    lib.bios("bios/Saturn US (backup).bin", "mpr-17933.bin");
 
     let results = sweep(&lib.path("bios"), "esde", &rules);
 
@@ -240,9 +566,9 @@ fn rescuer_finds_bad_dump_renamed_bios_and_split_saves() {
     assert_eq!(eu.state, Bios::PresentHashMismatch);
     assert_eq!(eu.bad_dump_label.as_deref(), Some("Overdump (1 MB)"));
 
-    let us = bios_entry(&results, "scph5501.bin");
-    assert_eq!(us.state, Bios::PresentWrongPath, "found by hash, not by name");
-    assert_eq!(us.rename_from.as_deref(), Some("SCPH5501 (backup).bin"));
+    let saturn = bios_entry(&results, "mpr-17933.bin");
+    assert_eq!(saturn.state, Bios::PresentWrongPath, "found by hash, not by name");
+    assert_eq!(saturn.rename_from.as_deref(), Some("Saturn US (backup).bin"));
 
     // Citra was replaced by Azahar, which started fresh: saves now live in both places
     appdata.saves("Citra/sdmc/Nintendo 3DS/save", 5);

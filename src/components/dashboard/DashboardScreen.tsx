@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { Play, AlertTriangle, XCircle, Info, CheckCircle2 } from "lucide-react";
 import { useAppStore, useScanStore } from "@/stores";
 import { ipc } from "@/lib/ipc";
-import { cn } from "@/lib/utils";
+import { cn, biosIssueLabel } from "@/lib/utils";
 import { SCENARIOS, SCENARIO_ORDER, dashboardChecks, type DashboardCheck, type Scenario } from "@/lib/scenario";
 import type { Project } from "@/types";
 
@@ -18,14 +18,11 @@ function biosBadge(project: Project): {
   const results      = project.biosResults;
   const erroredCount  = results.filter(r => r.errored).length;
   const blockingCount = results.filter(r => r.blocking).length;
-  const missingCount  = results
-    .flatMap(r => r.entries)
-    .filter(e => e.state === "MISSING_REQUIRED" || e.state === "MISSING_OPTIONAL")
-    .length;
+  const issue         = biosIssueLabel(results.flatMap(r => r.entries));
 
   if (blockingCount > 0) return { label: `${blockingCount} blocking`,          color: "red"   };
   if (erroredCount  > 0) return { label: `${erroredCount} systems incomplete`, color: "amber" };
-  if (missingCount  > 0) return { label: `${missingCount} missing`,            color: "amber" };
+  if (issue)             return { label: issue,                                color: "amber" };
   return { label: "All valid", color: "green" };
 }
 
