@@ -33,6 +33,10 @@ pub struct BiosRule {
     /// Emulators that pick this BIOS by its contents, so any filename works in its folder
     #[serde(default)]
     pub any_name_emulators: Vec<String>,
+    /// Emulators that read the first accepted file that exists, without checking it,
+    /// so a good copy later in the order can't rescue a bad file earlier in it
+    #[serde(default)]
+    pub first_existing_emulators: Vec<String>,
     /// Emulators that read this file; empty means all of them
     #[serde(default)]
     pub only_emulators:     Vec<String>,

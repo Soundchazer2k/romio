@@ -10,7 +10,8 @@
     "defaultPath": "",
     "frontendPaths": {},
     "emulatorPaths": {},
-    "anyNameEmulators": ["duckstation"],
+    "anyNameEmulators": ["duckstation", "lr-beetle-psx"],
+    "firstExistingEmulators": ["lr-beetle-psx"],
     "notes": "PlayStation 1 US BIOS v3.0. Recommended for US library. Most tested revision.",
     "dumpingGuideUrl": "https://www.ngemu.com/threads/psx-bios-dumping-guide.93161/"
   },
@@ -25,7 +26,8 @@
     "defaultPath": "",
     "frontendPaths": {},
     "emulatorPaths": {},
-    "anyNameEmulators": ["duckstation"],
+    "anyNameEmulators": ["duckstation", "lr-beetle-psx"],
+    "firstExistingEmulators": ["lr-beetle-psx"],
     "notes": "PlayStation 1 JP BIOS v3.0. Required for JP-exclusive titles.",
     "dumpingGuideUrl": "https://www.ngemu.com/threads/psx-bios-dumping-guide.93161/"
   },
@@ -40,7 +42,8 @@
     "defaultPath": "",
     "frontendPaths": {},
     "emulatorPaths": {},
-    "anyNameEmulators": ["duckstation"],
+    "anyNameEmulators": ["duckstation", "lr-beetle-psx"],
+    "firstExistingEmulators": ["lr-beetle-psx"],
     "notes": "PlayStation 1 EU BIOS v3.0. Required for PAL-only titles.",
     "dumpingGuideUrl": "https://www.ngemu.com/threads/psx-bios-dumping-guide.93161/"
   },
@@ -138,6 +141,7 @@
     "frontendPaths": {},
     "emulatorPaths": { "lr-kronos": "kronos/" },
     "alsoAcceptedPaths": ["", "sega_101.bin", "mpr-17933.bin"],
+    "firstExistingEmulators": ["lr-kronos"],
     "onlyEmulators": ["lr-kronos"],
     "notes": "Sega Saturn BIOS for the Kronos core, which reads one file for every region. It looks for kronos/saturn_bios.bin, then saturn_bios.bin, sega_101.bin and mpr-17933.bin in the BIOS folder. Libretro's docs say any valid Saturn BIOS works; the hashes are the Saturn revisions in libretro's System.dat.",
     "dumpingGuideUrl": null

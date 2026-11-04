@@ -156,9 +156,15 @@ fn evaluate_rule(
         .flat_map(|hash| found_files.get(hash).into_iter().flatten().map(move |p| (hash, p)))
         .collect();
     let any_name = rule.any_name_emulators.iter().any(|e| e == emulator);
+    let selected = rule.first_existing_emulators.iter().any(|e| e == emulator)
+        .then(|| accepted.iter().find(|p| p.is_file()))
+        .flatten();
     let is_in_place = |p: &Path| {
         let p = normalize_lexically(p);
-        accepted.contains(&p) || (any_name && p.parent() == expected_path.parent())
+        match selected {
+            Some(file) => p == *file,
+            None => accepted.contains(&p) || (any_name && p.parent() == expected_path.parent()),
+        }
     };
     let in_place = copies.iter().find(|(_, p)| is_in_place(p));
     let hash_match = in_place.or(copies.first())
@@ -168,6 +174,18 @@ fn evaluate_rule(
     let bad_dump_match = rule.known_bad_md5.iter()
         .filter(|_| in_place.is_none())
         .find_map(|entry| found_files.get(&entry.md5).map(|_| entry.label.clone()));
+
+    // The emulator will read this file, so a good copy elsewhere doesn't help.
+    if let (Some(file), None) = (selected, in_place) {
+        return BiosEntryResult {
+            rule: rule.clone(),
+            found_path: Some(file.to_string_lossy().to_string()),
+            found_md5: None,
+            state: BiosValidationState::PresentHashMismatch,
+            rename_from: None,
+            bad_dump_label: bad_dump_match,
+        };
+    }
 
     match (hash_match, bad_dump_match) {
         // Bad dump detected — highest priority flag
@@ -313,6 +331,7 @@ mod tests {
             emulator_paths: HashMap::new(),
             also_accepted_paths: vec![],
             any_name_emulators: vec![],
+            first_existing_emulators: vec![],
             only_emulators: vec![],
             notes: None,
             dumping_guide_url: None,

@@ -321,6 +321,24 @@ fn kronos_reads_its_fallback_files() {
         assert_eq!(bios_entry(&results, "sega_101.bin").state, Bios::NotApplicable, "one file for every region");
     }
 
+    // Kronos takes the first file that exists without checking it, so a good fallback
+    // can't rescue a corrupt file ahead of it in that order
+    let lib = Library::new();
+    lib.file("bios/kronos/saturn_bios.bin", b"corrupt dump");
+    lib.bios("bios/mpr-17933.bin", "mpr-17933.bin");
+    let results = sweep_as(&lib.path("bios"), "saturn", "lr-kronos", &rules);
+    let kronos = bios_entry(&results, "saturn_bios.bin");
+    assert_eq!(kronos.state, Bios::PresentHashMismatch, "{kronos:#?}");
+    assert!(kronos.found_path.as_deref().unwrap_or("").ends_with("saturn_bios.bin"), "names the file it read");
+    assert!(is_blocking(&results, "saturn"));
+
+    // A bad file after the one it reads doesn't matter
+    let lib = Library::new();
+    lib.bios("bios/kronos/saturn_bios.bin", "saturn_bios.bin");
+    lib.file("bios/mpr-17933.bin", b"corrupt dump");
+    let results = sweep_as(&lib.path("bios"), "saturn", "lr-kronos", &rules);
+    assert_eq!(bios_entry(&results, "saturn_bios.bin").state, Bios::PresentValid);
+
     // Kronos doesn't look anywhere else
     let lib = Library::new();
     lib.bios("bios/misc/mpr-17933.bin", "mpr-17933.bin");
@@ -328,9 +346,9 @@ fn kronos_reads_its_fallback_files() {
     assert!(is_blocking(&results, "saturn"), "not where Kronos looks");
 }
 
-/// PCSX2, DuckStation and Ymir pick a BIOS by its contents from the top of their folder,
-/// so the filename doesn't matter there. Subfolders aren't searched, and cores that open
-/// an exact name still need it.
+/// PCSX2, DuckStation, Ymir and Beetle PSX find a BIOS by its contents at the top of
+/// their folder, so the filename doesn't matter there. Subfolders aren't searched, and
+/// cores that open an exact name still need it.
 #[test]
 fn emulators_that_read_contents_accept_any_filename() {
     let rules = fixture_bios_rules();
@@ -354,15 +372,32 @@ fn emulators_that_read_contents_accept_any_filename() {
     let results = sweep_as(&lib.path("bios"), "ps1", "duckstation", &rules);
     assert_eq!(bios_entry(&results, "scph5501.bin").state, Bios::PresentValid);
     assert!(!is_blocking(&results, "ps1"));
+    // Beetle PSX searches by checksum when its named files are absent
     let results = sweep_as(&lib.path("bios"), "ps1", "lr-beetle-psx", &rules);
-    let beetle = bios_entry(&results, "scph5501.bin");
-    assert_eq!(beetle.state, Bios::PresentWrongPath, "Beetle PSX opens scph5501.bin by name");
-    assert_eq!(beetle.rename_from.as_deref(), Some("PS1 US.bin"));
+    assert_eq!(bios_entry(&results, "scph5501.bin").state, Bios::PresentValid);
+    assert!(!is_blocking(&results, "ps1"));
+
+    // ...but a named file stops that search, even when it's corrupt. DuckStation
+    // goes by contents, so the same corrupt file doesn't get in its way.
+    lib.file("bios/scph5501.bin", b"corrupt dump");
+    let results = sweep_as(&lib.path("bios"), "ps1", "lr-beetle-psx", &rules);
+    assert_eq!(bios_entry(&results, "scph5501.bin").state, Bios::PresentHashMismatch);
+    assert!(is_blocking(&results, "ps1"));
+    let results = sweep_as(&lib.path("bios"), "ps1", "duckstation", &rules);
+    assert_eq!(bios_entry(&results, "scph5501.bin").state, Bios::PresentValid);
+
+    // Neither searches subfolders
+    let lib = Library::new();
+    lib.bios("bios/misc/PS1 US.bin", "scph5501.bin");
+    let results = sweep_as(&lib.path("bios"), "ps1", "lr-beetle-psx", &rules);
+    assert_eq!(bios_entry(&results, "scph5501.bin").state, Bios::PresentWrongPath);
+    assert!(is_blocking(&results, "ps1"));
 
     let lib = Library::new();
     lib.bios("bios/saturn us.bin", "mpr-17933.bin");
     let results = sweep_as(&lib.path("bios"), "saturn", "ymir", &rules);
     assert_eq!(bios_entry(&results, "mpr-17933.bin").state, Bios::PresentValid);
+    // Beetle Saturn opens exactly this name (mednafen/ss/ss.c)
     let results = sweep_as(&lib.path("bios"), "saturn", "lr-beetle-saturn", &rules);
     assert_eq!(bios_entry(&results, "mpr-17933.bin").state, Bios::PresentWrongPath);
 }
@@ -438,20 +473,19 @@ fn rescuer_finds_bad_dump_renamed_bios_and_split_saves() {
     let appdata = Library::new();
     let rules = with_bad_dump(fixture_bios_rules(), "scph5502.bin", "scph5502-overdump", "Overdump (1 MB)");
 
-    // A bad EU dump under the right name, and a good US dump under the wrong name
+    // A bad EU PS1 dump under the right name, and a good Saturn BIOS under the wrong name
     lib.bios("bios/scph5502.bin", "scph5502-overdump");
-    lib.bios("bios/SCPH5501 (backup).bin", "scph5501.bin");
+    lib.bios("bios/Saturn US (backup).bin", "mpr-17933.bin");
 
-    // Beetle PSX reads exact filenames; DuckStation wouldn't care about the name
-    let results = sweep_as(&lib.path("bios"), "ps1", "lr-beetle-psx", &rules);
+    let results = sweep(&lib.path("bios"), "esde", &rules);
 
     let eu = bios_entry(&results, "scph5502.bin");
     assert_eq!(eu.state, Bios::PresentHashMismatch);
     assert_eq!(eu.bad_dump_label.as_deref(), Some("Overdump (1 MB)"));
 
-    let us = bios_entry(&results, "scph5501.bin");
-    assert_eq!(us.state, Bios::PresentWrongPath, "found by hash, not by name");
-    assert_eq!(us.rename_from.as_deref(), Some("SCPH5501 (backup).bin"));
+    let saturn = bios_entry(&results, "mpr-17933.bin");
+    assert_eq!(saturn.state, Bios::PresentWrongPath, "found by hash, not by name");
+    assert_eq!(saturn.rename_from.as_deref(), Some("Saturn US (backup).bin"));
 
     // Citra was replaced by Azahar, which started fresh: saves now live in both places
     appdata.saves("Citra/sdmc/Nintendo 3DS/save", 5);
