@@ -200,3 +200,138 @@ Per QA rules, mocked browser/DOM checks are strictly distinguished from native R
 | **3DS (`azahar`):** Boots `.3ds`, `.cci`, `.zcci`, `.cxi`, `.zcxi`, `.3dsx`, `.z3dsx`; `.cia`/`.zcia` conditional (must be installed); saves move from `%APPDATA%/Citra/sdmc` and `%APPDATA%/Lime3DS/sdmc` to `%APPDATA%/Azahar/sdmc` and `~/.local/share/azahar-emu/sdmc` (`format_matrix.json:228-307`, `save_paths.json:84-137`) | **Verified** | Azahar (the 2025 Lime3DS + PabloMK7 Citra merge, v2120+) introduced Zstandard-compressed `.zcci`/`.zcxi`/`.z3dsx`/`.zcia`, dropped raw `.3ds` encryption support (requires decrypted dumps or real AES keys), requires `.cia` installation via `File > Install CIA`, and uses `%APPDATA%\Azahar\sdmc` on Windows and `$XDG_DATA_HOME/azahar-emu/sdmc` (`~/.local/share/azahar-emu/sdmc`) on Linux. Source: [Azahar Emulator Loader & Docs](https://azahar-emu.org/). |
 | **Xbox (`xemu`) vs. Xbox 360 (`xenia` / `xenia-canary`):** `xemu` requires XISO `.iso` (`conditional`); `xenia` / `xenia-canary` load both trimmed XISO and full XGD2/XGD3 `.iso` (`supported`) (`format_matrix.json:39-64`) | **Verified** | `xemu` requires XISO partition images (`https://xemu.app/docs/disc-images/`), whereas Xenia's `disc_image_device.cc` parses both full Redump XGD2/XGD3 images and XISO images. |
 | **PS3 (`rpcs3`):** Decrypted `.iso` since `0.0.40` (PR #17855), encrypted `.iso` since `0.0.41` (PR #18498); RetroBat save move `emulators/rpcs3/dev_hdd0` -> `saves/ps3/rpcs3/hdd_0` (`format_matrix.json:309-316`, `save_paths.json:2-11`) | **Verified** | Matches RPCS3 release history and RetroBat's centralized `saves/ps3/rpcs3/hdd_0` layout. |
+
+
+---
+
+## Round 3
+
+- **Tested Commit:** `76201d1eddc7af73cef172cdca71908ae6e7140d` (branch `fix/saves-bios-polish`, PR #29; base `master` `d9e1e2880d959c6deb2b2ff47dd2145f629ec831`; diff since Round 1 `f5d07b1..76201d1`; diff since Codex Round 2 `8f5d175..76201d1`)
+- **Handoff Reference:** `handoffs/CURRENT.md` on `docs/handoffs` (`9e99002`)
+- **Date:** 2026-11-04
+- **Overall Verdict:** **PASS** — All 9 requirements in `handoffs/CURRENT.md`, all Round 1 QA blockers (Findings 1, 2, 3, 5, 6), and all Codex Round 1 & Round 2 findings in scope for PR #29 are resolved and verified.
+
+### Test Environment & Verification Boundary
+
+1. **Real Rust Backend Execution (Verified):**
+   - Ran against an isolated working copy checked out at `76201d1eddc7af73cef172cdca71908ae6e7140d` using disposable `tempfile::TempDir` fake libraries.
+   - `cargo test`: **43 unit tests passed**, **18 integration tests in `src-tauri/tests/scenarios.rs` passed**, and **5 Round 3 QA integration tests in `gemini_qa.rs` passed** (66 Rust tests total, 0 failures).
+2. **React + Zustand + TanStack Query `jsdom` Execution (Verified):**
+   - `vitest run`: **8 test files, 56 tests passed** (`src/lib/utils.test.ts`, `src/lib/project.test.ts`, `src/lib/saves.test.ts`, `src/lib/design-tokens.test.ts`, `src/lib/scenario.test.ts`, `src/lib/saves.root.test.tsx`, `src/lib/saves.screen.test.tsx`, and `src/lib/gemini_round3_qa.test.tsx`).
+   - `vite build`: Production frontend bundle succeeded cleanly (`dist/assets/index-DXhPdNYe.js`, `660ms`).
+3. **What Could Not Be Verified (Unverified in Sandbox):**
+   - **Native Tauri desktop window (`pnpm tauri dev`) & Playwright Chromium (`pnpm test:e2e`):** TCP local port binding (`127.0.0.1:1444`) and Corepack process spawning remain blocked in the Windows agent sandbox. All UI user journeys below were verified via React Testing Library (`jsdom`) with real Zustand stores and TanStack Query caches, not visual WebView2/Chromium rendering.
+4. **Preserved QA Journey Tests (Outside Application Code):**
+   - Rust Round 3 QA suite: `scratch/romio-gemini/src-tauri/tests/gemini_qa.rs` (in the conversation scratch directory)
+   - Vitest `jsdom` Round 3 journey suite: `scratch/romio-gemini/src/lib/gemini_round3_qa.test.tsx` (in the conversation scratch directory)
+
+---
+
+### "What to test" Verification (`handoffs/CURRENT.md`)
+
+#### 1. Saves root: typing a path, clearing it, leaving and returning, and separate values per project
+- **Status:** **PASS** (`jsdom` full `<App />` navigation test in `gemini_round3_qa.test.tsx` + `src/lib/saves.root.test.tsx`)
+- **Code Citations:** `src/stores/index.ts:29-31, 67-69, 76`, `src/components/saves/SavesScreen.tsx:18, 24-26, 123-124`
+- **Verification Details:**
+  - Opening Project A (`libraryRoots: ["C:\\LibA"]`) initializes the Saves input to `"C:\\LibA"`.
+  - Typing `"E:\\CustomRetroBatA"` updates `saveRoots["proj-a"]` in `useAppStore` and triggers `ipc.discoverSaveRoots("E:\\CustomRetroBatA")`.
+  - Navigating away via the Sidebar (`SavesScreen` -> `DashboardScreen`) unmounts `SavesScreen`; returning to `SavesScreen` preserves `"E:\\CustomRetroBatA"`.
+  - Switching `activeProject` to Project B (`libraryRoots: ["D:\\LibB"]`) displays `"D:\\LibB"` without leaking Project A's path.
+  - Clearing Project B's input to `""` stores `saveRoots["proj-b"] = ""`. Because `SavesScreen.tsx:26` uses nullish coalescing (`saveRoots?.[projectId] ?? activeProject?.libraryRoots?.[0] ?? ""`), `""` does **not** snap back to `"D:\\LibB"` when leaving and returning, and updates the empty-state copy to `"No save roots found at risk in AppData."` (`SavesScreen.tsx:166`).
+  - Switching back to Project A restores `"E:\\CustomRetroBatA"`.
+  - `partialize: (s) => ({ scenario: s.scenario })` (`src/stores/index.ts:76`) keeps `saveRoots` in memory for the session only, matching the design requirement.
+
+#### 2. Regional BIOS wording: `"Missing — needed for JP games"` and `"Missing — optional"`. Does a non-blocked system suggest more readiness than it should?
+- **Status:** **PASS** (`jsdom` test in `gemini_round3_qa.test.tsx` + `src/lib/utils.test.ts:29-37`)
+- **Code Citations:** `src/lib/utils.ts:79-84`, `src/components/bios/BiosScreen.tsx:211-216, 245-251, 311-313`
+- **Verification Details:**
+  - When PS1 has a valid US BIOS (`scph5501.bin` -> `PRESENT_VALID`) and is missing JP (`scph5500.bin`), EU (`scph5502.bin`), and the optional US v2.2 revision (`scph1001.bin`), `bios_validator.rs:68-74` downgrades the other regions' `MissingRequired` entries to `MissingOptional` and sets `blocking: false`.
+  - **Does a non-blocked system suggest more readiness than it should?** **No:**
+    1. On the collapsed `ps1` row (`BiosScreen.tsx:211-212, 248-251`), `allValid` is `false` (since `allValid` requires every entry to be `PRESENT_VALID` or `NOT_APPLICABLE`), so the row does **not** show green `"All valid"` — it renders **`"3 missing"` in amber (`text-amber-400`)**.
+    2. When expanded (`BiosScreen.tsx:312` -> `biosEntryLabel` in `src/lib/utils.ts:79-84`), rules with `state === "MISSING_OPTIONAL" && entry.rule.region && entry.rule.requirement === "required"` render **`"Missing — needed for JP games"`** and **`"Missing — needed for EU games"`**, whereas `scph1001.bin` (`requirement: "optional"`) renders **`"Missing — optional"`**.
+
+#### 3. BIOS verdicts: `"Blocking"`, `"Wrong path"`, `"Hash mismatch"`, `"Not applicable"`, and `"N to check"` on the BIOS screen
+- **Status:** **PASS** (`jsdom` test in `gemini_round3_qa.test.tsx`)
+- **Code Citations:** `src/lib/utils.ts:67-95`, `src/components/bios/BiosScreen.tsx:211-256, 303-334`
+- **Verification Details:**
+  - **`"Blocking"`:** Rendered in red (`text-romio-red`) on `SystemResultRow` (`BiosScreen.tsx:242-244`) whenever `!result.errored && result.blocking` (e.g., `fds` with misplaced `disksys.rom` or `xbox` with corrupt `mcpx_1.0.bin`).
+  - **`"N to check"`:** Rendered in amber (`text-amber-400`) via `biosIssueLabel(result.entries)` (`BiosScreen.tsx:248-251`, `src/lib/utils.ts:87-95`) when a system is not blocking and not errored, but has `PRESENT_HASH_MISMATCH` or `PRESENT_WRONG_PATH` entries (e.g., `neogeo` with a rebuilt `neogeo.zip` at an accepted path -> `"1 to check"`, or `ps1` with valid US BIOS plus a corrupt/misplaced EU BIOS -> `"1 to check"`).
+  - **`"Wrong path"`:** Rendered in amber (`text-amber-500`) on `BiosEntryRow` (`src/lib/utils.ts:70`) with `Found as: <renameFrom> — rename recommended` when a valid hash is found under a different filename for an emulator that requires exact names (`BiosScreen.tsx:321-325`).
+  - **`"Hash mismatch"`:** Rendered in red (`text-romio-red`) on `BiosEntryRow` (`src/lib/utils.ts:71`), accompanied by `Known bad dump: <badDumpLabel>` when `badDumpLabel` is set (`BiosScreen.tsx:326-331`).
+  - **`"Not applicable"`:** Rendered in gray (`text-romio-gray`) with a dashed border (`border-dashed`, `BiosScreen.tsx:297`) and helper note `"Your emulator doesn't need this file."` (`BiosScreen.tsx:332-334`) when `onlyEmulators` excludes the active emulator (e.g., `saturn_bios.bin` when Saturn uses `lr-beetle-saturn` or `ymir`, and `sega_101.bin` / `mpr-17933.bin` when Saturn uses `lr-kronos`).
+
+#### 4. Badge consistency: Dashboard BIOS badge against the BIOS screen for the same project (after running a scan)
+- **Status:** **PASS** (`jsdom` test in `gemini_round3_qa.test.tsx`)
+- **Code Citations:** `src/components/dashboard/DashboardScreen.tsx:11-27, 33-48`, `src/components/bios/BiosScreen.tsx:211-256`, `src/lib/utils.ts:87-95`
+- **Verification Details:**
+  - Clicking **Scan Library** on `DashboardScreen` calls `ipc.scanLibrary` and then `ipc.getProject` (`DashboardScreen.tsx:38-47`), populating `activeProject.scanStats` and `activeProject.biosResults` so the scenario's `dashboardChecks` cards render.
+  - Both `DashboardScreen.tsx:21` (`biosBadge`) and `BiosScreen.tsx:250` (`SystemResultRow`) delegate non-blocking, non-errored issue summaries to the shared `biosIssueLabel` helper (`src/lib/utils.ts:87-95`):
+    - Any blocking system -> Dashboard shows `"N blocking"` (red); `BiosScreen` shows `"Blocking"` (red) on those system rows.
+    - No blocking systems, any errored system -> Dashboard shows `"N systems incomplete"` (amber); `BiosScreen` shows `"Validation error"` (amber).
+    - No blocking/errored systems, any `PRESENT_HASH_MISMATCH` or `PRESENT_WRONG_PATH` -> Dashboard shows `"N to check"` (amber); `BiosScreen` shows `"N to check"` (amber) on affected systems.
+    - Only `MISSING_OPTIONAL` / `MISSING_REQUIRED` entries -> Dashboard shows `"N missing"` (amber); `BiosScreen` shows `"N missing"` (amber).
+    - Only `PRESENT_VALID` and `NOT_APPLICABLE` entries -> Dashboard shows `"All valid"` (green); `BiosScreen` shows `"All valid"` (green).
+
+#### 5. Saves banner: conflicts counted, and `"1 file"`
+- **Status:** **PASS** (`jsdom` test in `gemini_round3_qa.test.tsx` + `src/lib/saves.screen.test.tsx`)
+- **Code Citations:** `src/components/saves/SavesScreen.tsx:44-45, 83-100, 260`
+- **Verification Details:**
+  - `atRisk` filters for `r.migrationState === "migration_needed" || r.migrationState === "conflict_detected"` (`SavesScreen.tsx:44-45`).
+  - With 1 `conflict_detected` root (1 file) and 1 `migration_needed` root (2 files), the red banner renders `"2 save roots at risk"` with copy `"These emulators have moved their save directories. Migrate, or review the conflicts, before updating."` (`SavesScreen.tsx:93-96`).
+  - File count formatting (`SavesScreen.tsx:260`) renders `"1 file"` (never `"1 files"`) and `"2 files"`.
+
+---
+
+### Requirements 1–9 Verification Matrix
+
+| # | Requirement (`handoffs/CURRENT.md`) | Verdict | Source Line Citations & Test Evidence |
+|:-:|:--|:--:|:--|
+| **1** | A valid BIOS for one region must not leave a system blocked because other regions' files are missing. A bad dump must not count as valid. | **PASS** | `src-tauri/src/engine/bios_validator.rs:59-84, 168-181`. Verified in `scenarios.rs:109-125` (`curator_retrobat_library_before_an_update`) and `gemini_qa.rs` (`round3_req1_and_req5_regional_completion_and_corrupt_or_misplaced_blocking`). |
+| **2** | The Saves at-risk banner must include conflicts (saves at both the old and new paths). | **PASS** | `src/components/saves/SavesScreen.tsx:44-45, 83-100`. Verified in `src/lib/saves.screen.test.tsx:55-82` and `gemini_round3_qa.test.tsx` (`5. Saves banner`). |
+| **3** | One file must read `"1 file"`, not `"1 files"`. | **PASS** | `src/components/saves/SavesScreen.tsx:260` (`${root.fileCount} ${root.fileCount === 1 ? "file" : "files"}`). Verified in `src/lib/saves.screen.test.tsx:55-82` and `gemini_round3_qa.test.tsx`. |
+| **4** | The Saves root field must not clear when the user leaves the screen, including a typed path. | **PASS** | `src/stores/index.ts:29-31, 67-69`, `src/components/saves/SavesScreen.tsx:18, 24-26, 123-124`. Verified in `src/lib/saves.root.test.tsx:25-49` and `gemini_round3_qa.test.tsx` (`1. Saves root`). |
+| **5** | A required BIOS that is corrupt or misplaced must not show as fine. | **PASS** | Engine: `src-tauri/src/engine/bios_validator.rs:77-84` blocks when a required rule is neither `PresentValid` nor `NotApplicable` (unless regional and another region is complete, or `PresentHashMismatch` on an inconclusive/compressed rule). UI: `src/lib/utils.ts:87-95` (`biosIssueLabel`) returns `"N to check"` for non-blocking `PRESENT_HASH_MISMATCH` / `PRESENT_WRONG_PATH` entries so neither `DashboardScreen` nor `BiosScreen` shows `"All valid"` or `"0 missing"`. Verified in `scenarios.rs:219-250` and `src/lib/utils.test.ts:18-27`. |
+| **6** | Backup copies must not hide a correctly placed BIOS. | **PASS** | `src-tauri/src/engine/bios_validator.rs:38, 100-129, 155-171` indexes `HashMap<String, Vec<PathBuf>>` (with deterministic `.sort_by_file_name()`), checks `copies.iter().find(\|(_, p)\| is_in_place(p))` first, and suppresses `bad_dump_match` when `in_place.is_some()`. Verified in `scenarios.rs:254-269` and `gemini_qa.rs` (`round3_req6_backup_copies_and_old_bad_dumps_do_not_hide_valid_bios`). |
+| **7** | A BIOS only one emulator reads must not be required for the others. | **PASS** | `src-tauri/src/models/bios.rs:38-39` (`only_emulators`), `src-tauri/src/engine/bios_validator.rs:59-60, 139-148`, `src-tauri/data/bios_rules.json:104, 120, 141`. `sega_101.bin` and `mpr-17933.bin` are scoped to `["lr-beetle-saturn", "ymir"]`; `saturn_bios.bin` is scoped to `["lr-kronos"]`. Verified in `scenarios.rs:274-304` and `gemini_qa.rs`. |
+| **8** | `neogeo.zip` must count as valid wherever FBNeo and ES-DE actually read it. | **PASS** | `src-tauri/data/bios_rules.json:364-380` (`defaultPath: ""`, `alsoAcceptedPaths: ["fbneo/", "../roms/neogeo/", "../roms/arcade/", "../roms/fbneo/", "../../roms/neogeo/", "../../roms/arcade/", "../../roms/fbneo/"]`), `src-tauri/src/engine/bios_validator.rs:42-51, 217-223, 263-279`. Verified in `scenarios.rs:186-215, 378-392` and `gemini_qa.rs` (`round3_req8_neogeo_zip_accepted_and_rejected_locations_with_any_hash`). |
+| **9** | A working setup must not block because of a filename the emulator doesn't care about, or a fallback location it does read. | **PASS** | `src-tauri/src/models/bios.rs:32-36` (`also_accepted_paths`, `any_name_emulators`), `src-tauri/src/engine/bios_validator.rs:158-165, 263-279`, `src-tauri/data/bios_rules.json:13, 28, 43, 58, 73, 88, 103, 119, 140`. Verified in `scenarios.rs:309-373` and `gemini_qa.rs` (`round3_req7_and_req9_saturn_emulator_specific_and_kronos_fallbacks`, `round3_req9_any_name_emulators_accept_renamed_files_only_in_expected_folder`). |
+
+---
+
+### Compatibility Claims Re-Verification & Exact Source Citations
+
+1. **Retraction of Round 1 Finding 7 — PPSSPP `.zso` Support (`src-tauri/data/format_matrix.json:219-225`):**
+   - **Verdict:** **Retracted — Romio's `format_matrix.json:219-225` (`"extension": ".zso", "support": { "unsupported": ... }`) is correct.**
+   - **Source Verification:** Claude's rejection in `handoffs/CURRENT.md` is verified. In upstream `hrydgard/ppsspp`, `Core/FileSystems/BlockDevices.cpp` defines `const u32 CISO_MAGIC = 0x4F534943;` ("CISO") in `constructBlockDevice` and `CISOFileBlockDevice` (`Core/FileSystems/BlockDevices.cpp` / `Core/FileSystems/BlockDevices.h`), supporting `.cso` (CISO v1/v2) and `.chd` (`CHDImpl`), with no `ZISO` magic (`0x4F53495A`) handler. Likewise, `libretro/libretro-core-info`'s `ppsspp_libretro.info` line 4 declares `supported_extensions = "elf|iso|cso|prx|pbp|chd"` (no `zso`). `.zso` (ZISO/LZ4) is supported by PCSX2/OPL, not PPSSPP.
+
+2. **Kronos (`lr-kronos`) Saturn BIOS Fallback Paths & Hashes (`src-tauri/data/bios_rules.json:125-144`):**
+   - **Verdict:** **Verified.**
+   - **Source Verification:**
+     - **Romio rule:** `src-tauri/data/bios_rules.json:125-144` defines `filename: "saturn_bios.bin"`, `defaultPath: "kronos/"`, `alsoAcceptedPaths: ["", "sega_101.bin", "mpr-17933.bin"]`, `onlyEmulators: ["lr-kronos"]`, `region: null`, and lists 8 Saturn BIOS MD5s (`af5828fdff51384f99b3c4926be27762`, `3240872c70984b6cbfda1586cab68dbe`, `85ec9ca47d8f6807718151cbcca8b964`, `f273555d7d91e8a5a6bfd9bcf066331c`, `74570fed4d44b2682b560c8cd44b8b6a`, `cb2cebc1b6e573b7c44523d037edcd45`, `3ea3202e2634cb47cb90f3a05c015010`, `ac4e4b6522e200c0d23d371a8cecbfd3`).
+     - **Upstream source:** In `yabause/kronos` (`yabause/src/libretro/libretro.c`, `retro_load_game`), Kronos probes `snprintf(bios_path, ..., "%s%ckronos%csaturn_bios.bin", retro_system_directory, slash, slash)` first, then falls back in order to `%s%csaturn_bios.bin`, `%s%csega_101.bin`, and `%s%cmpr-17933.bin` in `retro_system_directory`, using a single `bios_path` regardless of game region.
+
+3. **Content-Based BIOS Discovery in PCSX2, DuckStation, and Ymir (`src-tauri/data/bios_rules.json:13, 28, 43, 58, 73, 88, 103, 119` & `src-tauri/src/engine/bios_validator.rs:158-162`):**
+   - **Verdict:** **Verified.**
+   - **Source Verification:**
+     - **PCSX2 (`pcsx2`):** `src-tauri/data/bios_rules.json:73, 88` sets `"anyNameEmulators": ["pcsx2"]`. In `PCSX2/pcsx2` (`pcsx2/ps2/BiosTools.cpp`, `IsBIOS` / `FindBiosImage`), PCSX2 iterates over files in the top-level `bios` directory (`FileSystem::FindFiles(..., FILESYSTEM_FIND_FILES | FILESYSTEM_FIND_HIDDEN_FILES)`, non-recursive) and validates the PS2 `romdir` (`RESET` / `ROMVER`) structure by content rather than filename.
+     - **DuckStation (`duckstation`):** `src-tauri/data/bios_rules.json:13, 28, 43, 58` sets `"anyNameEmulators": ["duckstation"]`. In `stenzek/duckstation` (`src/core/bios.cpp`, `GetBIOSImage` / `FindBIOSImageInDirectory`), DuckStation scans files in its `bios` directory (`FileSystem::FindFiles(bios_dir.c_str(), "*", FILESYSTEM_FIND_FILES | FILESYSTEM_FIND_HIDDEN_FILES, &results)`), hashes each 512 KB image, and matches by hash/region rather than filename.
+     - **Ymir (`ymir`) vs. Beetle Saturn (`lr-beetle-saturn`):** `src-tauri/data/bios_rules.json:103-104, 119-120` sets `"anyNameEmulators": ["ymir"]` and `"onlyEmulators": ["lr-beetle-saturn", "ymir"]`. `StrikerX3/Ymir` (`README.md` / IPL ROM manager) scans its IPL ROM directory and matches known Saturn IPL dumps by content/hash, whereas `libretro/beetle-saturn-libretro` (`mednafen/ss/ss.cpp`) opens exact filenames (`sega_101.bin`, `mpr-17933.bin`).
+
+4. **Sega CD (`segacd`) US BIOS Hashes (`src-tauri/data/bios_rules.json:194-196`):**
+   - **Verdict:** **Verified.**
+   - **Source Verification:** `src-tauri/data/bios_rules.json:195` now includes both `"2efd74e3232ff260e371b99f84024f7f"` (Model 1 v1.10, PicoDrive docs) and `"854b9150240a198070150e4566ae1290"` (Model 2 v2.00W, `libretro/libretro-core-info` `genesis_plus_gx_libretro.info` `firmware0_md5`).
+
+5. **Neo Geo (`neogeo.zip`) Accepted Locations & Non-Blocking Rebuilt Zip Handling (`src-tauri/data/bios_rules.json:364-380`, `src-tauri/src/engine/bios_validator.rs:77-84, 94-96, 217-223`):**
+   - **Verdict:** **Verified.**
+   - **Source Verification:** `libretro/FBNeo` (`src/burner/libretro/libretro.cpp` & [Libretro FBNeo Docs](https://docs.libretro.com/library/fbneo/)) searches the active ROM folder, `system/fbneo/`, and `system/`, while ES-DE's `USERGUIDE.md` places system BIOS archives inside `roms/neogeo/` or `roms/arcade/` (one or two levels relative to `bios/` depending on whether `bios/` is at `Emulation/bios/` or `BIOS/`). `bios_validator.rs:217-223` properly distinguishes a rebuilt `neogeo.zip` in an accepted location (`PresentHashMismatch`, non-blocking warning `"1 to check"`) from a `neogeo.zip` in an unaccepted folder such as `bios/misc/neogeo.zip` (`PresentWrongPath`, `blocking: true`).
+
+---
+
+### Minor Non-Blocking Polish Notes (No Action Required for PR #29)
+
+1. **`foundPath` / `foundMd5` omitted on `PresentHashMismatch` and inconclusive-hash `PresentWrongPath` (`src-tauri/src/engine/bios_validator.rs:174-181, 233-240`):**
+   - **Severity:** Low (Cosmetic / UX polish)
+   - **Details:** When `evaluate_rule` takes the `(_, Some(label))` branch (lines 174–181) or the `(None, None)` branch (lines 209–241, including a rebuilt `neogeo.zip` at `bios/misc/neogeo.zip` classified as `PresentWrongPath` on line 221, or a corrupt file classified as `PresentHashMismatch` on line 223), `found_path` and `found_md5` are returned as `None`. Consequently, `BiosEntryRow` (`src/components/bios/BiosScreen.tsx:316-320, 341-346`) does not display the offending file's path or the `"Copy MD5"` button for those entries.
+2. **Pluralization of `"1 systems incomplete"` on Dashboard (`src/components/dashboard/DashboardScreen.tsx:24`):**
+   - **Severity:** Low (Cosmetic copy)
+   - **Details:** Line 24 formats `erroredCount > 0` as `` `${erroredCount} systems incomplete` `` without singularizing `"1 system incomplete"` when `erroredCount === 1`.
