@@ -4,55 +4,85 @@ Development documentation only. Not part of the app or its installer.
 Follow [AGENTS.md](../AGENTS.md) for commands and architecture and [DESIGN.md](../DESIGN.md) for UI rules, with the corrections listed under "Outdated instructions" below.
 This repository is public: don't put personal paths, saves or BIOS files in handoff files.
 
-**Next reviewer: Codex.** Write findings in [CODEX-REVIEW.md](CODEX-REVIEW.md). Gemini follows, in [GEMINI-QA.md](GEMINI-QA.md), when manually triggered.
+**Next reviewer: Codex (round 2).** Add findings under a new "Round 2" heading in [CODEX-REVIEW.md](CODEX-REVIEW.md). Gemini follows, in [GEMINI-QA.md](GEMINI-QA.md), when manually triggered. Keep round 1 as written.
 
 ## Task
 
-Review PR [#29](https://github.com/Soundchazer2k/romio/pull/29): four issues found by running the real app against a fake RetroBat library.
+Re-review PR [#29](https://github.com/Soundchazer2k/romio/pull/29) after the fixes for round 1. Round 1 reviewed `f5d07b1`; `8f5d175` is the only new commit.
 
 ## Requirements
 
 1. A valid BIOS for one region must not leave a system blocked because other regions' files are missing. A bad dump must not count as valid.
 2. The Saves at-risk banner must include conflicts (saves at both the old and new paths).
 3. One file must read "1 file", not "1 files".
-4. The Saves root field must not clear when the user leaves the screen.
+4. The Saves root field must not clear when the user leaves the screen, including a typed path.
+
+Added after round 1:
+
+5. A required BIOS that is corrupt or misplaced must not show as fine.
+6. Backup copies must not hide a correctly placed BIOS.
+7. A BIOS only one emulator reads must not be required for the others.
+8. `neogeo.zip` must count as valid wherever FBNeo and ES-DE actually read it.
 
 ## Code under review
 
 | | |
 |:--|:--|
 | Branch | `fix/saves-bios-polish` |
-| Commit | `f5d07b13e4802ac80ed53e5ec427be36891d10d6` |
+| Commit | `8f5d1756946c765a72eb83d520303d7d73cd4835` |
 | Base (`master`) | `d9e1e2880d959c6deb2b2ff47dd2145f629ec831` |
-| Diff | `git diff d9e1e28...f5d07b1` |
+| New since round 1 | `git diff f5d07b1 8f5d175` |
+| Whole PR | `git diff d9e1e28...8f5d175` |
 
-Changed files:
+Changed files in `8f5d175`:
 
-- `src-tauri/src/engine/bios_validator.rs`: regional rule and unit test
-- `src/components/saves/SavesScreen.tsx`: banner, plural, starting root
-- `src/lib/saves.screen.test.tsx`: screen test
+- `src-tauri/src/engine/bios_validator.rs`: blocking, multiple copies per hash, emulator applicability, accepted paths
+- `src-tauri/src/models/bios.rs`, `src/types/index.ts`: new optional rule fields `alsoAcceptedPaths`, `onlyEmulators`
+- `src-tauri/src/engine/bios_sweep.rs`: test fixtures for those fields
+- `src-tauri/data/bios_rules.json`: Saturn, Sega CD and Neo Geo rules
+- `src/lib/utils.ts`, `src/components/bios/BiosScreen.tsx`, `src/components/dashboard/DashboardScreen.tsx`: labels
+- `src/stores/index.ts`, `src/components/saves/SavesScreen.tsx`: Saves root per project
+- Tests: `src-tauri/tests/scenarios.rs`, `src/lib/saves.root.test.tsx` (new), `src/lib/saves.screen.test.tsx`, `src/lib/utils.test.ts`
 
-Use your own working copy. This one has both the handoff files and the code under review:
+Use a fresh working copy, because `codex/review` may already exist:
 
 ```bash
 git fetch origin
-git worktree add -b codex/review ../romio-codex origin/docs/handoffs
-git -C ../romio-codex merge --no-edit f5d07b13e4802ac80ed53e5ec427be36891d10d6
+git worktree add -b codex/review-2 ../romio-codex-2 origin/docs/handoffs
+git -C ../romio-codex-2 merge --no-edit 8f5d1756946c765a72eb83d520303d7d73cd4835
 ```
+
+## What happened to round 1's findings
+
+| Finding | Outcome |
+|:--|:--|
+| Codex P2, Gemini 5: typed Saves root lost | Fixed: `saveRoots` in the store, per project, until the app closes |
+| Gemini 1: US Saturn stays blocked | Fixed: `onlyEmulators` on `saturn_bios.bin` and `mpr-17933.bin` |
+| Gemini 2: bad or misplaced required BIOS shows "All valid" | Fixed: blocks; other labels say "N to check" |
+| Gemini 3: copies overwrite each other | Fixed: every path is kept, and one in an accepted place wins |
+| Gemini table: Neo Geo location | Fixed: `alsoAcceptedPaths`; the ES-DE-only `roms/arcade` path is gone |
+| Gemini 6: Sega CD hash, Saturn note | Fixed in the data. Source correction: the hash comes from libretro's `genesis_plus_gx.md`, not the core's info file. |
+| Codex and Gemini: regional wording | Rows now say "Missing — needed for JP games". The product rule itself stays (limitation 1). |
+| Gemini 7: PPSSPP `.zso` | **Rejected.** Upstream `Core/FileSystems/BlockDevices.cpp` and `.h` contain no `ZISO` or LZ4 handling, only `CISO`. Show current source if you disagree. |
+| Gemini 5: switching project while Saves stays open | Not reachable from the sidebar or title bar. The store is keyed per project regardless, and a test covers it. |
+| Gemini 4: failed scans look like empty libraries | **Deferred, separate PR, next.** Still present. |
+| Gemini 8: stuck companion, optional files showing amber, conflict card actions, design drift | **Deferred, separate PRs.** Still present. |
+
+Gemini's 9 extra tests from round 1 aren't in the repository, so they weren't re-run. The cases they found now have tests here.
 
 ## Checks performed
 
-All at commit `f5d07b1`, on Windows 11.
+All at commit `8f5d175`, on Windows 11. GitHub CI on this commit hasn't finished at the time of writing.
 
 ### Automated tests
 
 | Check | Result | What it covers |
 |:--|:--|:--|
-| `cargo test --workspace` | 43 unit + 11 scenario pass | Real engine and shipped rule files, against fake libraries in temp folders. Includes new `one_complete_region_is_enough_to_play`. `real_library_smoke` skips without `ROMIO_REAL_LIBRARY`. |
-| `pnpm exec vitest run` | 46 pass | jsdom, with the stores and IPC mocked. Includes new `starts at the project's library root and counts conflicts as at risk`, which fails on the old `SavesScreen.tsx`. |
+| `cargo test --workspace` | 43 unit + 15 scenario pass | Real engine and shipped rule files, against fake libraries in temp folders. `real_library_smoke` skips without `ROMIO_REAL_LIBRARY`. |
+| New scenarios | Failed on `f5d07b1`, pass now | `neogeo_bios_is_valid_wherever_fbneo_looks`, `bad_or_misplaced_required_bios_blocks`, `backup_copies_do_not_hide_a_correctly_placed_bios`, `saturn_us_bios_depends_on_the_emulator`, `shipped_bios_data_has_the_documented_hashes` |
+| `pnpm exec vitest run` | 52 pass | jsdom with mocked IPC. `saves.root.test.tsx` uses the real store, and failed on `f5d07b1`. `saves.screen.test.tsx` also mocks the store. |
 | `tsc`, `pnpm lint`, `vite build` | Pass | Types, lint, frontend build |
-| `cargo audit` (local) | No vulnerabilities, 2 known warnings | The CI audit workflow didn't run on this PR, because it only runs when dependencies change |
-| GitHub CI on this commit | `check` and CodeQL (actions, javascript-typescript, rust) pass | Same tests on `windows-latest`, plus static analysis |
+| `cargo audit` (local) | No vulnerabilities, 2 known warnings | Dependency advisories |
 
 Not run: `pnpm design:lint` (no design tokens changed).
 
@@ -64,36 +94,44 @@ Not run: `pnpm design:lint` (no design tokens changed).
 
 ### Actual desktop-app checks
 
-`pnpm tauri dev` with the real Rust backend, confirmed by `window.__TAURI_INTERNALS__`. The page was driven over the WebView2 debug port (`WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=9333`). The project was a fake RetroBat library made of placeholder files, created earlier with the native folder picker. Save discovery also read this machine's real `%APPDATA%`, read-only.
+`pnpm tauri dev` with the real Rust backend, confirmed by `window.__TAURI_INTERNALS__`, and driven over the WebView2 debug port (`WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=9333`). The project was a fake RetroBat library of placeholder files. Save discovery also read this machine's real `%APPDATA%`, read-only.
 
 | Check | Result |
 |:--|:--|
-| Open project, Saves root field | Pre-filled with the project's library root |
-| At-risk banner, one migration needed plus one real yuzu/Eden conflict | "2 save roots at risk", with the new wording |
-| Save root with one file | "1 file" |
-| Leave Saves for BIOS and return | Root still there |
-| Type another path, leave and return | **Back to the project root; the typed path is lost** |
-| PS1 with a fake `scph5501.bin` (Revalidate BIOS) | "Hash mismatch"; JP and EU "Missing — required"; system "Blocking" |
+| Type a Saves root, go to BIOS, return | Typed path kept |
+| Corrupt required `mcpx_1.0.bin` | "Hash mismatch"; Xbox "Blocking" |
+| Different `neogeo.zip` in the BIOS folder | "Hash mismatch"; Neo Geo row "1 to check", not blocking |
+| Saturn, Beetle default, no BIOS files | `saturn_bios.bin` "Not applicable" with its explanation; US and JP "Missing — required" |
+| Earlier, at `f5d07b1` and unchanged since: banner with a conflict, "1 file" | "2 save roots at risk", "1 file" |
 
-Not checked on desktop: the valid-region path. It needs a genuine BIOS dump, so only the unit test covers it. Also not exercised: Plan Migration, migration execution, checkpoints (not changed by this PR), `pnpm tauri build`, the installer, Linux and macOS.
+Not checked on desktop:
+
+- **A valid BIOS of any kind, and so the region-complete path and "Missing — needed for JP games".** It needs genuine dumps; only automated tests cover it.
+- **The Dashboard BIOS badge.** The card showed "Run a scan to see validation results." Only `biosIssueLabel`'s unit test covers it.
+- Plan Migration, migration execution and checkpoints, `pnpm tauri build`, the installer, Linux and macOS.
 
 ## Known limitations
 
-1. **Romio doesn't know a library's regions.** A valid US BIOS unblocks PS1 even for a library of only Japanese games, though that system's games need the JP file. That row shows "Missing — optional" while its note still says "Required for JP-exclusive titles".
-2. **A hand-typed Saves root is lost on leaving the screen** (table above). Requirement 4 is only met for the default root.
-3. **The Saves root default assumes the first library root is the frontend install.** A root that is only a ROM folder finds nothing there and gives no warning. Other roots are ignored.
-4. **Save discovery now also searches the library root when the screen opens.** It already ran on open, but only covered `%APPDATA%` until someone typed a path.
-5. **The companion changes for conflicts.** Conflicts now count in `atRisk`, so a lone conflict sets `difficult_save` where it used to set `concerned`. Not checked visually.
-6. **A hash mismatch in one region doesn't block on its own** if another region is complete or nothing is missing. Only `MissingRequired` blocks. This predates the PR.
+1. **Romio doesn't know a library's regions.** A valid US BIOS unblocks PS1 even for a library of only Japanese games. Rows say which games still need the other file, but the system shows as not blocked. Product rule, kept deliberately; challenge it if you think it misleads.
+2. **Misplaced files now block,** based on Romio's path rules. If an emulator actually reads a location those rules don't list, a working setup shows "Blocking". Only `neogeo.zip` has extra locations so far.
+3. **Results saved before this fix stay until revalidated.** `biosResults` is stored per project, so old badges remain until the next scan or Revalidate BIOS.
+4. **`onlyEmulators` lists are fixed.** An emulator set in `emulatorPrefs` but not listed makes both Saturn US rules not applicable, so US no longer blocks for it. Romio's matrix only offers Ymir, Beetle Saturn and Kronos.
+5. **A typed Saves root lasts until the app closes,** not across restarts.
+6. **The Saves root default assumes the first library root is the frontend install.** A root that is only a ROM folder finds nothing there and gives no warning. Other roots are ignored.
+7. **`neogeo.zip` hash mismatches never block,** because zips can be rebuilt. A corrupt zip shows "1 to check", not "Blocking".
 
-No independent review yet: Sourcery skipped this PR (review budget used up) and Qodo hasn't commented.
+CI, Sourcery (budget used up) and Qodo haven't reviewed this commit.
 
 ## Review focus for Codex
 
-- **Correctness:** the region grouping in `validate_system_bios`, including Saturn, whose US region has two required files, and rules with no region.
-- **Save safety:** whether counting conflicts, or discovering on open, can lead anyone towards a migration that overwrites saves.
-- **Error handling:** an unreadable or missing default root.
-- **Tests:** gaps in the two new tests, including the limitations above.
+- **Correctness:** the blocking expression and `accepted_paths`, `hash_inconclusive`, and how the region rule combines with `NotApplicable`. Check every system in `bios_rules.json`, not just the ones with new tests.
+- **False blocks:** limitation 2. Is any shipped rule now likely to block a working setup?
+- **Tests:** whether the new scenarios would catch a regression in each fix.
+- **Data:** the Saturn and Neo Geo rules against the libretro docs.
+
+## Next for Gemini
+
+Re-test the user journeys on this commit, and in particular the BIOS wording, "to check" labels and the typed Saves root. Save journey tests you want kept outside application code, or say where they can be read.
 
 ## Outdated instructions
 
@@ -103,9 +141,9 @@ Flagged, not changed:
 |:--|:--|:--|
 | `AGENTS.md`, Screens & Status | `format` is a placeholder | Implemented (`CLAUDE.md` is correct). The other unfinished screens are hidden from the sidebar. |
 | `AGENTS.md` | No design section, no `cargo test --test scenarios` | `CLAUDE.md` has both |
-| `AGENTS.md`, `CLAUDE.md`, Type Sync | `SaveCheckpoint` missing from TS types | Defined at `src/types/index.ts:195` |
+| `AGENTS.md`, `CLAUDE.md`, Type Sync | `SaveCheckpoint` missing from TS types | Defined in `src/types/index.ts` |
 | `AGENTS.md`, `CLAUDE.md`, Commands | `pnpm test` | Starts Vitest in watch mode and doesn't exit; use `pnpm exec vitest run` to run once |
-| `README.md:86-88` | Links to `docs/contributing/overview.md` and `frontend-adapter.md` | Neither file exists, and the adapters were removed in #20 |
+| `README.md:87-88` | Links to `docs/contributing/overview.md` and `frontend-adapter.md` | Neither file exists, and the adapters were removed in #20 |
 
 ## Repository state to leave alone
 
