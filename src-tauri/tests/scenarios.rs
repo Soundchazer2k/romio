@@ -245,6 +245,31 @@ fn bad_or_misplaced_required_bios_blocks() {
     assert!(!blocking(&results, "ps1"));
 }
 
+/// lr-opera boots its built-in BIOS by default, so 3DO plays without panafz10.bin,
+/// but a file the user did add is still judged by its hash.
+#[test]
+fn three_do_plays_without_a_bios_file() {
+    let lib = Library::new();
+    let bios_root = lib.path("bios");
+    std::fs::create_dir_all(&bios_root).unwrap();
+    let rules = fixture_bios_rules();
+
+    let results = sweep(&bios_root, "retrobat", &rules);
+    assert_eq!(bios_entry(&results, "panafz10.bin").state, Bios::MissingOptional);
+    assert!(!is_blocking(&results, "3do"));
+
+    let file = lib.file("bios/panafz10.bin", b"corrupt dump");
+    let results = sweep(&bios_root, "retrobat", &rules);
+    assert_eq!(bios_entry(&results, "panafz10.bin").state, Bios::PresentHashMismatch);
+    assert!(!is_blocking(&results, "3do"), "the core only reads the file if selected");
+
+    std::fs::remove_file(file).unwrap();
+    lib.bios("bios/panafz10.bin", "panafz10.bin");
+    let results = sweep(&bios_root, "retrobat", &rules);
+    assert_eq!(bios_entry(&results, "panafz10.bin").state, Bios::PresentValid);
+    assert!(!is_blocking(&results, "3do"));
+}
+
 /// A valid BIOS in place stays valid, whatever other copies sit elsewhere in the folder.
 #[test]
 fn backup_copies_do_not_hide_a_correctly_placed_bios() {

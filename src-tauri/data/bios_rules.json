@@ -397,12 +397,12 @@
     "knownBadMd5": [],
     "system": "3do",
     "region": null,
-    "requirement": "required",
+    "requirement": "optional",
     "compressed": false,
     "defaultPath": "",
     "frontendPaths": {},
     "emulatorPaths": {},
-    "notes": "Panasonic 3DO FZ-10 BIOS. Most compatible variant. High user friction — legally difficult to obtain.",
+    "notes": "Panasonic 3DO FZ-10 BIOS. lr-opera built since October 2026 boots its built-in Opera Boot by default and only reads this file if you select it in the core options. Older lr-opera builds, which some frontends still ship, have no built-in BIOS and won't boot without a BIOS file here.",
     "dumpingGuideUrl": null
   },
   {
