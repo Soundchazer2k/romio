@@ -14,8 +14,14 @@ const MATRIX = [
   { system: "nes", recommended: "mesen2", alternatives: ["lr-nestopia"] },
 ] as EmulatorMatrixEntry[];
 
+const TWO_FOLDERS = [
+  { name: "psx", path: "/roms/psx", files: ["/roms/psx/a.chd"] },
+  { name: "nes", path: "/roms/nes", files: ["/roms/nes/b.nes"] },
+];
+
 const mocks = vi.hoisted(() => ({
   checkFormat: vi.fn(),
+  listLibraryFolders: vi.fn(),
 }));
 
 vi.mock("@/stores", () => ({
@@ -30,10 +36,7 @@ vi.mock("@/lib/ipc", () => ({
   ipc: {
     getFormatMatrix:    () => Promise.resolve([]),
     getEmulatorMatrix:  () => Promise.resolve(MATRIX),
-    listLibraryFolders: () => Promise.resolve([
-      { name: "psx", path: "/roms/psx", files: ["/roms/psx/a.chd"] },
-      { name: "nes", path: "/roms/nes", files: ["/roms/nes/b.nes"] },
-    ]),
+    listLibraryFolders: () => mocks.listLibraryFolders(),
     checkFormat: (...args: unknown[]) => mocks.checkFormat(...args),
   },
 }));
@@ -69,6 +72,8 @@ describe("emulatorForSystem", () => {
 
 describe("FormatScreen", () => {
   beforeEach(() => {
+    mocks.listLibraryFolders.mockReset();
+    mocks.listLibraryFolders.mockResolvedValue(TWO_FOLDERS);
     mocks.checkFormat.mockReset();
     mocks.checkFormat.mockImplementation((path: string, system: string, emulator: string) =>
       Promise.resolve({ path, extension: "x", system, emulator, state: "Compatible" }));
@@ -97,6 +102,35 @@ describe("FormatScreen", () => {
     expect(screen.getByText("duckstation", { selector: "span" })).toBeTruthy();
   });
 
+  it("says which systems a pick applied to, and that the rest didn't use it", async () => {
+    await setUp();
+    fireEvent.change(screen.getByDisplayValue("auto"), { target: { value: "lr-nestopia" } });
+    await scan();
+
+    const notice = screen.getByRole("status").textContent;
+    expect(notice).toContain("lr-nestopia only applies to nes");
+    expect(notice).toContain("1 other system");
+  });
+
+  it("says so when a pick applies to no scanned system", async () => {
+    mocks.listLibraryFolders.mockResolvedValue([TWO_FOLDERS[0]]);
+    await setUp();
+    fireEvent.change(screen.getByDisplayValue("auto"), { target: { value: "lr-nestopia" } });
+    fireEvent.click(screen.getByRole("button", { name: /Scan/ }));
+
+    await screen.findByText("ps1");
+    expect(screen.getByRole("status").textContent).toContain("lr-nestopia doesn't apply to any system in this scan");
+  });
+
+  it("adds no notice when every scanned system used the pick", async () => {
+    mocks.listLibraryFolders.mockResolvedValue([TWO_FOLDERS[1]]);
+    await setUp();
+    fireEvent.change(screen.getByDisplayValue("auto"), { target: { value: "lr-nestopia" } });
+    await scan();
+
+    expect(screen.queryByRole("status")).toBeNull();
+  });
+
   it("flags results as out of date when the emulator or frontend changes, until a new scan", async () => {
     await setUp();
     await scan();
@@ -113,6 +147,27 @@ describe("FormatScreen", () => {
 
     await scan();
     await waitFor(() => expect(screen.queryByRole("status")).toBeNull());
+  });
+});
+
+describe("FormatScreen after an empty scan", () => {
+  beforeEach(() => {
+    mocks.listLibraryFolders.mockReset();
+    mocks.listLibraryFolders.mockResolvedValue([]);
+  });
+
+  it("names the scanned library and flags it out of date when the root changes", async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(<QueryClientProvider client={client}><FormatScreen /></QueryClientProvider>);
+    fireEvent.click(screen.getByRole("button", { name: /Scan/ }));
+    await screen.findByText(/No game files found in \/roms\./);
+    expect(screen.queryByRole("status")).toBeNull();
+
+    fireEvent.change(screen.getByDisplayValue("/roms"), { target: { value: "/other" } });
+
+    expect(screen.getByText(/No game files found in \/roms\./)).toBeTruthy();
+    expect(screen.queryByText(/No game files found in \/other/)).toBeNull();
+    expect(screen.getByRole("status").textContent).toContain("/roms");
   });
 });
 

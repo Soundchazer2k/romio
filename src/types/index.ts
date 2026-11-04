@@ -295,7 +295,7 @@ export interface FormatCheckResult {
   emulator?:  string;
   state:      FormatCompatibilityState;
   notes?:     string;
-  condition?: string;
+  condition?: string | null;
   fixAction?: FormatFixAction;
 }
 

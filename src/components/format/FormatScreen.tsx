@@ -117,11 +117,15 @@ export function FormatScreen() {
   }
 
   const hasResults = groups.length > 0;
-  const stale = hasResults && !isScanning && (
+  // scanned, not hasResults: an empty scan goes out of date too
+  const stale = scanned && (
     scannedWith.path !== libraryPath ||
     scannedWith.frontend !== frontend ||
     scannedWith.emulator !== emulatorOverride
   );
+  const pick = scannedWith.emulator;
+  const pickedSystems = groups.filter((g) => g.results[0]?.emulator === pick).map((g) => g.system);
+  const otherCount = groups.length - pickedSystems.length;
 
   return (
     <div className="p-8 max-w-3xl mx-auto space-y-6 pb-20">
@@ -181,7 +185,20 @@ export function FormatScreen() {
                      text-sm text-amber-400"
         >
           You changed the settings, so these results are out of date. They're for{" "}
-          {scannedWith.frontend} with emulator {scannedWith.emulator}. Scan again to update them.
+          {scannedWith.path} on {scannedWith.frontend} with emulator {pick}. Scan again to update them.
+        </p>
+      )}
+
+      {/* A picked emulator only runs on systems that list it; never let "All OK" imply otherwise */}
+      {!stale && pick !== "auto" && otherCount > 0 && (
+        <p
+          role="status"
+          className="px-4 py-3 rounded-xl bg-amber-400/10 border border-amber-400/20
+                     text-sm text-amber-400"
+        >
+          {pickedSystems.length > 0
+            ? `${pick} only applies to ${pickedSystems.join(", ")}. ${otherCount} other ${otherCount === 1 ? "system" : "systems"} used a different emulator, shown on each row.`
+            : `${pick} doesn't apply to any system in this scan, so each system used a different emulator, shown on each row.`}
         </p>
       )}
 
@@ -210,7 +227,7 @@ export function FormatScreen() {
         <div className="text-center py-16 text-romio-gray space-y-2">
           <FileSearch className="w-10 h-10 mx-auto opacity-30" />
           <p>{scanned
-            ? `No game files found in ${libraryPath}. Point it at your frontend folder or its roms folder.`
+            ? `No game files found in ${scannedWith.path}. Point it at your frontend folder or its roms folder.`
             : "Run a scan to check your library"}</p>
         </div>
       )}

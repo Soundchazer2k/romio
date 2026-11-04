@@ -76,7 +76,7 @@
     "extension": "wud",
     "emulator": "cemu",
     "frontend": null,
-    "support": { "conditional": { "condition": "Requires keys.txt with valid title keys for decryption." } },
+    "support": { "conditional": { "condition": "Needs the disc's key, in Cemu's keys.txt or in a .key file with the same name next to the image." } },
     "notes": "Use .wua instead when possible.",
     "sinceVersion": null
   },
@@ -85,7 +85,7 @@
     "extension": "wux",
     "emulator": "cemu",
     "frontend": null,
-    "support": { "conditional": { "condition": "Compressed .wud — same key requirement as .wud." } },
+    "support": { "conditional": { "condition": "Compressed .wud. Needs the disc's key, in Cemu's keys.txt or in a .key file with the same name next to the image." } },
     "notes": null,
     "sinceVersion": null
   },
@@ -148,7 +148,7 @@
     "extension": "nsp",
     "emulator": "citron",
     "frontend": null,
-    "support": { "conditional": { "condition": "Requires prod.keys + title.keys. Keys are console-specific and cannot be shared between installations." } },
+    "support": { "conditional": { "condition": "Needs prod.keys. Content with a rights ID also needs its title key, from title.keys or a ticket inside the file. Romio can't tell which from the file type." } },
     "notes": null,
     "sinceVersion": null
   },
@@ -157,7 +157,7 @@
     "extension": "xci",
     "emulator": "citron",
     "frontend": null,
-    "support": { "conditional": { "condition": "Requires prod.keys + title.keys." } },
+    "support": { "conditional": { "condition": "Needs prod.keys. Content with a rights ID also needs its title key, from title.keys or a ticket inside the file. Romio can't tell which from the file type." } },
     "notes": null,
     "sinceVersion": null
   },
@@ -166,7 +166,7 @@
     "extension": "nsp",
     "emulator": "eden",
     "frontend": null,
-    "support": { "conditional": { "condition": "Requires prod.keys + title.keys. Keys are console-specific and cannot be shared between installations." } },
+    "support": { "conditional": { "condition": "Needs prod.keys. Content with a rights ID also needs its title key, from title.keys or a ticket inside the file. Romio can't tell which from the file type." } },
     "notes": null,
     "sinceVersion": null
   },
@@ -175,7 +175,7 @@
     "extension": "xci",
     "emulator": "eden",
     "frontend": null,
-    "support": { "conditional": { "condition": "Requires prod.keys + title.keys." } },
+    "support": { "conditional": { "condition": "Needs prod.keys. Content with a rights ID also needs its title key, from title.keys or a ticket inside the file. Romio can't tell which from the file type." } },
     "notes": null,
     "sinceVersion": null
   },

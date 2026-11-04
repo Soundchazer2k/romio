@@ -610,6 +610,35 @@ fn steam_deck_saves_under_xdg_data_home() {
     assert!(discover_save_roots(std::path::Path::new(""), &anchors, &db::save::load_rules().unwrap()).is_empty());
 }
 
+/// Conditions must say only what the emulators' sources back up
+#[test]
+fn key_conditions_match_what_the_emulators_accept() {
+    let rules = db::format::load_rules().unwrap();
+    let condition = |system: &str, ext: &str, emu: &str| -> String {
+        let rule = rules.iter()
+            .find(|r| r.system == system && r.extension == ext && r.emulator == emu)
+            .unwrap_or_else(|| panic!("{system} .{ext} {emu} rule missing"));
+        match &rule.support {
+            FormatSupport::Conditional { condition } => condition.clone(),
+            _ => panic!("{system} .{ext} {emu} must stay conditional"),
+        }
+    };
+
+    // Eden and Citron only ask for a title key when the content has a rights ID
+    for emu in ["eden", "citron"] {
+        for ext in ["nsp", "xci"] {
+            let text = condition("switch", ext, emu);
+            assert!(text.contains("prod.keys") && text.contains("rights ID"), "{emu} .{ext}: {text}");
+            assert!(!text.contains("console-specific"), "{emu} .{ext}: {text}");
+        }
+    }
+    // Cemu takes the disc key from keys.txt or a .key file next to the image
+    for ext in ["wud", "wux"] {
+        let text = condition("wiiu", ext, "cemu");
+        assert!(text.contains("keys.txt") && text.contains(".key file"), ".{ext}: {text}");
+    }
+}
+
 /// Handheld setup checking formats before copying games over: each system's default
 /// emulator must give a verdict on its common formats, not "Unknown".
 #[test]
