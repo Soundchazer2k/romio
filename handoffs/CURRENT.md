@@ -4,11 +4,23 @@ Development documentation only. Not part of the app or its installer.
 Follow [AGENTS.md](../AGENTS.md) for commands and architecture and [DESIGN.md](../DESIGN.md) for UI rules, with the corrections listed under "Outdated instructions" below.
 This repository is public: don't put personal paths, saves or BIOS files in handoff files.
 
-**Next reviewer: Codex (round 2).** Add findings under a new "Round 2" heading in [CODEX-REVIEW.md](CODEX-REVIEW.md). Gemini follows, in [GEMINI-QA.md](GEMINI-QA.md), when manually triggered. Keep round 1 as written.
+**Next reviewer: Gemini (Antigravity).** Add findings under a new "Round 3" heading in [GEMINI-QA.md](GEMINI-QA.md). Keep earlier rounds as written. Codex's rounds 1 and 2 are in [CODEX-REVIEW.md](CODEX-REVIEW.md).
 
 ## Task
 
-Re-review PR [#29](https://github.com/Soundchazer2k/romio/pull/29) after the fixes for round 1. Round 1 reviewed `f5d07b1`; `8f5d175` is the only new commit.
+QA the updated UI for PR [#29](https://github.com/Soundchazer2k/romio/pull/29) at commit `76201d1`, after the fixes for Codex's round 2.
+
+## What to test
+
+1. **Saves root:** typing a path, clearing it, leaving and returning, and separate values per project.
+2. **Regional BIOS wording:** "Missing — needed for JP games" and "Missing — optional". Does a non-blocked system suggest more readiness than it should?
+3. **BIOS verdicts:** "Blocking", "Wrong path", "Hash mismatch", "Not applicable" and "N to check", on the BIOS screen.
+4. **Badge consistency:** the Dashboard BIOS badge against the BIOS screen for the same project. It was never seen on desktop, because the card asked for a scan first; run a scan.
+5. **Saves banner:** conflicts counted, and "1 file".
+
+Test in the real desktop app if your environment allows it. In round 1, port binding was blocked in your sandbox; if that still happens, say so and separate what you verified in `jsdom` from what you didn't see. Native emulator checks of the Kronos and PCSX2 cases are welcome only if you have your own dumps and emulators; otherwise report them as not covered. Don't commit dumps or screenshots with private paths.
+
+Cite the exact source line for any compatibility claim, and mark anything you couldn't confirm as unverified. Keep any journey tests you want preserved outside application code, and say where they can be read.
 
 ## Requirements
 
@@ -16,75 +28,62 @@ Re-review PR [#29](https://github.com/Soundchazer2k/romio/pull/29) after the fix
 2. The Saves at-risk banner must include conflicts (saves at both the old and new paths).
 3. One file must read "1 file", not "1 files".
 4. The Saves root field must not clear when the user leaves the screen, including a typed path.
-
-Added after round 1:
-
 5. A required BIOS that is corrupt or misplaced must not show as fine.
 6. Backup copies must not hide a correctly placed BIOS.
 7. A BIOS only one emulator reads must not be required for the others.
 8. `neogeo.zip` must count as valid wherever FBNeo and ES-DE actually read it.
+9. A working setup must not block because of a filename the emulator doesn't care about, or a fallback location it does read.
 
 ## Code under review
 
 | | |
 |:--|:--|
 | Branch | `fix/saves-bios-polish` |
-| Commit | `8f5d1756946c765a72eb83d520303d7d73cd4835` |
+| Commit | `76201d1eddc7af73cef172cdca71908ae6e7140d` |
 | Base (`master`) | `d9e1e2880d959c6deb2b2ff47dd2145f629ec831` |
-| New since round 1 | `git diff f5d07b1 8f5d175` |
-| Whole PR | `git diff d9e1e28...8f5d175` |
+| New since Codex round 2 | `git diff 8f5d175 76201d1` |
+| Whole PR | `git diff d9e1e28...76201d1` |
 
-Changed files in `8f5d175`:
-
-- `src-tauri/src/engine/bios_validator.rs`: blocking, multiple copies per hash, emulator applicability, accepted paths
-- `src-tauri/src/models/bios.rs`, `src/types/index.ts`: new optional rule fields `alsoAcceptedPaths`, `onlyEmulators`
-- `src-tauri/src/engine/bios_sweep.rs`: test fixtures for those fields
-- `src-tauri/data/bios_rules.json`: Saturn, Sega CD and Neo Geo rules
-- `src/lib/utils.ts`, `src/components/bios/BiosScreen.tsx`, `src/components/dashboard/DashboardScreen.tsx`: labels
-- `src/stores/index.ts`, `src/components/saves/SavesScreen.tsx`: Saves root per project
-- Tests: `src-tauri/tests/scenarios.rs`, `src/lib/saves.root.test.tsx` (new), `src/lib/saves.screen.test.tsx`, `src/lib/utils.test.ts`
-
-Use a fresh working copy, because `codex/review` may already exist:
+Use a fresh working copy, because earlier review branches may already exist:
 
 ```bash
 git fetch origin
-git worktree add -b codex/review-2 ../romio-codex-2 origin/docs/handoffs
-git -C ../romio-codex-2 merge --no-edit 8f5d1756946c765a72eb83d520303d7d73cd4835
+git worktree add -b gemini/qa-3 ../romio-gemini-3 origin/docs/handoffs
+git -C ../romio-gemini-3 merge --no-edit 76201d1eddc7af73cef172cdca71908ae6e7140d
 ```
 
-## What happened to round 1's findings
+## What happened to the review findings
 
 | Finding | Outcome |
 |:--|:--|
-| Codex P2, Gemini 5: typed Saves root lost | Fixed: `saveRoots` in the store, per project, until the app closes |
-| Gemini 1: US Saturn stays blocked | Fixed: `onlyEmulators` on `saturn_bios.bin` and `mpr-17933.bin` |
-| Gemini 2: bad or misplaced required BIOS shows "All valid" | Fixed: blocks; other labels say "N to check" |
-| Gemini 3: copies overwrite each other | Fixed: every path is kept, and one in an accepted place wins |
-| Gemini table: Neo Geo location | Fixed: `alsoAcceptedPaths`; the ES-DE-only `roms/arcade` path is gone |
-| Gemini 6: Sega CD hash, Saturn note | Fixed in the data. Source correction: the hash comes from libretro's `genesis_plus_gx.md`, not the core's info file. |
-| Codex and Gemini: regional wording | Rows now say "Missing — needed for JP games". The product rule itself stays (limitation 1). |
+| Codex round 1 P2, Gemini 5: typed Saves root lost | Fixed in `8f5d175`; Codex round 2 confirmed it |
+| Gemini 1: US Saturn stays blocked | Fixed in `8f5d175`: `onlyEmulators` |
+| Gemini 2: bad or misplaced required BIOS shows "All valid" | Fixed in `8f5d175`: blocks; other labels say "N to check" |
+| Gemini 3: copies overwrite each other | Fixed in `8f5d175`: every path is kept, and one in an accepted place wins |
+| Gemini table: Neo Geo location | Fixed in `8f5d175`: `alsoAcceptedPaths` |
+| Gemini 6: Sega CD hash, Saturn note | Fixed in `8f5d175` and `76201d1` |
+| Codex round 2: Kronos fallbacks | Fixed in `76201d1`. Confirmed in `retro_load_game`: `kronos/saturn_bios.bin`, then `saturn_bios.bin`, `sega_101.bin`, `mpr-17933.bin`. The docs say any valid Saturn BIOS works, so the rule lists the Saturn revisions in libretro's `System.dat`. |
+| Codex round 2: PCSX2 filename | Fixed in `76201d1`: `anyNameEmulators`. Confirmed in PCSX2's `BiosTools.cpp`, which isn't recursive. The same behaviour applies to DuckStation (`bios.cpp`), so its PS1 rules got it too, and to Ymir, per its README. |
+| Codex round 2: zip location | Fixed in `76201d1`: an unknown hash is only a warning where the core reads the file |
 | Gemini 7: PPSSPP `.zso` | **Rejected.** Upstream `Core/FileSystems/BlockDevices.cpp` and `.h` contain no `ZISO` or LZ4 handling, only `CISO`. Show current source if you disagree. |
-| Gemini 5: switching project while Saves stays open | Not reachable from the sidebar or title bar. The store is keyed per project regardless, and a test covers it. |
 | Gemini 4: failed scans look like empty libraries | **Deferred, separate PR, next.** Still present. |
-| Gemini 8: stuck companion, optional files showing amber, conflict card actions, design drift | **Deferred, separate PRs.** Still present. |
-
-Gemini's 9 extra tests from round 1 aren't in the repository, so they weren't re-run. The cases they found now have tests here.
+| Gemini 8: stuck companion, optional files showing amber, conflict card actions, design drift | **Deferred, separate PRs.** Still present; no need to re-report. |
 
 ## Checks performed
 
-All at commit `8f5d175`, on Windows 11. GitHub CI on this commit hasn't finished at the time of writing.
+All at commit `76201d1`, on Windows 11. GitHub CI on this commit hadn't finished at the time of writing.
 
 ### Automated tests
 
 | Check | Result | What it covers |
 |:--|:--|:--|
-| `cargo test --workspace` | 43 unit + 15 scenario pass | Real engine and shipped rule files, against fake libraries in temp folders. `real_library_smoke` skips without `ROMIO_REAL_LIBRARY`. |
-| New scenarios | Failed on `f5d07b1`, pass now | `neogeo_bios_is_valid_wherever_fbneo_looks`, `bad_or_misplaced_required_bios_blocks`, `backup_copies_do_not_hide_a_correctly_placed_bios`, `saturn_us_bios_depends_on_the_emulator`, `shipped_bios_data_has_the_documented_hashes` |
-| `pnpm exec vitest run` | 52 pass | jsdom with mocked IPC. `saves.root.test.tsx` uses the real store, and failed on `f5d07b1`. `saves.screen.test.tsx` also mocks the store. |
+| `cargo test --workspace` | 43 unit + 18 scenario pass | Real engine and shipped rule files, against fake libraries in temp folders. `real_library_smoke` skips without `ROMIO_REAL_LIBRARY`. |
+| New in this commit | Failed on `8f5d175`, pass now | `kronos_reads_its_fallback_files`, `emulators_that_read_contents_accept_any_filename`, `neogeo_zip_location_matters_whatever_its_hash`, and new assertions in `shipped_bios_data_has_the_documented_hashes` |
+| `pnpm exec vitest run` | 52 pass | jsdom with mocked IPC. `saves.root.test.tsx` uses the real store. |
 | `tsc`, `pnpm lint`, `vite build` | Pass | Types, lint, frontend build |
 | `cargo audit` (local) | No vulnerabilities, 2 known warnings | Dependency advisories |
 
-Not run: `pnpm design:lint` (no design tokens changed).
+Kronos and PCSX2 cases use fixture hashes and placeholder bytes, not real BIOS files.
 
 ### Mocked browser checks
 
@@ -96,42 +95,40 @@ Not run: `pnpm design:lint` (no design tokens changed).
 
 `pnpm tauri dev` with the real Rust backend, confirmed by `window.__TAURI_INTERNALS__`, and driven over the WebView2 debug port (`WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=9333`). The project was a fake RetroBat library of placeholder files. Save discovery also read this machine's real `%APPDATA%`, read-only.
 
-| Check | Result |
-|:--|:--|
-| Type a Saves root, go to BIOS, return | Typed path kept |
-| Corrupt required `mcpx_1.0.bin` | "Hash mismatch"; Xbox "Blocking" |
-| Different `neogeo.zip` in the BIOS folder | "Hash mismatch"; Neo Geo row "1 to check", not blocking |
-| Saturn, Beetle default, no BIOS files | `saturn_bios.bin` "Not applicable" with its explanation; US and JP "Missing — required" |
-| Earlier, at `f5d07b1` and unchanged since: banner with a conflict, "1 file" | "2 save roots at risk", "1 file" |
+| Check | Commit | Result |
+|:--|:--|:--|
+| New rule fields through real IPC (`get_bios_rules`) | `76201d1` | `onlyEmulators`, `anyNameEmulators`, `alsoAcceptedPaths` all arrive |
+| Unrecognised `neogeo.zip` in `bios/misc/` | `76201d1` | "Wrong path"; Neo Geo "Blocking" |
+| Unrecognised `my-ps2.bin` in the BIOS folder | `76201d1` | PS2 "Missing — required", "Blocking": unknown bytes aren't accepted as a BIOS |
+| Typed Saves root kept after leaving | `8f5d175` | Kept |
+| Corrupt `mcpx_1.0.bin` | `8f5d175` | "Hash mismatch"; Xbox "Blocking" |
+| Different `neogeo.zip` in the BIOS folder | `8f5d175` | "Hash mismatch"; Neo Geo "1 to check", not blocking |
+| Saturn, Beetle default, no BIOS files | `8f5d175` | `saturn_bios.bin` "Not applicable" with its explanation |
+| Banner with a conflict, "1 file" | `f5d07b1` | "2 save roots at risk", "1 file" |
 
 Not checked on desktop:
 
-- **A valid BIOS of any kind, and so the region-complete path and "Missing — needed for JP games".** It needs genuine dumps; only automated tests cover it.
-- **The Dashboard BIOS badge.** The card showed "Run a scan to see validation results." Only `biosIssueLabel`'s unit test covers it.
+- **A valid BIOS of any kind:** the region-complete path, "Missing — needed for JP games", and the Kronos and any-filename paths. They need genuine dumps; only automated tests cover them.
+- **The Dashboard BIOS badge.** Only `biosIssueLabel`'s unit test covers it.
 - Plan Migration, migration execution and checkpoints, `pnpm tauri build`, the installer, Linux and macOS.
 
 ## Known limitations
 
-1. **Romio doesn't know a library's regions.** A valid US BIOS unblocks PS1 even for a library of only Japanese games. Rows say which games still need the other file, but the system shows as not blocked. Product rule, kept deliberately; challenge it if you think it misleads.
-2. **Misplaced files now block,** based on Romio's path rules. If an emulator actually reads a location those rules don't list, a working setup shows "Blocking". Only `neogeo.zip` has extra locations so far.
-3. **Results saved before this fix stay until revalidated.** `biosResults` is stored per project, so old badges remain until the next scan or Revalidate BIOS.
-4. **`onlyEmulators` lists are fixed.** An emulator set in `emulatorPrefs` but not listed makes both Saturn US rules not applicable, so US no longer blocks for it. Romio's matrix only offers Ymir, Beetle Saturn and Kronos.
-5. **A typed Saves root lasts until the app closes,** not across restarts.
-6. **The Saves root default assumes the first library root is the frontend install.** A root that is only a ROM folder finds nothing there and gives no warning. Other roots are ignored.
-7. **`neogeo.zip` hash mismatches never block,** because zips can be rebuilt. A corrupt zip shows "1 to check", not "Blocking".
+1. **Romio doesn't know a library's regions.** A valid US BIOS unblocks PS1 even for a library of only Japanese games. Rows say which games still need the other file, but the system shows as not blocked. Product rule, kept deliberately.
+2. **Misplaced files block, based on Romio's path rules.** Emulators not yet checked at source could still be flagged wrongly. In particular, xemu takes its MCPX path from a setting, so an MCPX elsewhere may work while Romio shows "Wrong path".
+3. **Only listed BIOS revisions are recognised.** PS2's required rule is one specific US file, so another real PS2 BIOS shows as missing and blocks, even though PCSX2 would use it. A valid Saturn BIOS absent from `System.dat` blocks under Kronos.
+4. **`neogeo.zip` beside the ROMs:** Romio can't tell which folder a game is in, so any of the listed ROM folders counts.
+5. **Results saved before this fix stay until revalidated.** `biosResults` is stored per project.
+6. **`onlyEmulators` lists are fixed.** An emulator set in `emulatorPrefs` but not listed gets "Not applicable" for those Saturn rules. Romio's matrix only offers Ymir, Beetle Saturn and Kronos.
+7. **A typed Saves root lasts until the app closes,** not across restarts.
+8. **The Saves root default assumes the first library root is the frontend install.** A root that is only a ROM folder finds nothing there and gives no warning. Other roots are ignored.
+9. **A corrupt `neogeo.zip` in a readable place shows "1 to check",** not "Blocking", because a rebuilt zip's hash changes too.
 
-CI, Sourcery (budget used up) and Qodo haven't reviewed this commit.
+Sourcery's budget is used up, and Qodo hasn't reviewed this commit.
 
-## Review focus for Codex
+## After Gemini
 
-- **Correctness:** the blocking expression and `accepted_paths`, `hash_inconclusive`, and how the region rule combines with `NotApplicable`. Check every system in `bios_rules.json`, not just the ones with new tests.
-- **False blocks:** limitation 2. Is any shipped rule now likely to block a working setup?
-- **Tests:** whether the new scenarios would catch a regression in each fix.
-- **Data:** the Saturn and Neo Geo rules against the libretro docs.
-
-## Next for Gemini
-
-Re-test the user journeys on this commit, and in particular the BIOS wording, "to check" labels and the typed Saves root. Save journey tests you want kept outside application code, or say where they can be read.
+Bring both reports back to Claude. Codex hasn't reviewed `76201d1`; decide after Gemini whether a third Codex pass is worthwhile.
 
 ## Outdated instructions
 
