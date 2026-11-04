@@ -174,3 +174,70 @@ Fix narrowly: model Beetle PSX's named-candidate/checksum-fallback behavior and 
 ### Next action
 
 Send this report directly to Claude for the two focused corrections and regression tests. Antigravity is not needed to establish either finding before that handoff. After fixes, a native visual pass is useful, but should be reported separately from source-backed engine validation. #29 should await the two corrections rather than being merged based only on the currently passing suites.
+
+## Round 4
+
+Confirmed only the last commit, `4de969451800bf9d640cd5f852791817fce8c65c`, against `76201d1eddc7af73cef172cdca71908ae6e7140d`, on 2026-11-04. Fetched origin, read `origin/docs/handoffs:handoffs/CURRENT.md`, and followed its fresh-worktree commands on `codex/review-4`. Scope: the handoff's "Focus if Codex confirms the last commit" section. Earlier rounds are unchanged.
+
+**Merge verdict: two P2 findings should block merging #29. The narrow new regression cases pass, but file selection is not yet correct for the handoff's disclosed aliases or Windows filename casing.**
+
+| Finding | Severity | Block merging? | Why |
+|:--|:--|:--|:--|
+| R4-1: corrupt named alias bypasses first-existing selection | P2 | **Yes** | Limitation 10 is a reproducible false PresentValid result in the exact checksum-fallback fix under review; requirement 5 remains unmet. |
+| R4-2: valid uppercase filename is reported corrupt on Windows | P2 | **Yes** | The new selection branch combines case-insensitive filesystem lookup with case-sensitive path equality, rejecting recognized good bytes; requirement 9 remains unmet. |
+
+### R4-1 — [P2, merge blocker] Model the named aliases before enabling checksum fallback
+
+Locations: `src-tauri/data/bios_rules.json:13-14` and equivalent JP/EU entries; `src-tauri/src/engine/bios_validator.rs:159-160`.
+
+`first_existing_emulators` selects only among `accepted_paths`. For the US Beetle PSX rule that currently means the canonical `scph5501.bin`, not its other named candidates. If `scph5501.bin` is absent but corrupt `scph7003.bin` exists alongside a valid arbitrary-name US BIOS, `selected` is None and `any_name` accepts the latter. Romio returns PresentValid and does not block, although the core selects the corrupt alias before it ever attempts checksum fallback.
+
+This is CURRENT.md's limitation 10, explicitly evaluated as requested. It should block because it defeats the same precedence guarantee R3-1/R3-2 are intended to establish, rather than merely omitting recognition of an uncommon BIOS revision. The test requires only a documented alternative name for the already recognized US revision.
+
+Exact upstream evidence: [Beetle PSX pinned libretro.c:789-805](https://github.com/libretro/beetle-psx-libretro/blob/71ee81e77acd49296ecf4a683f5a61568ba80bf9/libretro.c#L789-L805) lists the US named candidates, including `scph7003.bin` at line 799. [Lines 823-845](https://github.com/libretro/beetle-psx-libretro/blob/71ee81e77acd49296ecf4a683f5a61568ba80bf9/libretro.c#L823-L845) stop at the first existing name and invoke checksum search only when no named candidate was found.
+
+Independent test `review_round4_corrupt_named_alias_stops_checksum_fallback`:
+
+1. Create `bios/PS1 US.bin` containing known-good US fixture bytes.
+2. Create corrupt `bios/scph7003.bin`; leave canonical `scph5501.bin` absent.
+3. Run the shipped fixture rules with `lr-beetle-psx`.
+4. Expect the US entry not to be PresentValid and PS1 to block. **Fails: the US entry is PresentValid.**
+
+Correction: include the actual ordered named-candidate lists before checksum fallback and evaluate the selected file. Preserve checksum fallback only when none of those named candidates exists. Add both corrupt-alias-before-good-fallback and good-alias cases. No new emulator or revision coverage is required to fix this selection error.
+
+### R4-2 — [P2, merge blocker] Compare the selected file using the host filesystem's identity rules
+
+Location: `src-tauri/src/engine/bios_validator.rs:159-165`, followed by the early hash-mismatch return at line 179.
+
+On the tested Windows filesystem, writing a valid `bios/SCPH5501.BIN` makes `bios/scph5501.bin.is_file()` true. Selection therefore stores the lower-case rule path. The scanner retains the actual uppercase path, and `Some(file) => p == *file` compares PathBuf spelling case-sensitively. No known-good copy counts as `in_place`, so the new early-return branch labels the recognized good file PresentHashMismatch and blocks PS1. This is not an unknown BIOS hash or a genuinely misplaced file.
+
+Independent Windows test `review_round4_valid_uppercase_named_file_is_not_corrupt`:
+
+1. Create only `bios/SCPH5501.BIN` with recognized US fixture bytes.
+2. Assert the lower-case canonical path's `is_file()` returns true. **Passes**, establishing the actual case-insensitive lookup used by this reproduction.
+3. Sweep with `lr-beetle-psx`; expect PresentValid and not blocking. **Fails: PresentHashMismatch.**
+
+Exact compatibility evidence: [Beetle PSX libretro.c:790-793](https://github.com/libretro/beetle-psx-libretro/blob/71ee81e77acd49296ecf4a683f5a61568ba80bf9/libretro.c#L790-L793) explicitly includes uppercase candidate spellings. The Windows identity mismatch itself is demonstrated by the filesystem assertion and validator failure above, rather than inferred from documentation.
+
+Correction: identify the selected on-disk file consistently with the host filesystem, without globally lowercasing paths on case-sensitive platforms. Add a Windows casing regression for first-existing selection. This applies to the generic selection branch, not only to the incomplete alias list in R4-1.
+
+### Confirmation of the intended fixes and interactions
+
+- **R3-1 is fixed for the reported Kronos case.** The updated `kronos_reads_its_fallback_files` scenario verifies corrupt preferred file plus valid later fallback produces hash mismatch/blocking, while valid preferred file plus corrupt later fallback stays valid. It also retains individual fallback-location coverage.
+- **R3-2 is fixed for named candidates absent / canonical candidate present.** The updated any-filename scenario verifies a renamed known-good BIOS is accepted when the canonical name is absent, corrupt canonical bytes stop fallback, DuckStation's unchanged behavior remains separate, and a nested renamed copy is not accepted. It does not prove the other named-candidate or Windows spelling cases above.
+- **Region rule:** the new selection result feeds the existing region-complete check. A hash-mismatched selected file does not complete its region. The existing deliberate policy permitting another complete region remains unchanged; no separate regression established in that policy during this last-commit review.
+- **NotApplicable:** applicability is checked before first-existing selection, so this commit does not make an excluded emulator's rule mandatory.
+- **`hash_is_inconclusive`:** the four shipped first-existing rules are the three PS1 regional rules and Kronos's Saturn rule. All have nonempty known-good hashes and `compressed: false`, so the hash-warning exemption does not waive their selected-file failures. Neo Geo's ZIP branch is unchanged by this commit.
+- **Contract:** `first_existing_emulators` has `#[serde(default)]`, serializes to `firstExistingEmulators`, and matches the optional TS array. No changed IPC signature mismatch found.
+
+### Checks and boundaries
+
+- Followed the requested isolated working-copy procedure; the application changes examined were only `git diff 76201d1 4de9694` (six files).
+- Unmodified PR suite: **52 frontend tests passed**, TypeScript `tsc --noEmit` passed, and **`cargo test --workspace --offline` passed** (43 unit tests and 18 scenarios). The opt-in real-library smoke scenario still returns early without its environment variable; it is not evidence of real-library validation.
+- Added two temporary independent Rust tests in `src-tauri/tests/round4_confirmation.rs` in the isolated worktree. **Both failed** as described. Legal fixture bytes and substituted hashes test Romio's selection logic; real emulator behavior is supported by the pinned source lines, not by launching those placeholders in an emulator. The temporary file was removed after recording these results.
+- Did not change application code, existing test files, handoff assignments, billing settings, real libraries, or saves. Did not commit, push, merge, or post a GitHub review. Earlier review rounds remain intact.
+- Did not rerun a native desktop/emulator launch, installer, Linux/macOS checks, lint, production build, or dependency audit. No new conclusions are offered about the broader deferred issues or other emulator configurations.
+
+### Next action
+
+Return these two narrowly scoped selection findings to Claude. Antigravity is not needed before that handoff. The last commit addresses the original simplified reproductions, but I cannot confirm it as merge-ready until the alias-precedence and Windows-identity cases are corrected and covered.
