@@ -2,10 +2,11 @@
 //! Project-wide BIOS sweep engine.
 //! Pure Rust — no Tauri or DB dependencies. Rules are injected by the command layer.
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
+use crate::engine::bios_validator::{scan_bios_directory, validate_with_index};
 use crate::models::bios::{BiosRule, BiosSystemResult};
 // BiosRequirement is only needed in tests — keep it out of module-level imports.
 
@@ -40,6 +41,7 @@ pub fn run_sweep(
     all_rules: &[BiosRule],
 ) -> Result<Vec<BiosSystemResult>> {
     let mut results = Vec::with_capacity(BIOS_SYSTEMS.len());
+    let index = scan_bios_directory(&config.bios_root);
 
     for system in BIOS_SYSTEMS {
         let emulator = config.emulator_prefs
@@ -62,12 +64,14 @@ pub fn run_sweep(
             continue;
         }
 
-        match crate::engine::bios_validator::validate_system_bios(
+        let validated = index.as_ref().map_err(|e| anyhow!("{e}")).and_then(|index| validate_with_index(
             &config.bios_root,
             &rules.into_iter().cloned().collect::<Vec<_>>(),
             &config.frontend,
             emulator,
-        ) {
+            index,
+        ));
+        match validated {
             Ok(result) => results.push(result),
             Err(e) => {
                 eprintln!("[bios_sweep] validation failed for system={} err={}", system.id, e);
