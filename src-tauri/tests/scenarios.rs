@@ -636,6 +636,77 @@ fn default_emulators_judge_their_common_formats() {
         assert_eq!(check(rel, system, emulator).state, Fmt::Compatible, "{rel}");
     }
 
+    // Each folder's default emulator, for the formats libraries really hold
+    for (rel, system, emulator) in [
+        ("roms/nes/a.nes", "nes", "mesen2"),
+        ("roms/nes/a.zip", "nes", "mesen2"),
+        ("roms/snes/a.sfc", "snes", "snes9x"),
+        ("roms/snes/a.zip", "snes", "snes9x"),
+        ("roms/n64/a.z64", "n64", "gopher64"),
+        ("roms/n64/a.zip", "n64", "gopher64"),
+        ("roms/n64dd/a.ndd", "n64dd", "lr-mupen64plus-next"),
+        ("roms/gb/a.zip", "gb", "mgba"),
+        ("roms/gbc/a.zip", "gbc", "mgba"),
+        ("roms/gba/a.zip", "gba", "mgba"),
+        ("roms/nds/a.zip", "nds", "melonds"),
+        ("roms/megadrive/a.md", "genesis", "lr-genesis-plus-gx"),
+        ("roms/megadrive/a.bin", "genesis", "lr-genesis-plus-gx"),
+        ("roms/sega32x/a.zip", "sega32x", "lr-picodrive"),
+        ("roms/mastersystem/a.zip", "mastersystem", "lr-genesis-plus-gx"),
+        ("roms/pcengine/a.zip", "pcengine", "lr-beetle-pce"),
+        ("roms/3do/a.chd", "3do", "lr-opera"),
+        ("roms/amiga500/a.zip", "amiga", "lr-puae"),
+        ("roms/amigacd32/a.zip", "amigacd32", "lr-puae"),
+        ("roms/atari2600/a.a26", "atari2600", "lr-stella"),
+        ("roms/atari7800/a.a78", "atari7800", "lr-prosystem"),
+        ("roms/atari800/a.atr", "atari800", "lr-atari800"),
+        ("roms/jaguar/a.zip", "jaguar", "lr-virtualjaguar"),
+        ("roms/pokemini/a.zip", "pokemini", "lr-pokemini"),
+        ("roms/pico8/a.p8", "pico8", "lr-retro8"),
+        ("roms/pico8/a.p8.png", "pico8", "lr-retro8"),
+        ("roms/prboom/a.wad", "prboom", "lr-prboom"),
+        ("roms/gzdoom/a.wad", "gzdoom", "gzdoom"),
+        ("roms/easyrpg/a.zip", "easyrpg", "lr-easyrpg"),
+        ("roms/dos/a.zip", "dos", "lr-dosbox-pure"),
+        ("roms/naomi/a.zip", "naomi", "lr-flycast"),
+        ("roms/naomi2/a.zip", "naomi2", "lr-flycast"),
+        ("roms/atomiswave/a.zip", "atomiswave", "lr-flycast"),
+        ("roms/cps1/a.zip", "cps1", "lr-fbneo"),
+        ("roms/cps2/a.zip", "cps2", "lr-fbneo"),
+        ("roms/cps3/a.zip", "cps3", "lr-fbneo"),
+        ("roms/fbneo/a.zip", "fbneo", "lr-fbneo"),
+        ("roms/neogeo/a.zip", "neogeo", "lr-fbneo"),
+        ("roms/mame/a.zip", "arcade", "mame"),
+        ("roms/neogeocd/a.chd", "neogeocd", "lr-neocd"),
+        ("roms/psx/a.cue", "ps1", "duckstation"),
+        ("roms/psx/a.pbp", "ps1", "lr-beetle-psx"),
+        ("roms/saturn/a.cue", "saturn", "ymir"),
+        ("roms/dreamcast/a.gdi", "dreamcast", "flycast"),
+        ("roms/segacd/a.cue", "segacd", "lr-genesis-plus-gx"),
+    ] {
+        assert_eq!(check(rel, system, emulator).state, Fmt::Compatible, "{rel}");
+    }
+
+    // RetroArch unpacks only one file, so an archived disc image isn't a yes. Romio doesn't guess.
+    for (rel, system, emulator) in [
+        ("roms/neogeocd/b.7z", "neogeocd", "lr-neocd"),
+        ("roms/segacd/b.zip", "segacd", "lr-genesis-plus-gx"),
+        ("roms/3do/b.zip", "3do", "lr-opera"),
+        // These emulators' sources list neither format
+        ("roms/n64dd/b.zip", "n64dd", "lr-mupen64plus-next"),
+        ("roms/snes-msu1/b.rom", "snes-msu1", "lr-snes9x"),
+        // .dmg is too often a macOS disk image to count as a game in every folder
+        ("roms/gb/b.dmg", "gb", "lr-gambatte"),
+        ("roms/gbc/b.dmg", "gbc", "lr-gambatte"),
+    ] {
+        assert_eq!(check(rel, system, emulator).state, Fmt::Unknown, "{rel}");
+    }
+
+    // Disk games need the core's subsystem, so a plain yes would mislead
+    let ndd = check("roms/n64dd/c.ndd", "n64dd", "lr-mupen64plus-next");
+    assert_eq!(ndd.state, Fmt::Compatible);
+    assert!(ndd.notes.unwrap_or_default().contains("subsystem"));
+
     // PPSSPP can't read .zso; Romio says so and offers no rename
     let zso = check("roms/psp/Patapon.zso", "psp", "ppsspp");
     assert_eq!(zso.state, Fmt::FormatIncompatible);
