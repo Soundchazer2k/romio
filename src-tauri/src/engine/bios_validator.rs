@@ -162,8 +162,9 @@ fn evaluate_rule(
     let is_in_place = |p: &Path| {
         let p = normalize_lexically(p);
         match selected {
-            Some(file) => p == *file,
-            None => accepted.contains(&p) || (any_name && p.parent() == expected_path.parent()),
+            Some(file) => same_path(&p, file),
+            None => accepted.iter().any(|a| same_path(&p, a))
+                || (any_name && p.parent().zip(expected_path.parent()).is_some_and(|(a, b)| same_path(a, b))),
         }
     };
     let in_place = copies.iter().find(|(_, p)| is_in_place(p));
@@ -232,7 +233,10 @@ fn evaluate_rule(
                     .map(|n| n.to_lowercase() == rule.filename.to_lowercase())
                     .unwrap_or(false))
                 .collect();
-            let readable = same_name.iter().any(|p| accepted.contains(&normalize_lexically(p)));
+            let readable = same_name.iter().any(|p| {
+                let p = normalize_lexically(p);
+                accepted.iter().any(|a| same_path(&p, a))
+            });
 
             let state = if !same_name.is_empty() && !readable && hash_is_inconclusive(rule) {
                 // The hash can't condemn it, but the emulator still can't find it there
@@ -294,6 +298,16 @@ fn accepted_paths(
         normalize_lexically(&file)
     }));
     paths
+}
+
+/// Whether two paths name the same file, under the host filesystem's case rules.
+/// shortcut: assumes the platform default (macOS can be formatted case-sensitive); upgrade if that gets reported.
+fn same_path(a: &Path, b: &Path) -> bool {
+    if cfg!(any(windows, target_os = "macos")) {
+        a.to_string_lossy().to_lowercase() == b.to_string_lossy().to_lowercase()
+    } else {
+        a == b
+    }
 }
 
 /// Resolve `.` and `..` without touching the disk, so a frontend path that climbs out

@@ -386,6 +386,29 @@ fn emulators_that_read_contents_accept_any_filename() {
     let results = sweep_as(&lib.path("bios"), "ps1", "duckstation", &rules);
     assert_eq!(bios_entry(&results, "scph5501.bin").state, Bios::PresentValid);
 
+    // Beetle PSX's other names work the same way: a corrupt one stops the search...
+    let lib = Library::new();
+    lib.bios("bios/PS1 US.bin", "scph5501.bin");
+    lib.file("bios/scph7003.bin", b"corrupt dump");
+    let results = sweep_as(&lib.path("bios"), "ps1", "lr-beetle-psx", &rules);
+    let beetle = bios_entry(&results, "scph5501.bin");
+    assert_eq!(beetle.state, Bios::PresentHashMismatch, "{beetle:#?}");
+    assert!(beetle.found_path.as_deref().unwrap_or("").ends_with("scph7003.bin"), "names the file it read");
+    assert!(is_blocking(&results, "ps1"));
+
+    // ...and a good one is the BIOS it reads
+    let lib = Library::new();
+    lib.bios("bios/scph7003.bin", "scph5501.bin");
+    let results = sweep_as(&lib.path("bios"), "ps1", "lr-beetle-psx", &rules);
+    assert_eq!(bios_entry(&results, "scph5501.bin").state, Bios::PresentValid);
+
+    // An uppercase name is on Beetle PSX's list on every platform
+    let lib = Library::new();
+    lib.bios("bios/SCPH5501.BIN", "scph5501.bin");
+    let results = sweep_as(&lib.path("bios"), "ps1", "lr-beetle-psx", &rules);
+    assert_eq!(bios_entry(&results, "scph5501.bin").state, Bios::PresentValid);
+    assert!(!is_blocking(&results, "ps1"));
+
     // Neither searches subfolders
     let lib = Library::new();
     lib.bios("bios/misc/PS1 US.bin", "scph5501.bin");
@@ -400,6 +423,27 @@ fn emulators_that_read_contents_accept_any_filename() {
     // Beetle Saturn opens exactly this name (mednafen/ss/ss.c)
     let results = sweep_as(&lib.path("bios"), "saturn", "lr-beetle-saturn", &rules);
     assert_eq!(bios_entry(&results, "mpr-17933.bin").state, Bios::PresentWrongPath);
+}
+
+/// Windows filenames ignore case, so an emulator asking for mpr-17933.bin opens
+/// MPR-17933.BIN. Romio's path comparison has to agree.
+#[cfg(windows)]
+#[test]
+fn filename_case_does_not_matter_on_windows() {
+    let rules = fixture_bios_rules();
+    let lib = Library::new();
+    lib.bios("bios/MPR-17933.BIN", "mpr-17933.bin");
+    let results = sweep_as(&lib.path("bios"), "saturn", "lr-beetle-saturn", &rules);
+    let saturn = bios_entry(&results, "mpr-17933.bin");
+    assert_eq!(saturn.state, Bios::PresentValid, "{saturn:#?}");
+    assert_eq!(saturn.rename_from, None);
+
+    // A first-existing emulator too: the same file, whatever the spelling
+    let lib = Library::new();
+    lib.bios("bios/KRONOS/SATURN_BIOS.BIN", "saturn_bios.bin");
+    let results = sweep_as(&lib.path("bios"), "saturn", "lr-kronos", &rules);
+    assert_eq!(bios_entry(&results, "saturn_bios.bin").state, Bios::PresentValid);
+    assert!(!is_blocking(&results, "saturn"));
 }
 
 /// A rebuilt zip changes its hash, so a different hash is only a warning where the core

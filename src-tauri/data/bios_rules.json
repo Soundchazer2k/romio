@@ -11,6 +11,7 @@
     "frontendPaths": {},
     "emulatorPaths": {},
     "anyNameEmulators": ["duckstation", "lr-beetle-psx"],
+    "alsoAcceptedPaths": ["SCPH5501.bin", "SCPH5501.BIN", "SCPH-5501.bin", "SCPH-5501.BIN", "scph5503.bin", "SCPH5503.bin", "SCPH5503.BIN", "SCPH-5503.bin", "SCPH-5503.BIN", "scph7003.bin", "SCPH7003.bin", "SCPH7003.BIN", "SCPH-7003.bin", "SCPH-7003.BIN"],
     "firstExistingEmulators": ["lr-beetle-psx"],
     "notes": "PlayStation 1 US BIOS v3.0. Recommended for US library. Most tested revision.",
     "dumpingGuideUrl": "https://www.ngemu.com/threads/psx-bios-dumping-guide.93161/"
@@ -27,6 +28,7 @@
     "frontendPaths": {},
     "emulatorPaths": {},
     "anyNameEmulators": ["duckstation", "lr-beetle-psx"],
+    "alsoAcceptedPaths": ["SCPH5500.bin", "SCPH5500.BIN", "SCPH-5500.bin", "SCPH-5500.BIN"],
     "firstExistingEmulators": ["lr-beetle-psx"],
     "notes": "PlayStation 1 JP BIOS v3.0. Required for JP-exclusive titles.",
     "dumpingGuideUrl": "https://www.ngemu.com/threads/psx-bios-dumping-guide.93161/"
@@ -43,6 +45,7 @@
     "frontendPaths": {},
     "emulatorPaths": {},
     "anyNameEmulators": ["duckstation", "lr-beetle-psx"],
+    "alsoAcceptedPaths": ["SCPH5502.bin", "SCPH5502.BIN", "SCPH-5502.bin", "SCPH-5502.BIN", "scph5552.bin", "SCPH5552.bin", "SCPH5552.BIN", "SCPH-5552.bin", "SCPH-5552.BIN"],
     "firstExistingEmulators": ["lr-beetle-psx"],
     "notes": "PlayStation 1 EU BIOS v3.0. Required for PAL-only titles.",
     "dumpingGuideUrl": "https://www.ngemu.com/threads/psx-bios-dumping-guide.93161/"
