@@ -10,9 +10,8 @@ use crate::models::artifact::FormatCompatibilityState;
 /// List a library's system folders and the game files in each.
 ///
 /// A frontend install (RetroBat, Batocera, ES-DE) keeps games in `roms/`, so that is
-/// used when present; otherwise `root` itself holds the system folders. A file counts
-/// as a game when the scanner knows its extension or a format rule mentions it, which
-/// leaves out gamelist.xml, artwork and .m3u playlists.
+/// used when present; otherwise `root` itself holds the system folders. See
+/// `is_game_file` for what counts as a game. EasyRPG games can be `<game>.easyrpg/` folders.
 pub fn list_system_folders(root: &Path, rules: &[FormatRule]) -> Result<Vec<SystemFolder>> {
     let roms = root.join("roms");
     let base = if roms.is_dir() { roms } else { root.to_path_buf() };
@@ -27,26 +26,65 @@ pub fn list_system_folders(root: &Path, rules: &[FormatRule]) -> Result<Vec<Syst
     Ok(dirs.into_iter().map(|dir| {
         let name = dir.file_name().unwrap_or_default().to_string_lossy().to_string();
         let path = dir.to_string_lossy().to_string();
+        let system = system_for_folder(&name);
         match std::fs::read_dir(&dir) {
-            Err(e) => SystemFolder { name, path, files: vec![], error: Some(e.to_string()) },
+            Err(e) => SystemFolder { name, path, system, files: vec![], error: Some(e.to_string()) },
             Ok(entries) => {
                 let mut files: Vec<String> = entries
                     .filter_map(|e| e.ok())
                     .map(|e| e.path())
-                    .filter(|p| p.is_file() && is_game_file(p, rules))
+                    .filter(|p| p.is_file() || p.extension().is_some_and(|e| e.eq_ignore_ascii_case("easyrpg")))
+                    .filter(|p| is_game_file(p, &system, rules))
                     .map(|p| p.to_string_lossy().to_string())
                     .collect();
                 files.sort();
-                SystemFolder { name, path, files, error: None }
+                SystemFolder { name, path, system, files, error: None }
             }
         }
     }).collect())
 }
 
-fn is_game_file(path: &Path, rules: &[FormatRule]) -> bool {
+/// Romio system ID for a frontend's roms/ folder name.
+/// Sources: ES-DE es_systems.xml, RetroBat es_systems.cfg, Batocera es_systems.yml.
+pub fn system_for_folder(folder: &str) -> String {
+    let name = folder.to_lowercase();
+    match name.as_str() {
+        "psx" => "ps1",
+        "gc" => "gamecube",
+        "n3ds" => "3ds",
+        "megadrive" | "megadrivejp" => "genesis",
+        "megacd" | "megacdjp" => "segacd",
+        "sega32xjp" | "sega32xna" => "sega32x",
+        "saturnjp" => "saturn",
+        "sfc" | "snesna" => "snes",
+        "famicom" => "nes",
+        "pcenginecd" | "tg-cd" => "tg16cd",
+        "amiga500" | "amiga1200" => "amiga",
+        "mame" => "arcade",
+        "atarijaguar" => "jaguar",
+        "tg16" => "pcengine",
+        "neogeocdjp" => "neogeocd",
+        "naomigd" => "naomi",
+        "doom" => "gzdoom",
+        _ => return name,
+    }.to_string()
+}
+
+/// Formats that are rarely games outside their own system, so a system's rules can rule
+/// them out. Rules aren't a full format list, so any other known extension stays listed:
+/// a wrong Unknown row beats a game silently left unchecked.
+const SCOPED_EXTENSIONS: &[&str] = &["car", "ids", "min", "bs", "easyrpg"];
+
+/// A file is a game when its system's rules name its extension, or the extension is known
+/// and nothing rules it out. That leaves out gamelist.xml, .m3u playlists and artwork.
+fn is_game_file(path: &Path, system: &str, rules: &[FormatRule]) -> bool {
     let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
-    ext != "m3u"
-        && (crate::engine::scanner::is_rom_extension(&ext) || rules.iter().any(|r| r.extension == ext))
+    if ext == "m3u" { return false; }
+    if rules.iter().any(|r| r.system == system && r.extension == ext) { return true; }
+    // .png is usually artwork. TIC-80 has no rules yet, and standalone TIC-80 loads .png carts.
+    if ext == "png" { return system == "tic80"; }
+    if SCOPED_EXTENSIONS.contains(&ext.as_str()) && rules.iter().any(|r| r.system == system) { return false; }
+    crate::engine::scanner::is_rom_extension(&ext) || rules.iter().any(|r| r.extension == ext)
 }
 
 /// Check a single file's format compatibility against the loaded rules.
@@ -200,6 +238,18 @@ mod tests {
         assert_eq!(result.state, FormatCompatibilityState::Compatible);
         assert_eq!(result.condition.as_deref(), Some("Must be an XISO"));
         assert_eq!(result.notes.as_deref(), Some("xemu docs"));
+    }
+
+    #[test]
+    fn maps_frontend_folder_names_to_system_ids() {
+        for (folder, system) in [
+            ("psx", "ps1"), ("PSX", "ps1"), ("gc", "gamecube"), ("n3ds", "3ds"),
+            ("megadrive", "genesis"), ("megacd", "segacd"), ("atarijaguar", "jaguar"),
+            ("tg16", "pcengine"), ("neogeocdjp", "neogeocd"), ("naomigd", "naomi"), ("doom", "gzdoom"),
+            ("gamecube", "gamecube"), ("xbox360", "xbox360"), ("Foo", "foo"),
+        ] {
+            assert_eq!(system_for_folder(folder), system);
+        }
     }
 
     #[test]

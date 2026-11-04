@@ -9,7 +9,7 @@ import type {
   FormatSystemGroup, FormatRule, StagedFix,
   EmulatorMatrixEntry, FormatCheckResult,
 } from "@/types";
-import { emulatorForSystem, groupResultsBySystem, systemForFolder } from "@/lib/utils";
+import { emulatorForSystem, groupResultsBySystem } from "@/lib/utils";
 import { FormatConfigBar }       from "./FormatConfigBar";
 import { FormatSystemRow }       from "./FormatSystemRow";
 import { FormatFixTray }         from "./FormatFixTray";
@@ -70,7 +70,7 @@ export function FormatScreen() {
       const unreadable = folders.filter((f) => f.error).map((f) => f.name);
 
       for (const folder of folders) {
-        const systemId = systemForFolder(folder.name);
+        const systemId = folder.system;
 
         const emu = emulatorForSystem(systemId, emulatorOverride, emulatorMatrix);
 

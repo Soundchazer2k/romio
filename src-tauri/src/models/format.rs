@@ -48,6 +48,8 @@ pub struct FormatCheckResult {
 pub struct SystemFolder {
     pub name:  String,
     pub path:  String,
+    /// Romio system ID for this folder name, e.g. `psx` is `ps1`
+    pub system: String,
     pub files: Vec<String>,
     /// Set when the folder couldn't be listed; `files` is then empty
     pub error: Option<String>,

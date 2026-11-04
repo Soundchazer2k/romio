@@ -15,8 +15,8 @@ const MATRIX = [
 ] as EmulatorMatrixEntry[];
 
 const TWO_FOLDERS = [
-  { name: "psx", path: "/roms/psx", files: ["/roms/psx/a.chd"] },
-  { name: "nes", path: "/roms/nes", files: ["/roms/nes/b.nes"] },
+  { name: "psx", path: "/roms/psx", system: "ps1", files: ["/roms/psx/a.chd"] },
+  { name: "nes", path: "/roms/nes", system: "nes", files: ["/roms/nes/b.nes"] },
 ];
 
 const mocks = vi.hoisted(() => ({

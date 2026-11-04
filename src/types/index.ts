@@ -302,6 +302,7 @@ export interface FormatCheckResult {
 export interface SystemFolder {
   name:   string;
   path:   string;
+  system: string;
   files:  string[];
   error?: string | null;
 }

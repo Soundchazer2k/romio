@@ -402,7 +402,7 @@
     "defaultPath": "",
     "frontendPaths": {},
     "emulatorPaths": {},
-    "notes": "Panasonic 3DO FZ-10 BIOS. Most compatible variant. High user friction — legally difficult to obtain.",
+    "notes": "Panasonic 3DO FZ-10 BIOS. lr-opera builds since October 2026 boot a built-in BIOS, so a newer core can run without this file. Older builds need it. Romio can't tell which build you have, so it reports this file as required.",
     "dumpingGuideUrl": null
   },
   {
