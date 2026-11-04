@@ -30,6 +30,7 @@ const FOLDER_ALIASES: Record<string, string> = {
   tg16: "pcengine",
   neogeocdjp: "neogeocd",
   naomigd: "naomi",
+  doom: "gzdoom",
 };
 
 /** Romio system ID for a frontend's roms/ folder name */

@@ -27,6 +27,7 @@ export function FormatSystemRow({
   const uncheckedCount = group.results.filter((r) => r.state === "Unknown").length;
   const conditionalCount = group.results.filter((r) => r.condition).length;
   const allOk    = issueCount === 0 && uncheckedCount === 0 && conditionalCount === 0;
+  const noRules  = uncheckedCount === group.results.length;
   const emulator = group.results[0]?.emulator;
 
   return (
@@ -70,7 +71,7 @@ export function FormatSystemRow({
           issueCount={issueCount}
           conditionalCount={conditionalCount}
           uncheckedCount={uncheckedCount}
-          fileCount={group.results.length}
+          noRules={noRules}
           hasRed={hasRed}
         />
       </button>
@@ -103,10 +104,10 @@ export function FormatSystemRow({
   );
 }
 
-function SystemBadge({ issueCount, conditionalCount, uncheckedCount, fileCount, hasRed }: {
-  issueCount: number; conditionalCount: number; uncheckedCount: number; fileCount: number; hasRed: boolean;
+function SystemBadge({ issueCount, conditionalCount, uncheckedCount, noRules, hasRed }: {
+  issueCount: number; conditionalCount: number; uncheckedCount: number; noRules: boolean; hasRed: boolean;
 }) {
-  if (uncheckedCount === fileCount) {
+  if (noRules) {
     return <span className="text-xs font-medium text-romio-gray">No rules yet</span>;
   }
   if (issueCount === 0 && conditionalCount === 0 && uncheckedCount === 0) {
@@ -120,7 +121,7 @@ function SystemBadge({ issueCount, conditionalCount, uncheckedCount, fileCount, 
         </span>
       )}
       {conditionalCount > 0 && <span className="text-amber-400">{conditionalCount} conditional</span>}
-      {uncheckedCount > 0 && <span className="text-romio-gray">{uncheckedCount} unchecked</span>}
+      {uncheckedCount > 0 && <span className="text-romio-gray">{uncheckedCount} not checked</span>}
     </span>
   );
 }

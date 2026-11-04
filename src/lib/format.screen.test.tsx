@@ -128,15 +128,15 @@ describe("FormatSystemRow badge", () => {
     expect(screen.queryByText("All OK")).toBeNull();
   });
 
-  it("shows unchecked files next to issues", () => {
+  it("shows files not checked next to issues", () => {
     renderRow([result("FormatIncompatible"), result("Unknown"), result("Unknown")]);
     expect(screen.getByText("1 issue")).toBeTruthy();
-    expect(screen.getByText("2 unchecked")).toBeTruthy();
+    expect(screen.getByText("2 not checked")).toBeTruthy();
   });
 
-  it("counts unchecked files when some files are fine", () => {
+  it("counts files not checked when some files are fine", () => {
     renderRow([result("Compatible"), result("Unknown")]);
-    expect(screen.getByText("1 unchecked")).toBeTruthy();
+    expect(screen.getByText("1 not checked")).toBeTruthy();
   });
 
   it("says No rules yet when no file could be checked", () => {
