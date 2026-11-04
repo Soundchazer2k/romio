@@ -67,9 +67,20 @@ pub fn is_rom_extension(ext: &str) -> bool {
     ROM_EXTENSIONS.contains(&ext)
 }
 
+/// A failed directory walk, worded for the user: which path, and why.
+pub fn walk_error(root: &Path, error: &walkdir::Error) -> anyhow::Error {
+    let path = error.path().unwrap_or(root).display();
+    match error.io_error() {
+        Some(io) => anyhow::anyhow!("Couldn't read {path}: {io}"),
+        None => anyhow::anyhow!("Couldn't read {path}: {error}"),
+    }
+}
+
 /// Scan a set of library roots and return classified artifacts.
 ///
 /// The `cancel` flag allows the scan to be interrupted by the user.
+/// A folder that can't be read fails the whole scan: partial results would look like a
+/// smaller library and replace the saved ones.
 pub fn scan_roots(
     roots: &[PathBuf],
     cancel: Arc<AtomicBool>,
@@ -81,13 +92,10 @@ pub fn scan_roots(
     for root in roots {
         if cancel.load(Ordering::Relaxed) { break; }
 
-        for entry in WalkDir::new(root)
-            .follow_links(false)
-            .into_iter()
-            .filter_map(|e| e.ok())
-        {
+        for entry in WalkDir::new(root).follow_links(false) {
             if cancel.load(Ordering::Relaxed) { break; }
 
+            let entry = entry.map_err(|e| walk_error(root, &e))?;
             let path = entry.path();
 
             on_progress(ScanProgress {

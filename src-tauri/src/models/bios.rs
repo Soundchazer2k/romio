@@ -69,6 +69,9 @@ pub struct BiosSystemResult {
     pub system:    String,
     pub entries:   Vec<BiosEntryResult>,
     pub blocking:  bool,  // true if any Required entry is missing
+    /// Why validation failed, worded for the user
+    #[serde(default)]
+    pub error:     Option<String>,
     pub errored:   bool,  // true if validation failed for this system during a sweep
 }
 

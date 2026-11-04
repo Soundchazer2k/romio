@@ -5,7 +5,7 @@
 //! A BIOS file is identified by its MD5 hash, not its filename.
 //! The correct placement path depends on both the emulator and the target frontend.
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use std::path::{Component, Path, PathBuf};
 use std::collections::HashMap;
 use walkdir::WalkDir;
@@ -13,6 +13,7 @@ use walkdir::WalkDir;
 use crate::models::artifact::BiosValidationState;
 use crate::models::bios::{BiosRule, BiosEntryResult, BiosSystemResult, BiosRequirement};
 use crate::engine::hash::md5_file;
+use crate::engine::scanner::walk_error;
 
 /// File extensions that may be BIOS files — scanned during hash-first discovery.
 const BIOS_EXTENSIONS: &[&str] = &[
@@ -99,7 +100,7 @@ pub fn validate_with_index(
         .map(|r| r.system.clone())
         .unwrap_or_default();
 
-    Ok(BiosSystemResult { system, entries, blocking, errored: false })
+    Ok(BiosSystemResult { system, entries, blocking, errored: false, error: None })
 }
 
 /// A zip's hash changes when it's rebuilt, and a rule with no hash can't judge a file.
@@ -113,17 +114,19 @@ fn hash_is_inconclusive(rule: &BiosRule) -> bool {
 pub fn scan_bios_directory(root: &Path) -> Result<HashMap<String, Vec<PathBuf>>> {
     let mut index: HashMap<String, Vec<PathBuf>> = HashMap::new();
 
-    if !root.exists() {
-        return Ok(index);
+    if !root.is_dir() {
+        anyhow::bail!("Couldn't read {}: folder not found", root.display());
     }
 
+    // A file Romio can't read might be the BIOS, so failing beats reporting it missing.
     for entry in WalkDir::new(root)
         .max_depth(4) // reasonable depth limit
         .sort_by_file_name()
-        .into_iter()
-        .filter_map(|e| e.ok())
-        .filter(|e| e.file_type().is_file())
     {
+        let entry = entry.map_err(|e| walk_error(root, &e))?;
+        if !entry.file_type().is_file() {
+            continue;
+        }
         let path = entry.path();
         let ext = path.extension()
             .and_then(|e| e.to_str())
@@ -131,10 +134,8 @@ pub fn scan_bios_directory(root: &Path) -> Result<HashMap<String, Vec<PathBuf>>>
             .to_lowercase();
 
         if BIOS_EXTENSIONS.contains(&ext.as_str()) {
-            match md5_file(path) {
-                Ok(hash) => { index.entry(hash).or_default().push(path.to_path_buf()); }
-                Err(_)   => { /* skip unreadable files */ }
-            }
+            let hash = md5_file(path).with_context(|| format!("Couldn't read {}", path.display()))?;
+            index.entry(hash).or_default().push(path.to_path_buf());
         }
     }
 

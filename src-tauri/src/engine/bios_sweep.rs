@@ -60,6 +60,7 @@ pub fn run_sweep(
                 entries:  vec![],
                 blocking: false,
                 errored:  false,
+                error:    None,
             });
             continue;
         }
@@ -80,6 +81,7 @@ pub fn run_sweep(
                     entries:  vec![],
                     blocking: false,
                     errored:  true,
+                    error:    Some(e.to_string()),
                 });
             }
         }

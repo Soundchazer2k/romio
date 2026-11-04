@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 import { useMutation } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { Play, AlertTriangle, XCircle, Info, CheckCircle2 } from "lucide-react";
+import { Play, XCircle, Info, CheckCircle2 } from "lucide-react";
 import { useAppStore, useScanStore } from "@/stores";
 import { ipc } from "@/lib/ipc";
 import { cn, biosIssueLabel } from "@/lib/utils";
@@ -28,7 +28,7 @@ function biosBadge(project: Project): {
 
 export function DashboardScreen() {
   const { activeProject, setActiveProject, setScreen, setRomioState, scenario, setScenario } = useAppStore();
-  const { isScanning, setScanning, progress } = useScanStore();
+  const { isScanning, setScanning, progress, setProgress } = useScanStore();
 
   const scanMut = useMutation({
     mutationFn: async () => {
@@ -48,6 +48,7 @@ export function DashboardScreen() {
     },
     onError: () => {
       setScanning(false);
+      setProgress(null);
       setRomioState("concerned");
     },
   });
@@ -131,25 +132,14 @@ export function DashboardScreen() {
       )}
 
       {/* Stats cards */}
+      {scanMut.isError && (
+        <div role="alert" className="px-4 py-3 rounded-xl bg-romio-red/10 border border-romio-red/20 text-sm text-romio-red">
+          {String(scanMut.error)}. The scan stopped, so your last results are unchanged.
+        </div>
+      )}
+
       {stats ? (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <StatCard
-            label="Blocking" value={stats.blockingIssues}
-            color={stats.blockingIssues > 0 ? "error" : "ok"}
-            icon={<XCircle className="w-4 h-4" />}
-            onClick={() => setScreen("bios")}
-          />
-          <StatCard
-            label="Errors" value={stats.errors}
-            color={stats.errors > 0 ? "warning" : "ok"}
-            icon={<AlertTriangle className="w-4 h-4" />}
-            onClick={() => setScreen("bios")}
-          />
-          <StatCard
-            label="Warnings" value={stats.warnings}
-            color="advisory"
-            icon={<AlertTriangle className="w-4 h-4" />}
-          />
           <StatCard
             label="Total Files" value={stats.totalFiles}
             color="info"
