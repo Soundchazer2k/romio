@@ -4,22 +4,19 @@ Development documentation only. Not part of the app or its installer.
 Follow [AGENTS.md](../AGENTS.md) for commands and architecture and [DESIGN.md](../DESIGN.md) for UI rules, with the corrections listed under "Outdated instructions" below.
 This repository is public: don't put personal paths, saves or BIOS files in handoff files.
 
-**Next reviewer: Codex (final pass, round 3).** Add findings under a new "Round 3" heading in [CODEX-REVIEW.md](CODEX-REVIEW.md). Keep earlier rounds as written. Gemini's rounds are in [GEMINI-QA.md](GEMINI-QA.md).
+**Next: the user's merge decision.** No reviewer is assigned. If Codex is asked to confirm the last commit, add findings under a new "Round 4" heading in [CODEX-REVIEW.md](CODEX-REVIEW.md). Keep earlier rounds as written. Gemini's rounds are in [GEMINI-QA.md](GEMINI-QA.md).
 
 ## Task
 
-Final independent review of PR [#29](https://github.com/Soundchazer2k/romio/pull/29) at commit `76201d1`, before merge. It's the commit that fixed your round 2 findings, and you haven't reviewed it. It changed which files count as correctly placed.
+PR [#29](https://github.com/Soundchazer2k/romio/pull/29) at commit `4de9694`, after fixing Codex's two round 3 blockers. Nothing has reviewed `4de9694` independently.
 
-## Review focus for Codex
+## Focus if Codex confirms the last commit
 
-- **Your round 2 findings:** are all three actually fixed? `git diff 8f5d175 76201d1`.
-- **Regressions:** `is_in_place`, `any_name_emulators`, `also_accepted_paths` (folder versus exact file), `hash_is_inconclusive`, and how they combine with the region rule and `NotApplicable`. Check every system in `bios_rules.json`.
-- **False passes:** the fixes make Romio more accepting. Could a file an emulator can't use now show as valid? For example, a Saturn revision under `sega_101.bin` for Kronos, or a wrong-region file under an any-name emulator.
-- **False blocks:** limitations 2 and 3 below. Is any other shipped rule likely to block a working setup? xemu is unverified.
-- **Unverified assumption:** that Beetle Saturn and Beetle PSX open exact filenames. Romio treats them that way, and only libretro's doc tables support it so far. Cite source if you can confirm or refute it.
-- **Save safety:** still no route to overwriting saves.
+Narrow: `git diff 76201d1 4de9694`.
 
-Report severity against merging #29. Issues already listed as deferred or as known limitations only count if you think they should block the merge. If you find nothing blocking, say so plainly.
+- Do R3-1 and R3-2 hold, and do the new tests prove it?
+- `first_existing_emulators`: does it interact badly with `any_name_emulators`, the region rule or `hash_is_inconclusive`?
+- Limitation 10 below.
 
 ## Requirements
 
@@ -38,17 +35,17 @@ Report severity against merging #29. Issues already listed as deferred or as kno
 | | |
 |:--|:--|
 | Branch | `fix/saves-bios-polish` |
-| Commit | `76201d1eddc7af73cef172cdca71908ae6e7140d` |
+| Commit | `4de969451800bf9d640cd5f852791817fce8c65c` |
 | Base (`master`) | `d9e1e2880d959c6deb2b2ff47dd2145f629ec831` |
-| New since Codex round 2 | `git diff 8f5d175 76201d1` |
-| Whole PR | `git diff d9e1e28...76201d1` |
+| New since Codex round 3 | `git diff 76201d1 4de9694` |
+| Whole PR | `git diff d9e1e28...4de9694` |
 
 Use a fresh working copy, because earlier review branches may already exist:
 
 ```bash
 git fetch origin
-git worktree add -b codex/review-3 ../romio-codex-3 origin/docs/handoffs
-git -C ../romio-codex-3 merge --no-edit 76201d1eddc7af73cef172cdca71908ae6e7140d
+git worktree add -b codex/review-4 ../romio-codex-4 origin/docs/handoffs
+git -C ../romio-codex-4 merge --no-edit 4de969451800bf9d640cd5f852791817fce8c65c
 ```
 
 ## What happened to the review findings
@@ -64,7 +61,9 @@ git -C ../romio-codex-3 merge --no-edit 76201d1eddc7af73cef172cdca71908ae6e7140d
 | Codex round 2: Kronos fallbacks | Fixed in `76201d1`. Confirmed in `retro_load_game`: `kronos/saturn_bios.bin`, then `saturn_bios.bin`, `sega_101.bin`, `mpr-17933.bin`. The docs say any valid Saturn BIOS works, so the rule lists the Saturn revisions in libretro's `System.dat`. |
 | Codex round 2: PCSX2 filename | Fixed in `76201d1`: `anyNameEmulators`. Confirmed in PCSX2's `BiosTools.cpp`, which isn't recursive. The same behaviour applies to DuckStation (`bios.cpp`), so its PS1 rules got it too, and to Ymir, per its README. |
 | Codex round 2: zip location | Fixed in `76201d1`: an unknown hash is only a warning where the core reads the file |
-| Gemini 7: PPSSPP `.zso` | **Rejected.** Upstream `Core/FileSystems/BlockDevices.cpp` and `.h` contain no `ZISO` or LZ4 handling, only `CISO`. Show current source if you disagree. |
+| Codex round 3, R3-1: Kronos fallback hides a corrupt preferred file | Fixed in `4de9694`: `firstExistingEmulators`. Kronos takes the first file that exists without checking it (`libretro.c:1619-1638`). |
+| Codex round 3, R3-2: Beetle PSX renamed BIOS rejected | Fixed in `4de9694`. Named files first, then a checksum search of the top folder (`libretro.c:633`, `:660-667`, `:843-845`). My test had enforced the wrong behaviour; corrected. Beetle Saturn does open exact names (`ss.c:1846-1849`). |
+| Gemini 7: PPSSPP `.zso` | **Rejected, and Gemini retracted it in round 3.** Upstream `Core/FileSystems/BlockDevices.cpp` and `.h` contain no `ZISO` or LZ4 handling, only `CISO`. |
 | Gemini round 3 | PASS on all nine requirements, in `jsdom` only: its sandbox still blocks the desktop app. No blocking bugs. Its tests are in a private scratch folder, so they weren't re-run. Some citations were wrong (Sega CD's source, `yabause/kronos`), and the Beetle Saturn source claim wasn't confirmed. |
 | Gemini round 3 notes | **Deferred.** "1 systems incomplete"; hash-mismatch rows and an unrecognised zip flagged Wrong path don't show the file's path. |
 | Gemini 4: failed scans look like empty libraries | **Deferred, separate PR, next.** Still present. |
@@ -73,14 +72,14 @@ git -C ../romio-codex-3 merge --no-edit 76201d1eddc7af73cef172cdca71908ae6e7140d
 
 ## Checks performed
 
-All at commit `76201d1`, on Windows 11. GitHub CI on this commit passes: `check` and CodeQL (actions, javascript-typescript, rust).
+Automated and mocked checks are at commit `4de9694`, on Windows 11. GitHub CI on this commit hadn't finished at the time of writing.
 
 ### Automated tests
 
 | Check | Result | What it covers |
 |:--|:--|:--|
 | `cargo test --workspace` | 43 unit + 18 scenario pass | Real engine and shipped rule files, against fake libraries in temp folders. `real_library_smoke` skips without `ROMIO_REAL_LIBRARY`. |
-| New in this commit | Failed on `8f5d175`, pass now | `kronos_reads_its_fallback_files`, `emulators_that_read_contents_accept_any_filename`, `neogeo_zip_location_matters_whatever_its_hash`, and new assertions in `shipped_bios_data_has_the_documented_hashes` |
+| New in `4de9694` | Failed on `76201d1`, pass now | New cases in `kronos_reads_its_fallback_files` and `emulators_that_read_contents_accept_any_filename` |
 | `pnpm exec vitest run` | 52 pass | jsdom with mocked IPC. `saves.root.test.tsx` uses the real store. |
 | `tsc`, `pnpm lint`, `vite build` | Pass | Types, lint, frontend build |
 | `cargo audit` (local) | No vulnerabilities, 2 known warnings | Dependency advisories |
@@ -109,6 +108,8 @@ Kronos and PCSX2 cases use fixture hashes and placeholder bytes, not real BIOS f
 | Saturn, Beetle default, no BIOS files | `8f5d175` | `saturn_bios.bin` "Not applicable" with its explanation |
 | Banner with a conflict, "1 file" | `f5d07b1` | "2 save roots at risk", "1 file" |
 
+The desktop checks above weren't re-run at `4de9694`, which only changes engine logic and rule data. Automated tests cover it.
+
 Not checked on desktop:
 
 - **A valid BIOS of any kind:** the region-complete path, "Missing — needed for JP games", and the Kronos and any-filename paths. They need genuine dumps; only automated tests cover them.
@@ -126,12 +127,13 @@ Not checked on desktop:
 7. **A typed Saves root lasts until the app closes,** not across restarts.
 8. **The Saves root default assumes the first library root is the frontend install.** A root that is only a ROM folder finds nothing there and gives no warning. Other roots are ignored.
 9. **A corrupt `neogeo.zip` in a readable place shows "1 to check",** not "Blocking", because a rebuilt zip's hash changes too.
+10. **Beetle PSX's other named files aren't modelled.** It also tries names like `SCPH-5501.bin`, `scph5503.bin` and `scph7003.bin`. A good copy under one of those is valid, but a corrupt one wouldn't be caught, and any existing named file stops its checksum search.
 
 Sourcery's budget is used up, and Qodo hasn't reviewed this commit.
 
-## After Codex
+## After this
 
-Bring the report back to Claude. If nothing blocks, #29 is ready for the user's merge decision. Visual QA in the real app is still outstanding, and Gemini can't do it from its sandbox.
+Visual QA in the real app is still outstanding. Gemini can't do it from its sandbox, so someone needs to look at the running app.
 
 ## Outdated instructions
 
