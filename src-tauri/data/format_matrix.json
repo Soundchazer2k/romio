@@ -2179,6 +2179,15 @@
   },
   {
     "system": "pico8",
+    "extension": "png",
+    "emulator": "lr-retro8",
+    "frontend": null,
+    "support": "supported",
+    "notes": "PICO-8 carts can be saved as .p8.png images. Romio can't tell a cart from other artwork in this folder.",
+    "sinceVersion": null
+  },
+  {
+    "system": "pico8",
     "extension": "zip",
     "emulator": "lr-retro8",
     "frontend": null,

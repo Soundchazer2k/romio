@@ -10,7 +10,7 @@ use std::sync::Arc;
 use common::{deny_read, fake_md5, fixture_bios_rules, with_bad_dump, Library};
 use romio_lib::db;
 use romio_lib::engine::bios_sweep::{run_sweep, BiosSweepConfig};
-use romio_lib::engine::format_matrix::check_format;
+use romio_lib::engine::format_matrix::{check_format, list_system_folders};
 use romio_lib::engine::save_registry::{discover_save_roots, SaveAnchors};
 use romio_lib::engine::scanner::scan_roots;
 use romio_lib::models::artifact::{ArtifactType, BiosValidationState as Bios, FormatCompatibilityState as Fmt};
@@ -663,6 +663,7 @@ fn default_emulators_judge_their_common_formats() {
         ("roms/jaguar/a.zip", "jaguar", "lr-virtualjaguar"),
         ("roms/pokemini/a.zip", "pokemini", "lr-pokemini"),
         ("roms/pico8/a.p8", "pico8", "lr-retro8"),
+        ("roms/pico8/a.p8.png", "pico8", "lr-retro8"),
         ("roms/prboom/a.wad", "prboom", "lr-prboom"),
         ("roms/gzdoom/a.wad", "gzdoom", "gzdoom"),
         ("roms/easyrpg/a.zip", "easyrpg", "lr-easyrpg"),
@@ -835,4 +836,53 @@ fn every_system_with_format_rules_has_a_recommended_emulator() {
         .collect();
     missing.dedup();
     assert!(missing.is_empty(), "no emulator_matrix entry for: {missing:?}");
+}
+
+/// Format Check lists a file only where it could be a game: artwork and another
+/// system's formats stay out, but a system's own formats and game folders stay in.
+#[test]
+fn format_check_lists_a_systems_own_formats_not_stray_files() {
+    let lib = Library::new();
+    for g in [
+        // Strays: artwork, and formats that belong to other systems
+        "roms/psx/Ape Escape.chd",
+        "roms/psx/cover.png",
+        "roms/psx/notes.car",
+        "roms/psx/notes.ids",
+        "roms/psx/notes.min",
+        "roms/psx/notes.bs",
+        // Legitimate, including through a folder alias
+        "roms/atari800/Star Raiders.car",
+        "roms/nds/Mario Kart DS.ids",
+        "roms/pokemini/Pichu Bros.min",
+        "roms/sfc/BS Zelda.bs",
+        "roms/pico8/celeste.p8.png",
+        "roms/easyrpg/Yume.zip",
+        // No rules for this system yet, so its formats can't be ruled out. Artwork still can.
+        "roms/satellaview/BS Zelda.bs",
+        "roms/satellaview/box.png",
+    ] {
+        lib.game(g);
+    }
+    // EasyRPG games are folders; only that system's folder holds them
+    lib.game("roms/easyrpg/Ib.easyrpg/RPG_RT.ldb");
+    lib.game("roms/easyrpg/saves/slot1.lsd");
+    lib.game("roms/psx/Stray.easyrpg/RPG_RT.ldb");
+
+    let folders = list_system_folders(lib.root(), &db::format::load_rules().unwrap()).unwrap();
+    let listed = |name: &str| -> Vec<String> {
+        let folder = folders.iter().find(|f| f.name == name).unwrap_or_else(|| panic!("no folder {name}"));
+        folder.files.iter()
+            .map(|f| std::path::Path::new(f).file_name().unwrap().to_string_lossy().to_string())
+            .collect()
+    };
+
+    assert_eq!(listed("psx"), ["Ape Escape.chd"]);
+    assert_eq!(listed("atari800"), ["Star Raiders.car"]);
+    assert_eq!(listed("nds"), ["Mario Kart DS.ids"]);
+    assert_eq!(listed("pokemini"), ["Pichu Bros.min"]);
+    assert_eq!(listed("sfc"), ["BS Zelda.bs"], "sfc is an alias for snes");
+    assert_eq!(listed("pico8"), ["celeste.p8.png"]);
+    assert_eq!(listed("easyrpg"), ["Ib.easyrpg", "Yume.zip"]);
+    assert_eq!(listed("satellaview"), ["BS Zelda.bs"]);
 }
