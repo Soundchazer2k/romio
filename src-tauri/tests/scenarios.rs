@@ -245,6 +245,31 @@ fn bad_or_misplaced_required_bios_blocks() {
     assert!(!blocking(&results, "ps1"));
 }
 
+/// Older lr-opera builds won't boot without a BIOS file and Romio can't see the core's
+/// build, so a missing panafz10.bin blocks, even though newer builds have a built-in BIOS.
+#[test]
+fn three_do_requires_a_bios_file() {
+    let lib = Library::new();
+    let bios_root = lib.path("bios");
+    std::fs::create_dir_all(&bios_root).unwrap();
+    let rules = fixture_bios_rules();
+
+    let results = sweep(&bios_root, "retrobat", &rules);
+    assert_eq!(bios_entry(&results, "panafz10.bin").state, Bios::MissingRequired);
+    assert!(is_blocking(&results, "3do"));
+
+    let file = lib.file("bios/panafz10.bin", b"corrupt dump");
+    let results = sweep(&bios_root, "retrobat", &rules);
+    assert_eq!(bios_entry(&results, "panafz10.bin").state, Bios::PresentHashMismatch);
+    assert!(is_blocking(&results, "3do"));
+
+    std::fs::remove_file(file).unwrap();
+    lib.bios("bios/panafz10.bin", "panafz10.bin");
+    let results = sweep(&bios_root, "retrobat", &rules);
+    assert_eq!(bios_entry(&results, "panafz10.bin").state, Bios::PresentValid);
+    assert!(!is_blocking(&results, "3do"));
+}
+
 /// A valid BIOS in place stays valid, whatever other copies sit elsewhere in the folder.
 #[test]
 fn backup_copies_do_not_hide_a_correctly_placed_bios() {
