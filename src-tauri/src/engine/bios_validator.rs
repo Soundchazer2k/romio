@@ -34,8 +34,20 @@ pub fn validate_system_bios(
     emulator: &str,
 ) -> Result<BiosSystemResult> {
     // Step 1: Build a hash map of all files found in the bios directory tree.
-    // Key: MD5 hash, Value: every path holding those bytes
-    let mut found_files = scan_bios_directory(bios_root)?;
+    let index = scan_bios_directory(bios_root)?;
+    validate_with_index(bios_root, rules, frontend, emulator, &index)
+}
+
+/// Validate one system against an index from `scan_bios_directory`. Hashing a real BIOS
+/// folder takes far longer than the rest, so a sweep of many systems shares one index.
+pub fn validate_with_index(
+    bios_root: &Path,
+    rules: &[BiosRule],
+    frontend: &str,
+    emulator: &str,
+    index: &HashMap<String, Vec<PathBuf>>,
+) -> Result<BiosSystemResult> {
+    let mut found_files = index.clone();
 
     // Some BIOS files also work outside the BIOS folder (neogeo.zip beside the ROMs),
     // where the scan above never looks. Check those spots directly.
@@ -97,7 +109,8 @@ fn hash_is_inconclusive(rule: &BiosRule) -> bool {
 
 /// Scan a directory tree and build a hash-to-path index.
 /// This is the core of hash-first identification.
-fn scan_bios_directory(root: &Path) -> Result<HashMap<String, Vec<PathBuf>>> {
+/// Key: MD5 hash, Value: every path holding those bytes.
+pub fn scan_bios_directory(root: &Path) -> Result<HashMap<String, Vec<PathBuf>>> {
     let mut index: HashMap<String, Vec<PathBuf>> = HashMap::new();
 
     if !root.exists() {
