@@ -397,12 +397,12 @@
     "knownBadMd5": [],
     "system": "3do",
     "region": null,
-    "requirement": "optional",
+    "requirement": "required",
     "compressed": false,
     "defaultPath": "",
     "frontendPaths": {},
     "emulatorPaths": {},
-    "notes": "Panasonic 3DO FZ-10 BIOS. lr-opera built since October 2026 boots its built-in Opera Boot by default and only reads this file if you select it in the core options. Older lr-opera builds, which some frontends still ship, have no built-in BIOS and won't boot without a BIOS file here.",
+    "notes": "Panasonic 3DO FZ-10 BIOS. lr-opera builds since October 2026 boot a built-in BIOS, so a newer core can run without this file. Older builds need it. Romio can't tell which build you have, so it reports this file as required.",
     "dumpingGuideUrl": null
   },
   {
