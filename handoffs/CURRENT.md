@@ -4,19 +4,11 @@ Development documentation only. Not part of the app or its installer.
 Follow [AGENTS.md](../AGENTS.md) for commands and architecture and [DESIGN.md](../DESIGN.md) for UI rules, with the corrections listed under "Outdated instructions" below.
 This repository is public: don't put personal paths, saves or BIOS files in handoff files.
 
-**Next: the user's merge decision.** No reviewer is assigned. If Codex is asked to confirm the last commit, add findings under a new "Round 5" heading in [CODEX-REVIEW.md](CODEX-REVIEW.md). Keep earlier rounds as written. Gemini's rounds are in [GEMINI-QA.md](GEMINI-QA.md).
+**Status: the user has approved merging #29 when CI passes, at `e25f03f`.** No reviewer is assigned. Codex's rounds are in [CODEX-REVIEW.md](CODEX-REVIEW.md) and Gemini's in [GEMINI-QA.md](GEMINI-QA.md).
 
 ## Task
 
-PR [#29](https://github.com/Soundchazer2k/romio/pull/29) at commit `8b2e737`, after fixing Codex's two round 4 blockers. Nothing has reviewed `8b2e737` independently.
-
-## Focus if Codex confirms the last commit
-
-Narrow: `git diff 4de9694 8b2e737`.
-
-- Do R4-1 and R4-2 hold, and do the new tests prove it?
-- `same_path`: anything it should cover but doesn't, or breaks on a case-sensitive filesystem?
-- The Beetle PSX name lists in `bios_rules.json` against `libretro.c:768-820`.
+PR [#29](https://github.com/Soundchazer2k/romio/pull/29) at commit `e25f03f`. It fixes Codex's round 4 blockers (`8b2e737`) and two false blocks found by running the app on a copy of a real RetroBat library. Nothing has reviewed `8b2e737` or `e25f03f` independently.
 
 ## Requirements
 
@@ -35,17 +27,17 @@ Narrow: `git diff 4de9694 8b2e737`.
 | | |
 |:--|:--|
 | Branch | `fix/saves-bios-polish` |
-| Commit | `8b2e737884f7b4987377006bd3bb44f8d52c5579` |
+| Commit | `e25f03fa3f60f30eea749eeebdbef744cc256bd2` |
 | Base (`master`) | `d9e1e2880d959c6deb2b2ff47dd2145f629ec831` |
-| New since Codex round 4 | `git diff 4de9694 8b2e737` |
-| Whole PR | `git diff d9e1e28...8b2e737` |
+| New since Codex round 4 | `git diff 4de9694 e25f03f` |
+| Whole PR | `git diff d9e1e28...e25f03f` |
 
 Use a fresh working copy, because earlier review branches may already exist:
 
 ```bash
 git fetch origin
-git worktree add -b codex/review-5 ../romio-codex-5 origin/docs/handoffs
-git -C ../romio-codex-5 merge --no-edit 8b2e737884f7b4987377006bd3bb44f8d52c5579
+git worktree add -b review/next ../romio-review origin/docs/handoffs
+git -C ../romio-review merge --no-edit e25f03fa3f60f30eea749eeebdbef744cc256bd2
 ```
 
 ## What happened to the review findings
@@ -65,6 +57,8 @@ git -C ../romio-codex-5 merge --no-edit 8b2e737884f7b4987377006bd3bb44f8d52c5579
 | Codex round 3, R3-2: Beetle PSX renamed BIOS rejected | Fixed in `4de9694`. Named files first, then a checksum search of the top folder (`libretro.c:633`, `:660-667`, `:843-845`). My test had enforced the wrong behaviour; corrected. Beetle Saturn does open exact names (`ss.c:1846-1849`). |
 | Codex round 4, R4-1: corrupt named alias bypasses first-existing | Fixed in `8b2e737`: Beetle PSX's named lists are in `alsoAcceptedPaths`, in its order. |
 | Codex round 4, R4-2: valid uppercase name called corrupt on Windows | Fixed in `8b2e737`: `same_path` compares under the host filesystem's case rules, everywhere Romio decides a file is in place. |
+| Real files: Neo Geo blocked on a working setup | Fixed in `e25f03f`. A regression from this PR: a different `neogeo.zip` FBNeo can read, plus a recognised copy in `bios/mame/`, showed "Wrong path". It now warns. |
+| Real files: PS2 blocked with a valid BIOS | Fixed in `e25f03f`. Predates this PR. The required rule now recognises the 73 PS2 revisions in libretro's `System.dat`. |
 | Gemini 7: PPSSPP `.zso` | **Rejected, and Gemini retracted it in round 3.** Upstream `Core/FileSystems/BlockDevices.cpp` and `.h` contain no `ZISO` or LZ4 handling, only `CISO`. |
 | Gemini round 3 | PASS on all nine requirements, in `jsdom` only: its sandbox still blocks the desktop app. No blocking bugs. Its tests are in a private scratch folder, so they weren't re-run. Some citations were wrong (Sega CD's source, `yabause/kronos`), and the Beetle Saturn source claim wasn't confirmed. |
 | Gemini round 3 notes | **Deferred.** "1 systems incomplete"; hash-mismatch rows and an unrecognised zip flagged Wrong path don't show the file's path. |
@@ -74,13 +68,14 @@ git -C ../romio-codex-5 merge --no-edit 8b2e737884f7b4987377006bd3bb44f8d52c5579
 
 ## Checks performed
 
-Automated and mocked checks are at commit `8b2e737`, on Windows 11. GitHub CI on this commit hadn't finished at the time of writing.
+Automated and mocked checks are at commit `e25f03f`, on Windows 11. GitHub CI on this commit hadn't finished at the time of writing.
 
 ### Automated tests
 
 | Check | Result | What it covers |
 |:--|:--|:--|
-| `cargo test --workspace` | 43 unit + 19 scenario pass | Real engine and shipped rule files, against fake libraries in temp folders. `real_library_smoke` skips without `ROMIO_REAL_LIBRARY`. |
+| `cargo test --workspace` | 43 unit + 20 scenario pass | Real engine and shipped rule files, against fake libraries in temp folders. `real_library_smoke` skips without `ROMIO_REAL_LIBRARY`. |
+| New in `e25f03f` | Failed on `8b2e737`, pass now | New case in `neogeo_zip_location_matters_whatever_its_hash`, new assertions in `shipped_bios_data_has_the_documented_hashes`. `any_recognised_ps2_bios_is_enough` is also new, but passed before the fix because it adds the hash itself. |
 | New in `8b2e737` | Failed on `4de9694`, pass now | New cases in `emulators_that_read_contents_accept_any_filename`, and `filename_case_does_not_matter_on_windows` (Windows only) |
 | `pnpm exec vitest run` | 52 pass | jsdom with mocked IPC. `saves.root.test.tsx` uses the real store. |
 | `tsc`, `pnpm lint`, `vite build` | Pass | Types, lint, frontend build |
@@ -118,11 +113,32 @@ Not checked on desktop:
 - **The Dashboard's "N to check" and "All valid" badges.** Only "N blocking" was seen on desktop; `biosIssueLabel`'s unit test covers the rest.
 - Plan Migration, migration execution and checkpoints, `pnpm tauri build`, the installer, Linux and macOS.
 
+### Real-file checks
+
+A copy of a real RetroBat library, kept outside the repository and never committed: 61 system folders (14 empty in the copy), 172 ROM files, 5,322 BIOS-folder files and 2,114 save files. Only counts and verdicts are recorded here. Real files are the only evidence of valid BIOS verdicts, but they don't prove the games boot.
+
+| Check | Commit | Result |
+|:--|:--|:--|
+| BIOS verdicts, `real_library_smoke` with `ROMIO_REAL_LIBRARY` | `e25f03f` | **No system blocks.** 19 of 25 rules valid and `saturn_bios.bin` not applicable. To check: `scph1001.bin`, three 32X files, `neogeo.zip`. |
+| Same check | `8b2e737` | PS2 and Neo Geo blocked (both fixed above) |
+| Real app: Format screen, 127 game files | `8b2e737` | 23 Compatible, 104 Unknown; 38 systems "No rules yet"; no errors |
+| Real app: BIOS and Saves screens | `8b2e737` | Verdicts matched the engine. Saves: 5 roots in the library, none at risk |
+| Real app: Validate Now | `8b2e737` | Took about 6 minutes |
+
+Not re-run in the real app at `e25f03f`, which only changes engine logic and rule data. "All valid" and region-complete wording have now appeared with real files; "Missing — needed for JP games" hasn't, because this library has all three PS1 regions. The Dashboard badge still needs a real scan.
+
+## Follow-ups found on real files
+
+1. **BIOS validation is very slow on a real library.** It re-hashes the whole BIOS folder once per system: 2.6 GB, 12 times.
+2. **Most games get no format verdict.** 104 of 127 files are Unknown. Common formats like `.zip` and `.nes` have no rules, and 27 folders have no emulator in the matrix.
+3. **The 32X hashes need a source.** Three real files don't match, and the rule's hashes aren't in `System.dat`. They're optional, so they only warn.
+4. **Dashboard summary row:** "0 Blocking" above a "9 blocking" BIOS card, seen on the fake library.
+
 ## Known limitations
 
 1. **Romio doesn't know a library's regions.** A valid US BIOS unblocks PS1 even for a library of only Japanese games. Rows say which games still need the other file, but the system shows as not blocked. Product rule, kept deliberately.
 2. **Misplaced files block, based on Romio's path rules.** Emulators not yet checked at source could still be flagged wrongly. In particular, xemu takes its MCPX path from a setting, so an MCPX elsewhere may work while Romio shows "Wrong path".
-3. **Only listed BIOS revisions are recognised.** PS2's required rule is one specific US file, so another real PS2 BIOS shows as missing and blocks, even though PCSX2 would use it. A valid Saturn BIOS absent from `System.dat` blocks under Kronos.
+3. **Only listed BIOS revisions are recognised.** A valid PS2 or Saturn BIOS absent from `System.dat` blocks. `lr-pcsx2` isn't treated as any-name; its folder wasn't checked.
 4. **`neogeo.zip` beside the ROMs:** Romio can't tell which folder a game is in, so any of the listed ROM folders counts.
 5. **Results saved before this fix stay until revalidated.** `biosResults` is stored per project.
 6. **`onlyEmulators` lists are fixed.** An emulator set in `emulatorPrefs` but not listed gets "Not applicable" for those Saturn rules. Romio's matrix only offers Ymir, Beetle Saturn and Kronos.
