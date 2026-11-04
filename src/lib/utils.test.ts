@@ -5,7 +5,6 @@ import {
   formatStateLabel,
   formatSupportLabel,
   groupResultsBySystem,
-  systemForFolder,
   biosEntryLabel,
   biosIssueLabel,
 } from "./utils";
@@ -33,31 +32,6 @@ describe("biosEntryLabel", () => {
   });
   it("leaves truly optional files alone", () => {
     expect(biosEntryLabel(biosEntry("MISSING_OPTIONAL", { region: "US" }))).toBe("Missing — optional");
-  });
-});
-
-describe("systemForFolder", () => {
-  it("maps frontend folder names to Romio system IDs", () => {
-    expect(systemForFolder("psx")).toBe("ps1");       // every frontend
-    expect(systemForFolder("gc")).toBe("gamecube");   // ES-DE
-    expect(systemForFolder("n3ds")).toBe("3ds");      // ES-DE
-    expect(systemForFolder("megadrive")).toBe("genesis"); // Batocera, RetroBat
-    expect(systemForFolder("megacd")).toBe("segacd");
-    expect(systemForFolder("PSX")).toBe("ps1");
-    expect(systemForFolder("atarijaguar")).toBe("jaguar"); // ES-DE
-    expect(systemForFolder("tg16")).toBe("pcengine");      // ES-DE
-    expect(systemForFolder("neogeocdjp")).toBe("neogeocd"); // ES-DE
-    expect(systemForFolder("naomigd")).toBe("naomi");       // ES-DE
-    expect(systemForFolder("doom")).toBe("gzdoom");         // ES-DE, RetroBat
-  });
-  it("passes through folders that already match", () => {
-    expect(systemForFolder("gamecube")).toBe("gamecube");
-    expect(systemForFolder("xbox360")).toBe("xbox360");
-  });
-  it("returns the folder name for Object.prototype keys", () => {
-    expect(systemForFolder("constructor")).toBe("constructor");
-    expect(systemForFolder("__proto__")).toBe("__proto__");
-    expect(systemForFolder("toString")).toBe("tostring");
   });
 });
 

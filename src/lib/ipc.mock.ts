@@ -243,9 +243,10 @@ export const ipc = {
       : { ...FIXTURE_FORMAT_RESULT, path, extension: path.split(".").pop() ?? "" },
   getFormatMatrix: async (): Promise<FormatRule[]> => [],
   listLibraryFolders: async (root: string): Promise<SystemFolder[]> =>
-    ["psx", "gba"].map((name) => ({
+    [["psx", "ps1"], ["gba", "gba"]].map(([name, system]) => ({
       name,
       path: `${root}/${name}`,
+      system,
       files: [`${root}/${name}/game1.bin`, `${root}/${name}/game2.chd`],
       error: null,
     })),

@@ -847,6 +847,33 @@
   },
   {
     "system": "snes-msu1",
+    "extension": "fig",
+    "emulator": "lr-snes9x",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "snes-msu1",
+    "extension": "swc",
+    "emulator": "lr-snes9x",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "snes-msu1",
+    "extension": "bs",
+    "emulator": "lr-snes9x",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "snes-msu1",
     "extension": "sfc",
     "emulator": "lr-snes9x",
     "frontend": null,
@@ -2161,6 +2188,15 @@
   },
   {
     "system": "pico8",
+    "extension": "png",
+    "emulator": "lr-retro8",
+    "frontend": null,
+    "support": "supported",
+    "notes": "PICO-8 carts can be saved as .p8.png images. Romio can't tell a cart from other artwork in this folder.",
+    "sinceVersion": null
+  },
+  {
+    "system": "pico8",
     "extension": "zip",
     "emulator": "lr-retro8",
     "frontend": null,
@@ -2940,15 +2976,6 @@
     "frontend": null,
     "support": "supported",
     "notes": "Vita3K installs this file rather than running it directly.",
-    "sinceVersion": null
-  },
-  {
-    "system": "pico8",
-    "extension": "png",
-    "emulator": "lr-retro8",
-    "frontend": null,
-    "support": "supported",
-    "notes": null,
     "sinceVersion": null
   }
 ]
