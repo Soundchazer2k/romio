@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { X, Search } from "lucide-react";
 import type { FormatRule } from "@/types";
 import { formatSupportLabel, cn } from "@/lib/utils";
@@ -86,9 +86,8 @@ function DrawerContent({ rules, onClose }: Omit<Props, "open">) {
               <span className={cn(
                 "font-medium shrink-0 w-20",
                 s.label === "Supported"   ? "text-romio-green" :
-                s.label === "Deprecated"  ? "text-amber-400"   :
                 s.label === "Unsupported" ? "text-romio-red"   :
-                "text-romio-gray"
+                "text-amber-400"
               )}>{s.label}</span>
               <span className="text-romio-gray">{s.desc}</span>
             </div>
@@ -109,23 +108,37 @@ function DrawerContent({ rules, onClose }: Omit<Props, "open">) {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((rule, i) => (
-              <tr key={i}
-                className="border-b border-border/50 hover:bg-white/3 transition-colors">
-                <td className="px-3 py-2 text-romio-gray">{rule.system}</td>
-                <td className="px-3 py-2 font-mono text-romio-cream">.{rule.extension}</td>
-                <td className="px-3 py-2 text-romio-gray">{rule.emulator}</td>
-                <td className={cn(
-                  "px-3 py-2 font-medium",
-                  rule.support === "supported"                                         ? "text-romio-green" :
-                  typeof rule.support === "object" && "deprecated"  in rule.support    ? "text-amber-400"   :
-                  typeof rule.support === "object" && "unsupported" in rule.support    ? "text-romio-red"   :
-                  "text-romio-gray"
-                )}>
-                  {formatSupportLabel(rule.support)}
-                </td>
-              </tr>
-            ))}
+            {filtered.map((rule, i) => {
+              const condition = typeof rule.support === "object" && "conditional" in rule.support
+                ? rule.support.conditional.condition
+                : null;
+              const hasDetail = condition || rule.notes;
+              return (
+                <Fragment key={i}>
+                  <tr className={cn("hover:bg-white/3 transition-colors", !hasDetail && "border-b border-border/50")}>
+                    <td className="px-3 py-2 text-romio-gray">{rule.system}</td>
+                    <td className="px-3 py-2 font-mono text-romio-cream">.{rule.extension}</td>
+                    <td className="px-3 py-2 text-romio-gray">{rule.emulator}</td>
+                    <td className={cn(
+                      "px-3 py-2 font-medium",
+                      rule.support === "supported"                                      ? "text-romio-green" :
+                      typeof rule.support === "object" && "unsupported" in rule.support ? "text-romio-red"   :
+                      "text-amber-400"
+                    )}>
+                      {formatSupportLabel(rule.support)}
+                    </td>
+                  </tr>
+                  {hasDetail && (
+                    <tr className="border-b border-border/50">
+                      <td colSpan={4} className="px-3 pb-2 space-y-1">
+                        {condition && <p className="text-romio-cream">{condition}</p>}
+                        {rule.notes && <p className="text-romio-gray">{rule.notes}</p>}
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              );
+            })}
           </tbody>
         </table>
         {filtered.length === 0 && (

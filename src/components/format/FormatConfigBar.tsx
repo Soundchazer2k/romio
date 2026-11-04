@@ -83,6 +83,7 @@ export function FormatConfigBar({
           <select
             value={emulator}
             onChange={(e) => onEmulatorChange(e.target.value)}
+            title="Used for the systems that can run it. Other systems keep their recommended emulator."
             className="appearance-none px-3 py-2 pr-8 rounded-lg bg-background-surface border border-white/10
                        text-sm text-romio-cream focus:outline-hidden focus:border-romio-green/40"
           >

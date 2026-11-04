@@ -4,6 +4,7 @@ import { twMerge } from "tailwind-merge";
 import type {
   BiosEntryResult, BiosValidationState, FindingSeverity, SaveMigrationState,
   FormatCompatibilityState, FormatSupport, FormatCheckResult, FormatSystemGroup,
+  EmulatorMatrixEntry,
 } from "@/types";
 
 export function cn(...inputs: ClassValue[]) {
@@ -164,6 +165,13 @@ export function formatSupportLabel(support: FormatSupport): string {
   if ("unsupported" in support) return "Unsupported";
   if ("conditional" in support) return "Conditional";
   return "Unknown";
+}
+
+/** The emulator to check a system against: the picked one if that system can use it, else its recommended one */
+export function emulatorForSystem(system: string, picked: string, matrix: EmulatorMatrixEntry[]): string {
+  const entry = matrix.find((m) => m.system === system);
+  if (!entry) return "unknown";
+  return entry.alternatives.includes(picked) ? picked : entry.recommended;
 }
 
 export function groupResultsBySystem(results: FormatCheckResult[]): FormatSystemGroup[] {

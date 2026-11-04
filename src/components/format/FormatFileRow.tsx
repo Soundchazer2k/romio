@@ -18,11 +18,13 @@ export function FormatFileRow({ result, rules, stagedFixes, onStageFix }: Props)
 
   const hasIssue      = result.state !== "Compatible" && result.state !== "NotApplicable";
   const alreadyStaged = stagedFixes.some((s) => s.result.path === result.path);
+  const stateColor    = result.condition ? "text-amber-400" : formatStateColor(result.state);
 
   return (
     <div className={cn(
       "px-3 py-2.5 rounded-lg border text-sm",
-      formatStateBg(result.state),
+      result.condition ? "bg-amber-400/10 border-amber-400/20" : formatStateBg(result.state),
+      result.condition                      ? "" :
       result.state === "Compatible"         ? "border-romio-green/10" :
       result.state === "FormatIncompatible" ? "border-romio-red/20"   :
       result.state === "FormatDeprecated"   ? "border-amber-400/20"   :
@@ -32,11 +34,11 @@ export function FormatFileRow({ result, rules, stagedFixes, onStageFix }: Props)
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className={cn("font-mono text-xs font-medium", formatStateColor(result.state))}>
+            <span className={cn("font-mono text-xs font-medium", stateColor)}>
               {result.path.split(/[/\\]/).pop()}
             </span>
-            <span className={cn("text-xs", formatStateColor(result.state))}>
-              {formatStateLabel(result.state)}
+            <span className={cn("text-xs", stateColor)}>
+              {result.condition ? "Conditional" : formatStateLabel(result.state)}
             </span>
             {result.fixAction && (
               <span className="text-xs text-romio-gray">
@@ -44,6 +46,10 @@ export function FormatFileRow({ result, rules, stagedFixes, onStageFix }: Props)
               </span>
             )}
           </div>
+
+          {result.condition && (
+            <p className="text-xs text-romio-cream mt-0.5">{result.condition}</p>
+          )}
 
           {result.notes && (
             <p className="text-xs text-romio-gray mt-0.5">{result.notes}</p>

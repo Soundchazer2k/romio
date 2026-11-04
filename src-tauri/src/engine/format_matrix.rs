@@ -81,6 +81,7 @@ pub fn check_format(
             emulator: Some(emulator.to_string()),
             state: FormatCompatibilityState::Unknown,
             notes: Some("No compatibility rule found for this format/emulator combination.".to_string()),
+            condition: None,
             fix_action: None,
         },
 
@@ -92,6 +93,7 @@ pub fn check_format(
                 emulator: Some(emulator.to_string()),
                 state: FormatCompatibilityState::Compatible,
                 notes: r.notes.clone(),
+                condition: None,
                 fix_action: None,
             },
 
@@ -108,6 +110,7 @@ pub fn check_format(
                     emulator: Some(emulator.to_string()),
                     state: FormatCompatibilityState::FormatDeprecated,
                     notes: r.notes.clone(),
+                    condition: None,
                     fix_action: Some(FormatFixAction {
                         action_type: FormatFixType::Rename,
                         description: format!(
@@ -127,6 +130,7 @@ pub fn check_format(
                 emulator: Some(emulator.to_string()),
                 state: FormatCompatibilityState::FormatIncompatible,
                 notes: Some(reason.clone()),
+                condition: None,
                 fix_action: Some(FormatFixAction {
                     action_type: FormatFixType::Redump,
                     description: format!(
@@ -144,7 +148,8 @@ pub fn check_format(
                 system: Some(system.to_string()),
                 emulator: Some(emulator.to_string()),
                 state: FormatCompatibilityState::Compatible,
-                notes: Some(condition.clone()),
+                notes: r.notes.clone(),
+                condition: Some(condition.clone()),
                 fix_action: None,
             },
         }
@@ -182,6 +187,19 @@ mod tests {
         };
         assert_eq!(file_names("psx"), ["a.chd"], "gamelist.xml and .m3u are not games");
         assert_eq!(file_names("psp"), ["c.zso"], "kept because a format rule names .zso; media/ is a subfolder");
+    }
+
+    #[test]
+    fn conditional_rule_reports_its_condition_and_keeps_its_notes() {
+        let rules = vec![FormatRule {
+            system: "xbox".into(), extension: "iso".into(), emulator: "xemu".into(), frontend: None,
+            support: FormatSupport::Conditional { condition: "Must be an XISO".into() },
+            notes: Some("xemu docs".into()), since_version: None,
+        }];
+        let result = check_format(Path::new("Halo.iso"), &rules, "xbox", "xemu", "esde");
+        assert_eq!(result.state, FormatCompatibilityState::Compatible);
+        assert_eq!(result.condition.as_deref(), Some("Must be an XISO"));
+        assert_eq!(result.notes.as_deref(), Some("xemu docs"));
     }
 
     #[test]

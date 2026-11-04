@@ -114,7 +114,7 @@ fn curator_retrobat_library_before_an_update() {
     // XISO is xemu's requirement (original Xbox), not Xenia's: Xenia reads full 360 disc images too
     let xbox = check("roms/xbox/Halo (USA).iso", "xbox", "xemu");
     assert_eq!(xbox.state, Fmt::Compatible);
-    assert!(xbox.notes.as_deref().unwrap_or("").starts_with("Must be an XISO"), "xemu warns about XISO");
+    assert!(xbox.condition.as_deref().unwrap_or("").starts_with("Must be an XISO"), "xemu warns about XISO");
     let x360 = check("roms/xbox360/Halo 3 (USA).iso", "xbox360", "xenia-canary");
     assert_eq!(x360.state, Fmt::Compatible);
     // A Conditional rule is how a format requirement is expressed, whatever its wording
@@ -706,7 +706,7 @@ fn default_emulators_judge_their_common_formats() {
     // .cia installs into Azahar rather than booting: allowed, with that warning
     let cia = check("roms/n3ds/Pokemon Y.cia", "3ds", "azahar");
     assert_eq!(cia.state, Fmt::Compatible);
-    assert!(cia.notes.unwrap_or_default().starts_with("Azahar installs"));
+    assert!(cia.condition.unwrap_or_default().starts_with("Azahar installs"));
 }
 
 /// Rescuer whose saves are locked: a save root Romio can't read, wholly or in part,

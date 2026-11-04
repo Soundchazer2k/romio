@@ -25,7 +25,9 @@ export function FormatSystemRow({
   const hasAmber = group.results.some((r) => r.state === "FormatDeprecated");
   // Unknown means no rule covers the file: not checked, so never "All OK"
   const uncheckedCount = group.results.filter((r) => r.state === "Unknown").length;
-  const allOk    = issueCount === 0 && uncheckedCount === 0;
+  const conditionalCount = group.results.filter((r) => r.condition).length;
+  const allOk    = issueCount === 0 && uncheckedCount === 0 && conditionalCount === 0;
+  const emulator = group.results[0]?.emulator;
 
   return (
     <motion.div
@@ -35,7 +37,7 @@ export function FormatSystemRow({
       className={cn(
         "rounded-xl border transition-colors overflow-hidden",
         hasRed   ? "border-romio-red/30 bg-romio-red/5" :
-        hasAmber ? "border-amber-400/20 bg-amber-400/5" :
+        hasAmber || conditionalCount > 0 ? "border-amber-400/20 bg-amber-400/5" :
         allOk    ? "border-romio-green/20" :
                    "border-border bg-background-surface/40"
       )}
@@ -58,10 +60,19 @@ export function FormatSystemRow({
             <span className="ml-2 text-xs text-romio-gray">
               {group.results.length} {group.results.length === 1 ? "file" : "files"}
             </span>
+            {emulator && emulator !== "unknown" && (
+              <span className="ml-2 font-mono text-xs text-romio-gray">{emulator}</span>
+            )}
           </div>
         </div>
 
-        <SystemBadge issueCount={issueCount} uncheckedCount={uncheckedCount} hasRed={hasRed} hasAmber={hasAmber} />
+        <SystemBadge
+          issueCount={issueCount}
+          conditionalCount={conditionalCount}
+          uncheckedCount={uncheckedCount}
+          fileCount={group.results.length}
+          hasRed={hasRed}
+        />
       </button>
 
       {/* Expanded rows */}
@@ -92,25 +103,24 @@ export function FormatSystemRow({
   );
 }
 
-function SystemBadge({ issueCount, uncheckedCount, hasRed, hasAmber: _hasAmber }: {
-  issueCount: number; uncheckedCount: number; hasRed: boolean; hasAmber: boolean;
+function SystemBadge({ issueCount, conditionalCount, uncheckedCount, fileCount, hasRed }: {
+  issueCount: number; conditionalCount: number; uncheckedCount: number; fileCount: number; hasRed: boolean;
 }) {
-  if (issueCount === 0 && uncheckedCount > 0) {
+  if (uncheckedCount === fileCount) {
     return <span className="text-xs font-medium text-romio-gray">No rules yet</span>;
   }
-  if (issueCount === 0) {
+  if (issueCount === 0 && conditionalCount === 0 && uncheckedCount === 0) {
     return <span className="text-xs font-medium text-romio-green">All OK</span>;
   }
-  if (hasRed) {
-    return (
-      <span className="text-xs font-medium text-romio-red">
-        {issueCount} {issueCount === 1 ? "issue" : "issues"}
-      </span>
-    );
-  }
   return (
-    <span className="text-xs font-medium text-amber-400">
-      {issueCount} {issueCount === 1 ? "issue" : "issues"}
+    <span className="flex gap-2 shrink-0 text-xs font-medium">
+      {issueCount > 0 && (
+        <span className={hasRed ? "text-romio-red" : "text-amber-400"}>
+          {issueCount} {issueCount === 1 ? "issue" : "issues"}
+        </span>
+      )}
+      {conditionalCount > 0 && <span className="text-amber-400">{conditionalCount} conditional</span>}
+      {uncheckedCount > 0 && <span className="text-romio-gray">{uncheckedCount} unchecked</span>}
     </span>
   );
 }
