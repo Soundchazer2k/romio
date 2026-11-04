@@ -70,18 +70,21 @@ pub fn system_for_folder(folder: &str) -> String {
     }.to_string()
 }
 
-/// A file is a game when the system's own rules name its extension, or the scanner knows
-/// the extension. That leaves out gamelist.xml, .m3u playlists and other systems' formats.
+/// Formats that are rarely games outside their own system, so a system's rules can rule
+/// them out. Rules aren't a full format list, so any other known extension stays listed:
+/// a wrong Unknown row beats a game silently left unchecked.
+const SCOPED_EXTENSIONS: &[&str] = &["car", "ids", "min", "bs", "easyrpg"];
+
+/// A file is a game when its system's rules name its extension, or the extension is known
+/// and nothing rules it out. That leaves out gamelist.xml, .m3u playlists and artwork.
 fn is_game_file(path: &Path, system: &str, rules: &[FormatRule]) -> bool {
     let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
     if ext == "m3u" { return false; }
     if rules.iter().any(|r| r.system == system && r.extension == ext) { return true; }
-    // .png is usually artwork, so only a system's own rule makes it a game
-    if ext == "png" { return false; }
-    crate::engine::scanner::is_rom_extension(&ext)
-        // With no rules we can't tell what this system uses, e.g. .bs in satellaview/.
-        // Keep the file: an extra Unknown row beats a game silently left unchecked.
-        || (!rules.iter().any(|r| r.system == system) && rules.iter().any(|r| r.extension == ext))
+    // .png is usually artwork. TIC-80 has no rules yet, and standalone TIC-80 loads .png carts.
+    if ext == "png" { return system == "tic80"; }
+    if SCOPED_EXTENSIONS.contains(&ext.as_str()) && rules.iter().any(|r| r.system == system) { return false; }
+    crate::engine::scanner::is_rom_extension(&ext) || rules.iter().any(|r| r.extension == ext)
 }
 
 /// Check a single file's format compatibility against the loaded rules.

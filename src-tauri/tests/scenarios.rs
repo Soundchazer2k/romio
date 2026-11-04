@@ -663,6 +663,7 @@ fn default_emulators_judge_their_common_formats() {
         ("roms/jaguar/a.zip", "jaguar", "lr-virtualjaguar"),
         ("roms/pokemini/a.zip", "pokemini", "lr-pokemini"),
         ("roms/pico8/a.p8", "pico8", "lr-retro8"),
+        ("roms/snes-msu1/a.fig", "snes-msu1", "lr-snes9x"),
         ("roms/pico8/a.p8.png", "pico8", "lr-retro8"),
         ("roms/prboom/a.wad", "prboom", "lr-prboom"),
         ("roms/gzdoom/a.wad", "gzdoom", "gzdoom"),
@@ -846,8 +847,8 @@ fn every_system_with_format_rules_has_a_recommended_emulator() {
     assert!(missing.is_empty(), "no emulator_matrix entry for: {missing:?}");
 }
 
-/// Format Check lists a file only where it could be a game: artwork and another
-/// system's formats stay out, but a system's own formats and game folders stay in.
+/// Format Check lists a file wherever it could be a game: artwork and a few formats
+/// that are rarely games elsewhere stay out, but a wrong Unknown row beats a missing game.
 #[test]
 fn format_check_lists_a_systems_own_formats_not_stray_files() {
     let lib = Library::new();
@@ -869,6 +870,14 @@ fn format_check_lists_a_systems_own_formats_not_stray_files() {
         // No rules for this system yet, so its formats can't be ruled out. Artwork still can.
         "roms/satellaview/BS Zelda.bs",
         "roms/satellaview/box.png",
+        // Partial rules aren't a full format list: lr-snes9x accepts all of these
+        "roms/snes-msu1/Zelda MSU.fig",
+        "roms/snes-msu1/Zelda MSU.swc",
+        "roms/snes-msu1/Zelda MSU.bs",
+        // A format another system uses, not named by this system's rules
+        "roms/tg16cd/Ys.mds",
+        // TIC-80 saves carts as .png; standalone TIC-80 loads them
+        "roms/tic80/8bit panda.png",
     ] {
         lib.game(g);
     }
@@ -893,4 +902,7 @@ fn format_check_lists_a_systems_own_formats_not_stray_files() {
     assert_eq!(listed("pico8"), ["celeste.p8.png"]);
     assert_eq!(listed("easyrpg"), ["Ib.easyrpg", "Yume.zip"]);
     assert_eq!(listed("satellaview"), ["BS Zelda.bs"]);
+    assert_eq!(listed("snes-msu1"), ["Zelda MSU.bs", "Zelda MSU.fig", "Zelda MSU.swc"]);
+    assert_eq!(listed("tg16cd"), ["Ys.mds"]);
+    assert_eq!(listed("tic80"), ["8bit panda.png"]);
 }
