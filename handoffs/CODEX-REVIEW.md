@@ -105,3 +105,72 @@ Primary evidence: [Libretro FBNeo BIOS search locations](https://docs.libretro.c
 **Send to Claude first. Antigravity is not needed to establish or fix these three reproducible findings.** Ask Claude to correct them, preserve the path-retention fix, add regression scenarios, and refresh CURRENT.md with the new commit and checks.
 
 Afterward, manually ask Antigravity to recheck typed/cleared save-root retention and project isolation, regional BIOS wording, and consistency between Dashboard and BIOS badges. Native emulator validation of the corrected Kronos/PCSX2 cases is useful if locally owned BIOS dumps and configured emulators are available; otherwise explicitly report that coverage as unavailable. Keep screenshots, test locations and exact tested commit in GEMINI-QA.md, without private paths or copyrighted dumps. No messages to other agents, commit, push, or GitHub review were sent by this pass.
+
+## Round 3
+
+Final review performed 2026-11-04 against `76201d1eddc7af73cef172cdca71908ae6e7140d`, with base `d9e1e2880d959c6deb2b2ff47dd2145f629ec831`. Fetched origin, read CURRENT.md from `origin/docs/handoffs`, and followed its working-copy commands on isolated branch `codex/review-3`. Earlier rounds are unchanged.
+
+**Merge verdict: do not merge #29 yet. Two P2 findings should block this PR because they contradict its BIOS correctness requirements.** Neither involves a save-overwrite route.
+
+| Finding | Severity | Block merging #29? | Reason |
+|:--|:--|:--|:--|
+| R3-1: Kronos fallback hides corrupt preferred file | P2 | **Yes** | Newly accepted alternatives can produce PresentValid for a BIOS the core will not select; violates requirement 5. |
+| R3-2: Beetle PSX checksum fallback rejected | P2 | **Yes** | A source-confirmed supported filename is classified as blocking; the new regression test encodes the opposite of upstream behavior; violates requirement 9. |
+| Documented limited revision coverage, configuration-specific paths, and already deferred UI/error issues | Follow-up | **No additional blocker established** | Not re-reported as new findings; the review does not certify uninspected settings or unlisted revisions. |
+
+### R3-1 — [P2, merge blocker] Respect Kronos file precedence before accepting a fallback
+
+PR location: `src-tauri/src/engine/bios_validator.rs:153-169`, particularly `copies.iter().find(|(_, p)| is_in_place(p))` at line 163.
+
+The validator selects any recognized good copy from the entire accepted-path set, without checking whether an earlier-priority file already exists with bad contents. With corrupt `bios/kronos/saturn_bios.bin` and a valid root-level `bios/mpr-17933.bin`, the result is `saturn_bios.bin = PresentValid` and Saturn is not blocking. The fallback has hidden the corrupt file the emulator actually selects.
+
+Exact compatibility evidence: [Kronos, pinned commit d451a55, libretro.c:1619](https://github.com/FCare/Kronos/blob/d451a55253e2e75bcef704ec8ade2085d298212c/yabause/src/libretro/libretro.c#L1619-L1638) sets the preferred filename and only advances to each fallback if `does_file_exist` fails. It does not choose the first recognized-good revision across all existing candidates. [Line 1720](https://github.com/FCare/Kronos/blob/d451a55253e2e75bcef704ec8ade2085d298212c/yabause/src/libretro/libretro.c#L1720) passes that selected path to `yinit.biospath`. The claim here is about the file selected by upstream, not a claimed live emulator launch.
+
+Independent reproduction, using the shipped rules with fixture hashes:
+
+1. Write corrupt placeholder bytes at `bios/kronos/saturn_bios.bin`.
+2. Write known-good fixture bytes for `mpr-17933.bin` at `bios/mpr-17933.bin` and add that fixture's hash to the Kronos rule's known-good alternatives (matching the shipped real-hash relationship).
+3. Sweep with Saturn preference `lr-kronos`.
+4. Assert that the Kronos entry is not PresentValid and Saturn blocks. **Fails: the entry is PresentValid.**
+
+Temporary test: `review_round3_kronos_bad_preferred_file_must_not_be_hidden_by_good_fallback`.
+
+Fix narrowly: for the ordered Kronos candidates, evaluate the file the core selects first, then classify its content. Keep legitimate fallback support when earlier candidates are absent, and keep ordinary non-selected backup copies from hiding a correct selected BIOS. Add this precedence regression alongside the existing one-file-at-a-time fallback tests.
+
+### R3-2 — [P2, merge blocker] Correct the assumption that Beetle PSX requires the canonical filename
+
+PR locations: `src-tauri/data/bios_rules.json:13,28,43` (PS1 any-name lists only include DuckStation); `src-tauri/src/engine/bios_validator.rs:158-163`; `src-tauri/tests/scenarios.rs:359` explicitly expects a renamed BIOS to be rejected by Beetle PSX.
+
+Place valid US BIOS contents directly under the BIOS root as `PS1 US.bin`, with no canonical named candidate, and select `lr-beetle-psx`. Romio recognizes the bytes but returns PresentWrongPath and blocking. Current upstream Beetle PSX performs a checksum-based directory search when its named candidates are absent, so this placement is usable under that search path. The earlier assumption that Beetle Saturn's fixed-name behavior also applies to Beetle PSX is incorrect.
+
+Exact compatibility evidence, pinned Beetle PSX commit `71ee81e77acd49296ecf4a683f5a61568ba80bf9`:
+
+- [libretro.c:843-845](https://github.com/libretro/beetle-psx-libretro/blob/71ee81e77acd49296ecf4a683f5a61568ba80bf9/libretro.c#L843-L845): invokes `search_firmware` when named candidates were not found.
+- [libretro.c:633](https://github.com/libretro/beetle-psx-libretro/blob/71ee81e77acd49296ecf4a683f5a61568ba80bf9/libretro.c#L633): enumerates the base directory without requiring the canonical basename.
+- [libretro.c:660-667](https://github.com/libretro/beetle-psx-libretro/blob/71ee81e77acd49296ecf4a683f5a61568ba80bf9/libretro.c#L660-L667): checks supported image sizes, calculates SHA1, and accepts the expected checksum.
+
+Independent reproduction: `lib.bios("bios/PS1 US.bin", "scph5501.bin")`, shipped fixture rules, `sweep_as(..., "ps1", "lr-beetle-psx", ...)`, then expect PresentValid and not blocking. **Fails: PresentWrongPath.** Temporary test: `review_round3_beetle_psx_checksum_fallback_accepts_renamed_bios`. Placeholder bytes simulate Romio's known-good hash lookup; acceptance of an actual correctly sized BIOS by upstream is established from the source, not by running placeholder bytes in an emulator.
+
+Fix narrowly: model Beetle PSX's named-candidate/checksum-fallback behavior and correct the test that currently enforces a false rejection. Do not blindly apply the same policy to Beetle Saturn, nor ignore a corrupt named file that takes precedence over checksum search. If supporting older core versions with different behavior is intentional, record and enforce that version boundary instead of making an unconditional compatibility claim.
+
+### Source checks and Round 2 closure
+
+- **Beetle Saturn fixed filenames confirmed, not assumed:** [ss.c:1846-1849](https://github.com/libretro/beetle-saturn-libretro/blob/30f4c12072d265c9e553dcb29386059114945dea/mednafen/ss/ss.c#L1846-L1849) selects `sega_101.bin` or `mpr-17933.bin` by area; [ss.c:1868-1874](https://github.com/libretro/beetle-saturn-libretro/blob/30f4c12072d265c9e553dcb29386059114945dea/mednafen/ss/ss.c#L1868-L1874) opens that path under the base directory. The current handoff's Beetle PSX and Saturn assumptions must therefore be separated.
+- **Round 2 Kronos single-file fallbacks:** fixed for the isolated single-candidate cases tested by `kronos_reads_its_fallback_files`; R3-1 covers the missing multiple-candidate precedence case.
+- **Round 2 PCSX2 basename rejection:** fixed for the recognized revision in the configured root, confirmed by the passing scenario. Upstream [BiosTools.cpp:263](https://github.com/PCSX2/pcsx2/blob/1ccd6a8dc3574771c138849039d71951a3a1c175/pcsx2/ps2/BiosTools.cpp#L263) enumerates `*`, and [line 273](https://github.com/PCSX2/pcsx2/blob/1ccd6a8dc3574771c138849039d71951a3a1c175/pcsx2/ps2/BiosTools.cpp#L273) identifies images with `IsBIOS`. Broader revision support is still the disclosed follow-up.
+- **Round 2 unrecognized Neo Geo ZIP in a rejected folder:** fixed by the revised same-name/location branch; known/unknown hash and accepted/rejected location scenarios pass. This does not validate ZIP contents or remove the disclosed assumption about the game's actual ROM directory.
+- **Any-name matching does not itself relabel JP contents as US:** an additional review test put JP fixture bytes at `bios/scph5501.bin` under DuckStation; the JP entry was PresentValid while the US entry remained PresentHashMismatch. This passed. The deliberately retained region-complete product policy remains distinct from per-file identity.
+- Reviewed all 25 shipped entries against the changed placement/blocking code. No further merge blocker established from optional Dreamcast/DS/32X entries, required nonregional entries, NotApplicable filtering, or empty-region handling. Arbitrary external emulator settings and unknown BIOS revisions remain outside what these rules can certify; xemu's configured MCPX path was not independently source-audited in this pass.
+
+### Checks and boundaries
+
+- Unmodified reviewed application: **52 frontend tests, 43 Rust unit tests and 18 scenario tests passed**; TypeScript `tsc --noEmit` passed. The opt-in real-library smoke test returned early without its environment variable, so this is not evidence of a real-library scan.
+- Three additional review-only Rust scenarios: **two failed** (R3-1/R3-2), **one passed** (wrong-region content identity). Tests were temporary, in the isolated worktree only, and restored afterward. The worktree is clean; no application code or permanent tests were changed.
+- `anyNameEmulators` matches `any_name_emulators` through camelCase Serde serialization and has a default empty vector; TS models expose the optional array. No new IPC contract mismatch found.
+- Save root retention and conflict handling remain as reviewed in Round 2. Conflict cards still do not offer migration planning (`SavesScreen.tsx:229` requires `migration_needed`), and execution remains unavailable (`SavesScreen.tsx:477`). No newly introduced save-overwrite route identified.
+- Did not launch real emulators, use genuine BIOS dumps, run native desktop/installer checks, or rerun lint, dependency audit, or production packaging. Passing fixture tests do not certify every emulator version or configuration. Existing compiler warnings were left alone.
+- No commit, push, merge, GitHub review, or message to another agent was performed. Only this Round 3 report was added to the shared handoff document.
+
+### Next action
+
+Send this report directly to Claude for the two focused corrections and regression tests. Antigravity is not needed to establish either finding before that handoff. After fixes, a native visual pass is useful, but should be reported separately from source-backed engine validation. #29 should await the two corrections rather than being merged based only on the currently passing suites.
