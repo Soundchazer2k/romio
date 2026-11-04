@@ -77,12 +77,9 @@ pub fn validate_system_bios(
     let blocking = rules.iter().zip(&entries).any(|(rule, entry)| {
         let usable = entry.state == BiosValidationState::PresentValid
             || entry.state == BiosValidationState::NotApplicable;
-        // A zip's hash changes when it's rebuilt, and a rule with no hash can't judge a file
-        let hash_inconclusive = entry.state == BiosValidationState::PresentHashMismatch
-            && (rule.compressed || rule.known_good_md5.is_empty());
         rule.requirement == BiosRequirement::Required
             && !usable
-            && !hash_inconclusive
+            && !(entry.state == BiosValidationState::PresentHashMismatch && hash_is_inconclusive(rule))
             && !(rule.region.is_some() && any_region_complete)
     });
 
@@ -91,6 +88,11 @@ pub fn validate_system_bios(
         .unwrap_or_default();
 
     Ok(BiosSystemResult { system, entries, blocking, errored: false })
+}
+
+/// A zip's hash changes when it's rebuilt, and a rule with no hash can't judge a file.
+fn hash_is_inconclusive(rule: &BiosRule) -> bool {
+    rule.compressed || rule.known_good_md5.is_empty()
 }
 
 /// Scan a directory tree and build a hash-to-path index.
@@ -153,7 +155,12 @@ fn evaluate_rule(
     let copies: Vec<(&String, &PathBuf)> = rule.known_good_md5.iter()
         .flat_map(|hash| found_files.get(hash).into_iter().flatten().map(move |p| (hash, p)))
         .collect();
-    let in_place = copies.iter().find(|(_, p)| accepted.contains(&normalize_lexically(p)));
+    let any_name = rule.any_name_emulators.iter().any(|e| e == emulator);
+    let is_in_place = |p: &Path| {
+        let p = normalize_lexically(p);
+        accepted.contains(&p) || (any_name && p.parent() == expected_path.parent())
+    };
+    let in_place = copies.iter().find(|(_, p)| is_in_place(p));
     let hash_match = in_place.or(copies.first())
         .map(|(hash, path)| ((*hash).clone(), (*path).clone()));
 
@@ -175,8 +182,8 @@ fn evaluate_rule(
 
         // Valid hash found — check if it's at the right path
         (Some((hash, actual_path)), None) => {
-            let at_correct_path = accepted.contains(&normalize_lexically(&actual_path));
-            let rename_needed = actual_path.file_name() != expected_path.file_name();
+            let at_correct_path = is_in_place(&actual_path);
+            let rename_needed = !at_correct_path && actual_path.file_name() != expected_path.file_name();
 
             BiosEntryResult {
                 rule: rule.clone(),
@@ -201,13 +208,18 @@ fn evaluate_rule(
         // No valid hash found anywhere
         (None, None) => {
             // Check if the filename exists but with wrong hash (possible corruption)
-            let filename_exists_wrong_hash = found_files.values().flatten()
-                .any(|p| p.file_name()
+            let same_name: Vec<&PathBuf> = found_files.values().flatten()
+                .filter(|p| p.file_name()
                     .and_then(|n| n.to_str())
                     .map(|n| n.to_lowercase() == rule.filename.to_lowercase())
-                    .unwrap_or(false));
+                    .unwrap_or(false))
+                .collect();
+            let readable = same_name.iter().any(|p| accepted.contains(&normalize_lexically(p)));
 
-            let state = if filename_exists_wrong_hash {
+            let state = if !same_name.is_empty() && !readable && hash_is_inconclusive(rule) {
+                // The hash can't condemn it, but the emulator still can't find it there
+                BiosValidationState::PresentWrongPath
+            } else if !same_name.is_empty() {
                 BiosValidationState::PresentHashMismatch
             } else {
                 match rule.requirement {
@@ -255,8 +267,14 @@ fn accepted_paths(
     emulator: &str,
 ) -> Vec<PathBuf> {
     let mut paths = vec![resolve_expected_path(rule, bios_root, frontend, emulator)];
-    paths.extend(rule.also_accepted_paths.iter()
-        .map(|dir| normalize_lexically(&bios_root.join(dir).join(&rule.filename))));
+    paths.extend(rule.also_accepted_paths.iter().map(|place| {
+        let file = if place.is_empty() || place.ends_with('/') {
+            bios_root.join(place).join(&rule.filename)
+        } else {
+            bios_root.join(place)
+        };
+        normalize_lexically(&file)
+    }));
     paths
 }
 
@@ -294,6 +312,7 @@ mod tests {
             frontend_paths: HashMap::new(),
             emulator_paths: HashMap::new(),
             also_accepted_paths: vec![],
+            any_name_emulators: vec![],
             only_emulators: vec![],
             notes: None,
             dumping_guide_url: None,

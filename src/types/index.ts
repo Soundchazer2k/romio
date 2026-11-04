@@ -67,6 +67,7 @@ export interface BiosRule {
   frontendPaths:     Record<string, string>;
   emulatorPaths:     Record<string, string>;
   alsoAcceptedPaths?: string[];
+  anyNameEmulators?: string[];
   onlyEmulators?:    string[];
   notes?:            string;
   dumpingGuideUrl?:  string;

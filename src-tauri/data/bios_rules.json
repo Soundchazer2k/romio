@@ -10,6 +10,7 @@
     "defaultPath": "",
     "frontendPaths": {},
     "emulatorPaths": {},
+    "anyNameEmulators": ["duckstation"],
     "notes": "PlayStation 1 US BIOS v3.0. Recommended for US library. Most tested revision.",
     "dumpingGuideUrl": "https://www.ngemu.com/threads/psx-bios-dumping-guide.93161/"
   },
@@ -24,6 +25,7 @@
     "defaultPath": "",
     "frontendPaths": {},
     "emulatorPaths": {},
+    "anyNameEmulators": ["duckstation"],
     "notes": "PlayStation 1 JP BIOS v3.0. Required for JP-exclusive titles.",
     "dumpingGuideUrl": "https://www.ngemu.com/threads/psx-bios-dumping-guide.93161/"
   },
@@ -38,6 +40,7 @@
     "defaultPath": "",
     "frontendPaths": {},
     "emulatorPaths": {},
+    "anyNameEmulators": ["duckstation"],
     "notes": "PlayStation 1 EU BIOS v3.0. Required for PAL-only titles.",
     "dumpingGuideUrl": "https://www.ngemu.com/threads/psx-bios-dumping-guide.93161/"
   },
@@ -52,6 +55,7 @@
     "defaultPath": "",
     "frontendPaths": {},
     "emulatorPaths": {},
+    "anyNameEmulators": ["duckstation"],
     "notes": "PlayStation 1 US BIOS v2.2. Older revision — use scph5501.bin unless you have a specific reason.",
     "dumpingGuideUrl": null
   },
@@ -66,6 +70,7 @@
     "defaultPath": "",
     "frontendPaths": {},
     "emulatorPaths": {},
+    "anyNameEmulators": ["pcsx2"],
     "notes": "PS2 USA Slim v2.00. Most compatible — recommended for general US library. PCSX2 will NOT find this in any subfolder inside bios/.",
     "dumpingGuideUrl": "https://pcsx2.net/docs/setup/gather#how-to-dump-your-ps2-bios"
   },
@@ -80,6 +85,7 @@
     "defaultPath": "",
     "frontendPaths": {},
     "emulatorPaths": {},
+    "anyNameEmulators": ["pcsx2"],
     "notes": "PS2 USA Fat v1.6x. Good alternative to SCPH-70012. Better for some early titles.",
     "dumpingGuideUrl": "https://pcsx2.net/docs/setup/gather#how-to-dump-your-ps2-bios"
   },
@@ -93,8 +99,10 @@
     "compressed": false,
     "defaultPath": "",
     "frontendPaths": {},
-    "emulatorPaths": { "lr-kronos": "kronos/" },
-    "notes": "Sega Saturn JP BIOS. Required for all JP Saturn titles. Kronos core needs this in bios/kronos/ — Beetle Saturn needs it in bios/ flat.",
+    "emulatorPaths": {},
+    "anyNameEmulators": ["ymir"],
+    "onlyEmulators": ["lr-beetle-saturn", "ymir"],
+    "notes": "Sega Saturn JP BIOS. Required for all JP Saturn titles. Beetle Saturn needs it in bios/ flat. Kronos reads one BIOS for every region, covered by the saturn_bios.bin rule.",
     "dumpingGuideUrl": null
   },
   {
@@ -108,23 +116,30 @@
     "defaultPath": "",
     "frontendPaths": {},
     "emulatorPaths": {},
+    "anyNameEmulators": ["ymir"],
     "onlyEmulators": ["lr-beetle-saturn", "ymir"],
     "notes": "Sega Saturn US/EU BIOS. Required for all US and EU Saturn titles. Kronos reads saturn_bios.bin instead.",
     "dumpingGuideUrl": null
   },
   {
     "filename": "saturn_bios.bin",
-    "knownGoodMd5": ["af5828fdff51384f99b3c4926be27762"],
+    "knownGoodMd5": [
+      "af5828fdff51384f99b3c4926be27762", "3240872c70984b6cbfda1586cab68dbe",
+      "85ec9ca47d8f6807718151cbcca8b964", "f273555d7d91e8a5a6bfd9bcf066331c",
+      "74570fed4d44b2682b560c8cd44b8b6a", "cb2cebc1b6e573b7c44523d037edcd45",
+      "3ea3202e2634cb47cb90f3a05c015010", "ac4e4b6522e200c0d23d371a8cecbfd3"
+    ],
     "knownBadMd5": [],
     "system": "saturn",
-    "region": "US",
+    "region": null,
     "requirement": "required",
     "compressed": false,
     "defaultPath": "kronos/",
     "frontendPaths": {},
     "emulatorPaths": { "lr-kronos": "kronos/" },
+    "alsoAcceptedPaths": ["", "sega_101.bin", "mpr-17933.bin"],
     "onlyEmulators": ["lr-kronos"],
-    "notes": "Sega Saturn BIOS for the Kronos core, in bios/kronos/. This is not the same revision as mpr-17933.bin, so a renamed copy of that file fails validation.",
+    "notes": "Sega Saturn BIOS for the Kronos core, which reads one file for every region. It looks for kronos/saturn_bios.bin, then saturn_bios.bin, sega_101.bin and mpr-17933.bin in the BIOS folder. Libretro's docs say any valid Saturn BIOS works; the hashes are the Saturn revisions in libretro's System.dat.",
     "dumpingGuideUrl": null
   },
   {
