@@ -182,6 +182,13 @@ export function BiosScreen() {
         </div>
       )}
 
+      {/* Why validation failed; it's the same reason for every system */}
+      {configured && results.some((r) => r.error) && (
+        <div role="alert" className="px-4 py-3 rounded-xl bg-amber-600/5 border border-amber-600/30 text-sm text-amber-400">
+          {results.find((r) => r.error)?.error}. Check the BIOS directory, then revalidate.
+        </div>
+      )}
+
       {/* System results list */}
       {configured && results.length > 0 && (
         <div className="space-y-2">

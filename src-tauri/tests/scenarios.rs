@@ -453,6 +453,7 @@ fn neogeo_zip_location_matters_whatever_its_hash() {
     let rules = fixture_bios_rules();
     let at = |place: &str, known_bytes: bool| {
         let lib = Library::new();
+        std::fs::create_dir_all(lib.path("bios")).unwrap();
         if known_bytes { lib.bios(place, "neogeo.zip"); } else { lib.file(place, b"rebuilt zip"); }
         let results = sweep(&lib.path("bios"), "retrobat", &rules);
         (bios_entry(&results, "neogeo.zip").state.clone(), is_blocking(&results, "neogeo"))
@@ -672,6 +673,60 @@ fn locked_save_roots_are_reported_unreadable_not_missing() {
     // Only one subfolder locked: the root opens, but its totals would be short
     let _locked = deny_read(&yuzu).expect("read denial works here");
     assert_eq!(save_root(&discover(), "eden").migration_state, Save::Unreadable);
+}
+
+/// An unplugged drive or a locked folder must not look like a smaller library: the scan
+/// fails, naming the path, so the command layer never replaces the saved results.
+#[test]
+fn unreadable_library_root_fails_the_scan() {
+    let lib = Library::new();
+    let scan = |root: std::path::PathBuf| scan_roots(&[root], Arc::new(AtomicBool::new(false)), |_| {});
+
+    let error = scan(lib.path("roms")).expect_err("missing root").to_string();
+    assert!(error.contains("roms"), "names the path: {error}");
+
+    lib.game("roms/psx/Ape Escape (USA).chd");
+    lib.game("roms/n64/Mario Kart 64 (USA).z64");
+    assert_eq!(scan(lib.path("roms")).unwrap().len(), 2);
+
+    // An empty library that really is empty still scans fine
+    std::fs::create_dir_all(lib.path("empty")).unwrap();
+    assert_eq!(scan(lib.path("empty")).unwrap().len(), 0);
+
+    // One locked folder would silently shrink the results
+    let Some(_locked) = deny_read(&lib.path("roms/n64")) else {
+        eprintln!("this OS ignores read denial (running as root?); skipping");
+        return;
+    };
+    let error = scan(lib.path("roms")).expect_err("locked folder").to_string();
+    assert!(error.contains("n64"), "names the path: {error}");
+}
+
+/// A BIOS folder Romio can't read says nothing about which files are missing.
+#[test]
+fn unreadable_bios_root_is_an_error_not_missing_files() {
+    let lib = Library::new();
+    let rules = fixture_bios_rules();
+    let assert_errored = |results: &[BiosSystemResult]| {
+        let ps1 = results.iter().find(|s| s.system == "ps1").unwrap();
+        assert!(ps1.errored, "{ps1:#?}");
+        assert!(ps1.entries.is_empty(), "no verdicts on files it couldn't look for");
+        assert!(ps1.error.as_deref().unwrap_or("").contains("bios"), "says what failed: {ps1:#?}");
+    };
+
+    assert_errored(&sweep(&lib.path("bios"), "retrobat", &rules));
+
+    lib.bios("bios/scph5501.bin", "scph5501.bin");
+    let results = sweep(&lib.path("bios"), "retrobat", &rules);
+    let ps1 = results.iter().find(|s| s.system == "ps1").unwrap();
+    assert!(!ps1.errored);
+    assert_eq!(ps1.error, None);
+
+    let Some(_locked) = deny_read(&lib.path("bios")) else {
+        eprintln!("this OS ignores read denial (running as root?); skipping");
+        return;
+    };
+    assert_errored(&sweep(&lib.path("bios"), "retrobat", &rules));
 }
 
 /// Opt-in check against your own library. Never runs in CI.
