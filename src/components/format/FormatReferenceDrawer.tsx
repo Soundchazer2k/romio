@@ -6,7 +6,7 @@ import { formatSupportLabel, cn } from "@/lib/utils";
 import { Modal, Dialog } from "@/components/shared/Modal";
 
 const SUPPORT_STATES = [
-  { label: "Supported",   desc: "File will work with this emulator as-is." },
+  { label: "Supported",   desc: "This emulator reads this format. Romio checks the format, not the file." },
   { label: "Deprecated",  desc: "File works but the format has been replaced. Rename recommended." },
   { label: "Unsupported", desc: "File will not work. Re-dump or convert required." },
   { label: "Conditional", desc: "Works only under specific conditions noted in the rule." },

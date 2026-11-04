@@ -65,6 +65,7 @@ pub fn system_for_folder(folder: &str) -> String {
         "tg16" => "pcengine",
         "neogeocdjp" => "neogeocd",
         "naomigd" => "naomi",
+        "doom" => "gzdoom",
         _ => return name,
     }.to_string()
 }
@@ -223,7 +224,7 @@ mod tests {
         for (folder, system) in [
             ("psx", "ps1"), ("PSX", "ps1"), ("gc", "gamecube"), ("n3ds", "3ds"),
             ("megadrive", "genesis"), ("megacd", "segacd"), ("atarijaguar", "jaguar"),
-            ("tg16", "pcengine"), ("neogeocdjp", "neogeocd"), ("naomigd", "naomi"),
+            ("tg16", "pcengine"), ("neogeocdjp", "neogeocd"), ("naomigd", "naomi"), ("doom", "gzdoom"),
             ("gamecube", "gamecube"), ("xbox360", "xbox360"), ("Foo", "foo"),
         ] {
             assert_eq!(system_for_folder(folder), system);
