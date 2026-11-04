@@ -18,6 +18,8 @@ vi.mock("@/stores", () => ({
   useAppStore: () => ({
     activeProject: mocks.activeProject,
     setRomioState: mocks.setRomioState,
+    saveRoots: {},
+    setSaveRoot: () => undefined,
   }),
 }));
 

@@ -15,15 +15,15 @@ import { cn, formatBytes, migrationStateLabel } from "@/lib/utils";
 // ── Screen ───────────────────────────────────────────────────────────────────
 
 export function SavesScreen() {
-  const { activeProject, setRomioState } = useAppStore();
+  const { activeProject, setRomioState, saveRoots, setSaveRoot } = useAppStore();
   const queryClient = useQueryClient();
-  // Starts at the project's library root, so it survives leaving the screen
-  const [frontendRoot, setFrontendRoot] = useState(activeProject?.libraryRoots?.[0] ?? "");
   const [selectedPlan, setSelectedPlan] = useState<MigrationPlan | null>(null);
   const [selectedRoot, setSelectedRoot] = useState<SaveRoot | null>(null);
   const [logExpanded, setLogExpanded] = useState(false);
 
   const projectId = activeProject?.id ?? "";
+  // Kept in the store: this screen unmounts when the user leaves it
+  const frontendRoot = saveRoots?.[projectId] ?? activeProject?.libraryRoots?.[0] ?? "";
 
   // ── Queries ───────────────────────────────────────────────────────────────
   const { data: roots = [], isLoading } = useQuery({
@@ -121,7 +121,7 @@ export function SavesScreen() {
         </label>
         <input
           value={frontendRoot}
-          onChange={(e) => setFrontendRoot(e.target.value)}
+          onChange={(e) => setSaveRoot(projectId, e.target.value)}
           placeholder="C:\RetroBat  or  /home/user/retrobat"
           className="w-full px-3 py-2.5 rounded-lg bg-black/30 border border-border
                      font-mono text-sm text-romio-cream placeholder:text-romio-gray

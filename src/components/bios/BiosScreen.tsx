@@ -9,7 +9,7 @@ import {
 import { useAppStore } from "@/stores";
 import { ipc } from "@/lib/ipc";
 import type { BiosSystemResult, BiosEntryResult } from "@/types";
-import { cn, biosStateColor, biosStateBg, biosStateLabel, truncatePath } from "@/lib/utils";
+import { cn, biosStateColor, biosStateBg, biosEntryLabel, biosIssueLabel, truncatePath } from "@/lib/utils";
 
 export function BiosScreen() {
   const queryClient = useQueryClient();
@@ -209,7 +209,7 @@ function SystemResultRow({ result, expanded, onToggle, index }: {
   onToggle: () => void;
 }) {
   const allValid   = result.entries.length > 0 &&
-                     result.entries.every(e => e.state === "PRESENT_VALID");
+                     result.entries.every(e => e.state === "PRESENT_VALID" || e.state === "NOT_APPLICABLE");
   const borderColor = result.errored   ? "border-amber-600/30 bg-amber-600/5"
                     : result.blocking  ? "border-romio-red/30 bg-romio-red/5"
                     : allValid         ? "border-romio-green/20"
@@ -247,9 +247,7 @@ function SystemResultRow({ result, expanded, onToggle, index }: {
           )}
           {!result.errored && !result.blocking && !allValid && result.entries.length > 0 && (
             <span className="text-xs font-medium text-amber-400">
-              {result.entries.filter(e =>
-                e.state === "MISSING_REQUIRED" || e.state === "MISSING_OPTIONAL"
-              ).length} missing
+              {biosIssueLabel(result.entries)}
             </span>
           )}
           {result.entries.length === 0 && !result.errored && (
@@ -311,7 +309,7 @@ function BiosEntryRow({ entry }: { entry: BiosEntryResult }) {
               </span>
             )}
             <span className={cn("text-xs", biosStateColor(entry.state))}>
-              {biosStateLabel(entry.state)}
+              {biosEntryLabel(entry)}
             </span>
           </div>
 

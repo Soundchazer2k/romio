@@ -34,17 +34,18 @@ pub fn validate_system_bios(
     emulator: &str,
 ) -> Result<BiosSystemResult> {
     // Step 1: Build a hash map of all files found in the bios directory tree.
-    // Key: MD5 hash, Value: (actual path, filename)
+    // Key: MD5 hash, Value: every path holding those bytes
     let mut found_files = scan_bios_directory(bios_root)?;
 
-    // Some frontends keep a BIOS outside the BIOS folder (ES-DE wants neogeo.zip in
-    // roms/arcade/), where the scan above never looks. Check those spots directly.
+    // Some BIOS files also work outside the BIOS folder (neogeo.zip beside the ROMs),
+    // where the scan above never looks. Check those spots directly.
     let scanned_root = normalize_lexically(bios_root);
     for rule in rules {
-        let expected = resolve_expected_path(rule, bios_root, frontend, emulator);
-        if !expected.starts_with(&scanned_root) && expected.is_file() {
-            if let Ok(hash) = md5_file(&expected) {
-                found_files.entry(hash).or_insert(expected);
+        for path in accepted_paths(rule, bios_root, frontend, emulator) {
+            if !path.starts_with(&scanned_root) && path.is_file() {
+                if let Ok(hash) = md5_file(&path) {
+                    found_files.entry(hash).or_default().push(path);
+                }
             }
         }
     }
@@ -55,12 +56,14 @@ pub fn validate_system_bios(
 
     // A region's BIOS is only needed for that region's games. Once every required file of
     // one region is valid, the system plays, so other regions' missing files are optional.
+    let needed = |r: &BiosRule, e: &BiosEntryResult|
+        r.requirement == BiosRequirement::Required && e.state != BiosValidationState::NotApplicable;
     let region_complete = |region: &str| rules.iter().zip(&entries)
-        .filter(|(r, _)| r.requirement == BiosRequirement::Required && r.region.as_deref() == Some(region))
+        .filter(|(r, e)| needed(r, e) && r.region.as_deref() == Some(region))
         .all(|(_, e)| e.state == BiosValidationState::PresentValid);
-    let any_region_complete = rules.iter()
-        .filter(|r| r.requirement == BiosRequirement::Required)
-        .filter_map(|r| r.region.as_deref())
+    let any_region_complete = rules.iter().zip(&entries)
+        .filter(|(r, e)| needed(r, e))
+        .filter_map(|(r, _)| r.region.as_deref())
         .any(region_complete);
     if any_region_complete {
         for (rule, entry) in rules.iter().zip(entries.iter_mut()) {
@@ -70,8 +73,18 @@ pub fn validate_system_bios(
         }
     }
 
-    let blocking = rules.iter().zip(&entries).any(|(rule, entry)|
-        rule.requirement == BiosRequirement::Required && entry.state == BiosValidationState::MissingRequired);
+    // A required file that is missing, corrupt or misplaced won't boot anything.
+    let blocking = rules.iter().zip(&entries).any(|(rule, entry)| {
+        let usable = entry.state == BiosValidationState::PresentValid
+            || entry.state == BiosValidationState::NotApplicable;
+        // A zip's hash changes when it's rebuilt, and a rule with no hash can't judge a file
+        let hash_inconclusive = entry.state == BiosValidationState::PresentHashMismatch
+            && (rule.compressed || rule.known_good_md5.is_empty());
+        rule.requirement == BiosRequirement::Required
+            && !usable
+            && !hash_inconclusive
+            && !(rule.region.is_some() && any_region_complete)
+    });
 
     let system = rules.first()
         .map(|r| r.system.clone())
@@ -82,8 +95,8 @@ pub fn validate_system_bios(
 
 /// Scan a directory tree and build a hash-to-path index.
 /// This is the core of hash-first identification.
-fn scan_bios_directory(root: &Path) -> Result<HashMap<String, PathBuf>> {
-    let mut index: HashMap<String, PathBuf> = HashMap::new();
+fn scan_bios_directory(root: &Path) -> Result<HashMap<String, Vec<PathBuf>>> {
+    let mut index: HashMap<String, Vec<PathBuf>> = HashMap::new();
 
     if !root.exists() {
         return Ok(index);
@@ -91,6 +104,7 @@ fn scan_bios_directory(root: &Path) -> Result<HashMap<String, PathBuf>> {
 
     for entry in WalkDir::new(root)
         .max_depth(4) // reasonable depth limit
+        .sort_by_file_name()
         .into_iter()
         .filter_map(|e| e.ok())
         .filter(|e| e.file_type().is_file())
@@ -103,7 +117,7 @@ fn scan_bios_directory(root: &Path) -> Result<HashMap<String, PathBuf>> {
 
         if BIOS_EXTENSIONS.contains(&ext.as_str()) {
             match md5_file(path) {
-                Ok(hash) => { index.insert(hash, path.to_path_buf()); }
+                Ok(hash) => { index.entry(hash).or_default().push(path.to_path_buf()); }
                 Err(_)   => { /* skip unreadable files */ }
             }
         }
@@ -115,20 +129,37 @@ fn scan_bios_directory(root: &Path) -> Result<HashMap<String, PathBuf>> {
 /// Evaluate a single BIOS rule against the scanned file index.
 fn evaluate_rule(
     rule: &BiosRule,
-    found_files: &HashMap<String, PathBuf>,
+    found_files: &HashMap<String, Vec<PathBuf>>,
     bios_root: &Path,
     frontend: &str,
     emulator: &str,
 ) -> BiosEntryResult {
-    // Determine the expected placement path for this frontend+emulator combination.
-    let expected_path = resolve_expected_path(rule, bios_root, frontend, emulator);
+    if !rule.only_emulators.is_empty() && !rule.only_emulators.iter().any(|e| e == emulator) {
+        return BiosEntryResult {
+            rule: rule.clone(),
+            found_path: None,
+            found_md5: None,
+            state: BiosValidationState::NotApplicable,
+            rename_from: None,
+            bad_dump_label: None,
+        };
+    }
 
-    // Check if any known-good hash is present anywhere in the scan.
-    let hash_match = rule.known_good_md5.iter()
-        .find_map(|hash| found_files.get(hash).map(|p| (hash.clone(), p.clone())));
+    // Determine where this frontend+emulator combination can read the file from.
+    let accepted = accepted_paths(rule, bios_root, frontend, emulator);
+    let expected_path = &accepted[0];
 
-    // Check if any known-bad-dump hash is present.
+    // Every copy of a known-good hash; one in an accepted place wins over any backups.
+    let copies: Vec<(&String, &PathBuf)> = rule.known_good_md5.iter()
+        .flat_map(|hash| found_files.get(hash).into_iter().flatten().map(move |p| (hash, p)))
+        .collect();
+    let in_place = copies.iter().find(|(_, p)| accepted.contains(&normalize_lexically(p)));
+    let hash_match = in_place.or(copies.first())
+        .map(|(hash, path)| ((*hash).clone(), (*path).clone()));
+
+    // Check if any known-bad-dump hash is present, unless a good copy is already in place.
     let bad_dump_match = rule.known_bad_md5.iter()
+        .filter(|_| in_place.is_none())
         .find_map(|entry| found_files.get(&entry.md5).map(|_| entry.label.clone()));
 
     match (hash_match, bad_dump_match) {
@@ -144,7 +175,7 @@ fn evaluate_rule(
 
         // Valid hash found — check if it's at the right path
         (Some((hash, actual_path)), None) => {
-            let at_correct_path = actual_path.starts_with(&expected_path);
+            let at_correct_path = accepted.contains(&normalize_lexically(&actual_path));
             let rename_needed = actual_path.file_name() != expected_path.file_name();
 
             BiosEntryResult {
@@ -170,7 +201,7 @@ fn evaluate_rule(
         // No valid hash found anywhere
         (None, None) => {
             // Check if the filename exists but with wrong hash (possible corruption)
-            let filename_exists_wrong_hash = found_files.values()
+            let filename_exists_wrong_hash = found_files.values().flatten()
                 .any(|p| p.file_name()
                     .and_then(|n| n.to_str())
                     .map(|n| n.to_lowercase() == rule.filename.to_lowercase())
@@ -216,6 +247,19 @@ fn resolve_expected_path(
     normalize_lexically(&bios_root.join(path_str).join(&rule.filename))
 }
 
+/// Everywhere the file works: the expected path first, then the rule's other folders.
+fn accepted_paths(
+    rule: &BiosRule,
+    bios_root: &Path,
+    frontend: &str,
+    emulator: &str,
+) -> Vec<PathBuf> {
+    let mut paths = vec![resolve_expected_path(rule, bios_root, frontend, emulator)];
+    paths.extend(rule.also_accepted_paths.iter()
+        .map(|dir| normalize_lexically(&bios_root.join(dir).join(&rule.filename))));
+    paths
+}
+
 /// Resolve `.` and `..` without touching the disk, so a frontend path that climbs out
 /// of the BIOS folder compares equal to the path a file was actually found at.
 fn normalize_lexically(path: &Path) -> PathBuf {
@@ -249,6 +293,8 @@ mod tests {
             default_path: "".to_string(),
             frontend_paths: HashMap::new(),
             emulator_paths: HashMap::new(),
+            also_accepted_paths: vec![],
+            only_emulators: vec![],
             notes: None,
             dumping_guide_url: None,
         }

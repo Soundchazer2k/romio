@@ -169,10 +169,10 @@ fn handheld_batocera_fresh_setup_bios() {
     assert_eq!(bios_entry(&results, "dc_boot.bin").state, Bios::PresentValid);
 }
 
-/// ES-DE keeps neogeo.zip with the arcade ROMs, outside the BIOS folder.
-/// Romio must find it there, call it valid, and not block Neo Geo.
+/// FBNeo looks for neogeo.zip beside the romset, then in the system folder, and ES-DE's
+/// guide puts BIOS files with the ROMs. All of those must count as correctly placed.
 #[test]
-fn esde_neogeo_bios_in_roms_arcade_is_found() {
+fn neogeo_bios_is_valid_wherever_fbneo_looks() {
     let lib = Library::new();
     let bios_root = lib.path("Emulation/bios");
     std::fs::create_dir_all(&bios_root).unwrap();
@@ -181,31 +181,131 @@ fn esde_neogeo_bios_in_roms_arcade_is_found() {
     let results = sweep(&bios_root, "esde", &rules);
     assert_eq!(bios_entry(&results, "neogeo.zip").state, Bios::MissingRequired);
 
-    // ES-DE's path is bios/../../roms/arcade/, i.e. roms/arcade beside Emulation/
-    lib.bios("roms/arcade/neogeo.zip", "neogeo.zip");
-    let results = sweep(&bios_root, "esde", &rules);
-    let neogeo = bios_entry(&results, "neogeo.zip");
-    assert_eq!(neogeo.state, Bios::PresentValid, "{neogeo:#?}");
-    assert!(!results.iter().find(|s| s.system == "neogeo").unwrap().blocking);
+    for place in ["roms/arcade/neogeo.zip", "roms/neogeo/neogeo.zip", "Emulation/roms/neogeo/neogeo.zip",
+                  "Emulation/bios/neogeo.zip", "Emulation/bios/fbneo/neogeo.zip"] {
+        let file = lib.bios(place, "neogeo.zip");
+        let results = sweep(&bios_root, "esde", &rules);
+        let neogeo = bios_entry(&results, "neogeo.zip");
+        assert_eq!(neogeo.state, Bios::PresentValid, "{place}: {neogeo:#?}");
+        assert!(!results.iter().find(|s| s.system == "neogeo").unwrap().blocking, "{place}");
+        std::fs::remove_file(file).unwrap();
+    }
 
-    // The same file inside bios/ is in the wrong place for ES-DE
-    std::fs::rename(lib.path("roms/arcade/neogeo.zip"), lib.path("Emulation/bios/neogeo.zip")).unwrap();
+    // Anywhere else in the BIOS folder, the core won't find it
+    lib.bios("Emulation/bios/misc/neogeo.zip", "neogeo.zip");
     let results = sweep(&bios_root, "esde", &rules);
     assert_eq!(bios_entry(&results, "neogeo.zip").state, Bios::PresentWrongPath);
+    assert!(results.iter().find(|s| s.system == "neogeo").unwrap().blocking);
 }
 
-/// EmuDeck and RetroDECK run ES-DE, so ES-DE's placement rules must apply to them too.
+/// A corrupt or misplaced required BIOS won't boot anything, so it must block,
+/// not fall through to a green "All valid".
+#[test]
+fn bad_or_misplaced_required_bios_blocks() {
+    let lib = Library::new();
+    let bios_root = lib.path("bios");
+    let rules = fixture_bios_rules();
+    let blocking = |results: &[BiosSystemResult], id: &str| results.iter().find(|s| s.system == id).unwrap().blocking;
+
+    lib.file("bios/mcpx_1.0.bin", b"corrupt dump");
+    let results = sweep(&bios_root, "retrobat", &rules);
+    assert_eq!(bios_entry(&results, "mcpx_1.0.bin").state, Bios::PresentHashMismatch);
+    assert!(blocking(&results, "xbox"), "bad required BIOS blocks");
+
+    lib.bios("bios/misc/disksys.rom", "disksys.rom");
+    let results = sweep(&bios_root, "retrobat", &rules);
+    assert_eq!(bios_entry(&results, "disksys.rom").state, Bios::PresentWrongPath);
+    assert!(blocking(&results, "fds"), "misplaced required BIOS blocks");
+
+    // A zip's hash changes when it's rebuilt, so a different neogeo.zip is a warning only
+    lib.file("bios/neogeo.zip", b"another romset version");
+    let results = sweep(&bios_root, "retrobat", &rules);
+    assert_eq!(bios_entry(&results, "neogeo.zip").state, Bios::PresentHashMismatch);
+    assert!(!blocking(&results, "neogeo"));
+
+    // Another region's bad file doesn't stop a complete region from playing
+    lib.bios("bios/scph5501.bin", "scph5501.bin");
+    lib.file("bios/scph5500.bin", b"corrupt dump");
+    let results = sweep(&bios_root, "retrobat", &rules);
+    assert_eq!(bios_entry(&results, "scph5500.bin").state, Bios::PresentHashMismatch);
+    assert!(!blocking(&results, "ps1"));
+}
+
+/// A valid BIOS in place stays valid, whatever other copies sit elsewhere in the folder.
+#[test]
+fn backup_copies_do_not_hide_a_correctly_placed_bios() {
+    let lib = Library::new();
+    let bios_root = lib.path("bios");
+
+    lib.bios("bios/scph5501.bin", "scph5501.bin");
+    lib.bios("bios/a_backup/scph5501.bin", "scph5501.bin");
+    lib.bios("bios/z_backup/scph5501.bin", "scph5501.bin");
+    let results = sweep(&bios_root, "retrobat", &fixture_bios_rules());
+    assert_eq!(bios_entry(&results, "scph5501.bin").state, Bios::PresentValid);
+
+    // Even an old bad dump kept as a backup doesn't overrule the good file in place
+    lib.bios("bios/old/old-dump.bin", "old-dump.bin");
+    let rules = with_bad_dump(fixture_bios_rules(), "scph5501.bin", "old-dump.bin", "Known bad revision");
+    let results = sweep(&bios_root, "retrobat", &rules);
+    assert_eq!(bios_entry(&results, "scph5501.bin").state, Bios::PresentValid);
+}
+
+/// Beetle Saturn needs mpr-17933.bin, Kronos needs saturn_bios.bin. Each emulator's
+/// US file must complete the US region alone, and the other shows as not applicable.
+#[test]
+fn saturn_us_bios_depends_on_the_emulator() {
+    let rules = fixture_bios_rules();
+    let saturn = |lib: &Library, emulator: &str| {
+        let config = BiosSweepConfig {
+            bios_root: lib.path("bios"),
+            frontend: "retrobat".into(),
+            emulator_prefs: [("saturn".to_string(), emulator.to_string())].into_iter().collect(),
+        };
+        run_sweep(&config, &rules).unwrap().into_iter().find(|s| s.system == "saturn").unwrap()
+    };
+    let state = |result: &BiosSystemResult, file: &str| {
+        result.entries.iter().find(|e| e.rule.filename == file).unwrap().state.clone()
+    };
+
+    let beetle = Library::new();
+    beetle.bios("bios/mpr-17933.bin", "mpr-17933.bin");
+    for emulator in ["lr-beetle-saturn", "ymir"] {
+        let result = saturn(&beetle, emulator);
+        assert!(!result.blocking, "{emulator}: {result:#?}");
+        assert_eq!(state(&result, "saturn_bios.bin"), Bios::NotApplicable);
+        assert_eq!(state(&result, "sega_101.bin"), Bios::MissingOptional);
+    }
+
+    let kronos = Library::new();
+    kronos.bios("bios/kronos/saturn_bios.bin", "saturn_bios.bin");
+    let result = saturn(&kronos, "lr-kronos");
+    assert!(!result.blocking, "{result:#?}");
+    assert_eq!(state(&result, "mpr-17933.bin"), Bios::NotApplicable);
+}
+
+/// Hashes from the libretro docs for each core that reads the file.
+#[test]
+fn shipped_bios_data_has_the_documented_hashes() {
+    let rules = db::bios::load_all_rules().unwrap();
+    let sega_cd_us = rules.iter().find(|r| r.filename == "bios_CD_U.bin").unwrap();
+    for hash in ["854b9150240a198070150e4566ae1290", "2efd74e3232ff260e371b99f84024f7f"] {
+        assert!(sega_cd_us.known_good_md5.iter().any(|h| h == hash), "{hash}");
+    }
+}
+
+/// EmuDeck and RetroDECK run ES-DE, so a rule's ES-DE path must apply to them too.
 #[test]
 fn emudeck_and_retrodeck_follow_esde_bios_rules() {
     let lib = Library::new();
     let bios_root = lib.path("Emulation/bios");
-    std::fs::create_dir_all(&bios_root).unwrap();
-    lib.bios("roms/arcade/neogeo.zip", "neogeo.zip");
-    let rules = fixture_bios_rules();
+    lib.bios("Emulation/bios/esde-only/disksys.rom", "disksys.rom");
+    let mut rules = fixture_bios_rules();
+    rules.iter_mut().find(|r| r.filename == "disksys.rom").unwrap()
+        .frontend_paths.insert("esde".into(), "esde-only/".into());
 
     for frontend in ["emudeck", "retrodeck"] {
         let results = sweep(&bios_root, frontend, &rules);
-        assert_eq!(bios_entry(&results, "neogeo.zip").state, Bios::PresentValid, "{frontend}");
+        assert_eq!(bios_entry(&results, "disksys.rom").state, Bios::PresentValid, "{frontend}");
     }
 }
 

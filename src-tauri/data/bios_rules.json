@@ -108,7 +108,8 @@
     "defaultPath": "",
     "frontendPaths": {},
     "emulatorPaths": {},
-    "notes": "Sega Saturn US/EU BIOS. Required for all US and EU Saturn titles.",
+    "onlyEmulators": ["lr-beetle-saturn", "ymir"],
+    "notes": "Sega Saturn US/EU BIOS. Required for all US and EU Saturn titles. Kronos reads saturn_bios.bin instead.",
     "dumpingGuideUrl": null
   },
   {
@@ -122,7 +123,8 @@
     "defaultPath": "kronos/",
     "frontendPaths": {},
     "emulatorPaths": { "lr-kronos": "kronos/" },
-    "notes": "Sega Saturn BIOS — Kronos core naming. Same ROM as mpr-17933.bin but must be named saturn_bios.bin and placed in bios/kronos/ for the Kronos core.",
+    "onlyEmulators": ["lr-kronos"],
+    "notes": "Sega Saturn BIOS for the Kronos core, in bios/kronos/. This is not the same revision as mpr-17933.bin, so a renamed copy of that file fails validation.",
     "dumpingGuideUrl": null
   },
   {
@@ -175,7 +177,7 @@
   },
   {
     "filename": "bios_CD_U.bin",
-    "knownGoodMd5": ["2efd74e3232ff260e371b99f84024f7f"],
+    "knownGoodMd5": ["2efd74e3232ff260e371b99f84024f7f", "854b9150240a198070150e4566ae1290"],
     "knownBadMd5": [],
     "system": "segacd",
     "region": "US",
@@ -352,13 +354,14 @@
     "requirement": "required",
     "compressed": true,
     "defaultPath": "",
-    "frontendPaths": {
-      "esde": "../../roms/arcade/",
-      "retrobat": "",
-      "launchbox": ""
-    },
+    "frontendPaths": {},
     "emulatorPaths": {},
-    "notes": "Neo Geo BIOS zip. ES-DE ONLY: must be in roms/arcade/ folder — NOT in bios/ or bios/mame/ (which work for every other frontend). Known-good hash is the FBNeo set listed in libretro's System.dat; other romset versions show as a hash mismatch, not as missing.",
+    "alsoAcceptedPaths": [
+      "fbneo/",
+      "../roms/neogeo/", "../roms/arcade/", "../roms/fbneo/",
+      "../../roms/neogeo/", "../../roms/arcade/", "../../roms/fbneo/"
+    ],
+    "notes": "Neo Geo BIOS zip. FBNeo looks beside the romset, then in the BIOS folder's fbneo/ subfolder, then the BIOS folder itself. ES-DE's guide keeps BIOS files with the ROMs of that system (roms/neogeo/ or roms/arcade/). Known-good hash is the FBNeo set listed in libretro's System.dat; other romset versions show as a hash mismatch, not as missing.",
     "dumpingGuideUrl": null
   }
 ]

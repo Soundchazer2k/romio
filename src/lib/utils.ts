@@ -2,7 +2,7 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import type {
-  BiosValidationState, FindingSeverity, SaveMigrationState,
+  BiosEntryResult, BiosValidationState, FindingSeverity, SaveMigrationState,
   FormatCompatibilityState, FormatSupport, FormatCheckResult, FormatSystemGroup,
 } from "@/types";
 
@@ -73,6 +73,25 @@ export function biosStateLabel(state: BiosValidationState): string {
     case "MISSING_OPTIONAL":      return "Missing — optional";
     case "NOT_APPLICABLE":        return "Not applicable";
   }
+}
+
+/** A regional file that isn't needed once another region is complete says so plainly */
+export function biosEntryLabel(entry: BiosEntryResult): string {
+  if (entry.state === "MISSING_OPTIONAL" && entry.rule.region && entry.rule.requirement === "required") {
+    return `Missing — needed for ${entry.rule.region} games`;
+  }
+  return biosStateLabel(entry.state);
+}
+
+/** Summary for entries that aren't blocking but aren't all fine; null when nothing is wrong */
+export function biosIssueLabel(entries: BiosEntryResult[]): string | null {
+  const toCheck = entries.filter((e) =>
+    e.state === "PRESENT_HASH_MISMATCH" || e.state === "PRESENT_WRONG_PATH").length;
+  const missing = entries.filter((e) =>
+    e.state === "MISSING_REQUIRED" || e.state === "MISSING_OPTIONAL").length;
+  if (toCheck > 0) return `${toCheck} to check`;
+  if (missing > 0) return `${missing} missing`;
+  return null;
 }
 
 export function severityColor(severity: FindingSeverity): string {

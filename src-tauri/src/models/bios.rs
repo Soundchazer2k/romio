@@ -26,6 +26,12 @@ pub struct BiosRule {
     pub frontend_paths:     std::collections::HashMap<String, String>,
     /// Emulator-specific path overrides — keyed by emulator id
     pub emulator_paths:     std::collections::HashMap<String, String>,
+    /// Other folders, relative to the bios root, where the file also works
+    #[serde(default)]
+    pub also_accepted_paths: Vec<String>,
+    /// Emulators that read this file; empty means all of them
+    #[serde(default)]
+    pub only_emulators:     Vec<String>,
     /// Human-readable notes for the UI
     pub notes:              Option<String>,
     /// Link to official dumping guide

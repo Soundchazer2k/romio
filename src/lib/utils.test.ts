@@ -6,8 +6,35 @@ import {
   formatSupportLabel,
   groupResultsBySystem,
   systemForFolder,
+  biosEntryLabel,
+  biosIssueLabel,
 } from "./utils";
-import type { FormatCheckResult } from "@/types";
+import type { BiosEntryResult, BiosValidationState, FormatCheckResult } from "@/types";
+
+function biosEntry(state: BiosValidationState, rule: Partial<BiosEntryResult["rule"]> = {}) {
+  return { state, rule: { requirement: "optional", ...rule } } as BiosEntryResult;
+}
+
+describe("biosIssueLabel", () => {
+  it("never calls a corrupt or misplaced BIOS fine", () => {
+    expect(biosIssueLabel([biosEntry("PRESENT_HASH_MISMATCH")])).toBe("1 to check");
+    expect(biosIssueLabel([biosEntry("PRESENT_WRONG_PATH"), biosEntry("MISSING_OPTIONAL")])).toBe("1 to check");
+  });
+  it("counts missing files, and is null when all is fine", () => {
+    expect(biosIssueLabel([biosEntry("MISSING_OPTIONAL"), biosEntry("MISSING_REQUIRED")])).toBe("2 missing");
+    expect(biosIssueLabel([biosEntry("PRESENT_VALID"), biosEntry("NOT_APPLICABLE")])).toBeNull();
+  });
+});
+
+describe("biosEntryLabel", () => {
+  it("says which games still need another region's file", () => {
+    expect(biosEntryLabel(biosEntry("MISSING_OPTIONAL", { region: "JP", requirement: "required" })))
+      .toBe("Missing — needed for JP games");
+  });
+  it("leaves truly optional files alone", () => {
+    expect(biosEntryLabel(biosEntry("MISSING_OPTIONAL", { region: "US" }))).toBe("Missing — optional");
+  });
+});
 
 describe("systemForFolder", () => {
   it("maps frontend folder names to Romio system IDs", () => {
