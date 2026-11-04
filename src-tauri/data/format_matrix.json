@@ -976,7 +976,7 @@
     "extension": "ndd",
     "emulator": "lr-mupen64plus-next",
     "frontend": null,
-    "support": "supported",
+    "support": { "conditional": { "condition": "Load this through the core's N64 Disk Drive subsystem, not as a plain file. Romio hasn't confirmed that RetroBat sets this up." } },
     "notes": null,
     "sinceVersion": null
   },
@@ -1089,15 +1089,6 @@
     "sinceVersion": null
   },
   {
-    "system": "gb",
-    "extension": "dmg",
-    "emulator": "lr-gambatte",
-    "frontend": null,
-    "support": "supported",
-    "notes": null,
-    "sinceVersion": null
-  },
-  {
     "system": "gbc",
     "extension": "gb",
     "emulator": "mgba",
@@ -1203,15 +1194,6 @@
     "frontend": null,
     "support": "supported",
     "notes": "Romio checks the archive type, not what's inside.",
-    "sinceVersion": null
-  },
-  {
-    "system": "gbc",
-    "extension": "dmg",
-    "emulator": "lr-gambatte",
-    "frontend": null,
-    "support": "supported",
-    "notes": null,
     "sinceVersion": null
   },
   {
@@ -2958,6 +2940,15 @@
     "frontend": null,
     "support": "supported",
     "notes": "Vita3K installs this file rather than running it directly.",
+    "sinceVersion": null
+  },
+  {
+    "system": "pico8",
+    "extension": "png",
+    "emulator": "lr-retro8",
+    "frontend": null,
+    "support": "supported",
+    "notes": null,
     "sinceVersion": null
   }
 ]

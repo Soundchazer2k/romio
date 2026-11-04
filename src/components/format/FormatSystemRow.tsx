@@ -26,6 +26,7 @@ export function FormatSystemRow({
   // Unknown means no rule covers the file: not checked, so never "All OK"
   const uncheckedCount = group.results.filter((r) => r.state === "Unknown").length;
   const allOk    = issueCount === 0 && uncheckedCount === 0;
+  const noRules  = uncheckedCount === group.results.length;
 
   return (
     <motion.div
@@ -61,7 +62,7 @@ export function FormatSystemRow({
           </div>
         </div>
 
-        <SystemBadge issueCount={issueCount} uncheckedCount={uncheckedCount} hasRed={hasRed} hasAmber={hasAmber} />
+        <SystemBadge issueCount={issueCount} uncheckedCount={uncheckedCount} noRules={noRules} hasRed={hasRed} hasAmber={hasAmber} />
       </button>
 
       {/* Expanded rows */}
@@ -92,11 +93,15 @@ export function FormatSystemRow({
   );
 }
 
-function SystemBadge({ issueCount, uncheckedCount, hasRed, hasAmber: _hasAmber }: {
-  issueCount: number; uncheckedCount: number; hasRed: boolean; hasAmber: boolean;
+function SystemBadge({ issueCount, uncheckedCount, noRules, hasRed, hasAmber: _hasAmber }: {
+  issueCount: number; uncheckedCount: number; noRules: boolean; hasRed: boolean; hasAmber: boolean;
 }) {
   if (issueCount === 0 && uncheckedCount > 0) {
-    return <span className="text-xs font-medium text-romio-gray">No rules yet</span>;
+    return (
+      <span className="text-xs font-medium text-romio-gray">
+        {noRules ? "No rules yet" : `${uncheckedCount} not checked`}
+      </span>
+    );
   }
   if (issueCount === 0) {
     return <span className="text-xs font-medium text-romio-green">All OK</span>;

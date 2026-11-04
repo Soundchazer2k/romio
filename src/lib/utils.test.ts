@@ -48,6 +48,7 @@ describe("systemForFolder", () => {
     expect(systemForFolder("tg16")).toBe("pcengine");      // ES-DE
     expect(systemForFolder("neogeocdjp")).toBe("neogeocd"); // ES-DE
     expect(systemForFolder("naomigd")).toBe("naomi");       // ES-DE
+    expect(systemForFolder("doom")).toBe("gzdoom");         // ES-DE, RetroBat
   });
   it("passes through folders that already match", () => {
     expect(systemForFolder("gamecube")).toBe("gamecube");
