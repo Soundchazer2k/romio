@@ -705,7 +705,7 @@ fn default_emulators_judge_their_common_formats() {
     // Disk games need the core's subsystem, so a plain yes would mislead
     let ndd = check("roms/n64dd/c.ndd", "n64dd", "lr-mupen64plus-next");
     assert_eq!(ndd.state, Fmt::Compatible);
-    assert!(ndd.notes.unwrap_or_default().contains("subsystem"));
+    assert!(ndd.condition.unwrap_or_default().contains("subsystem"));
 
     // PPSSPP can't read .zso; Romio says so and offers no rename
     let zso = check("roms/psp/Patapon.zso", "psp", "ppsspp");
