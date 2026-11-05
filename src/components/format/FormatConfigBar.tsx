@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0
+import { useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { FolderOpen, ChevronDown } from "lucide-react";
 import type { EmulatorMatrixEntry } from "@/types";
@@ -23,9 +24,16 @@ export function FormatConfigBar({
 }: Props) {
   const { activeProject } = useAppStore();
 
+  const [browsing, setBrowsing] = useState(false);
+
   async function browse() {
-    const selected = await open({ directory: true, multiple: false });
-    if (typeof selected === "string") onPathChange(selected);
+    setBrowsing(true);
+    try {
+      const selected = await open({ directory: true, multiple: false });
+      if (typeof selected === "string") onPathChange(selected);
+    } finally {
+      setBrowsing(false);
+    }
   }
 
   // Collect all unique emulators from the matrix for the dropdown
@@ -51,8 +59,10 @@ export function FormatConfigBar({
           />
           <button
             onClick={browse}
+            disabled={browsing}
             className="px-3 py-2 rounded-lg bg-background-surface border border-white/10
-                       text-romio-gray hover:text-romio-cream hover:bg-white/5 transition-colors"
+                       text-romio-gray hover:text-romio-cream hover:bg-white/5 transition-colors
+                       disabled:opacity-40 disabled:cursor-not-allowed"
             title="Browse"
           >
             <FolderOpen className="w-4 h-4" />

@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0
+import { useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { Play, XCircle, Info, CheckCircle2 } from "lucide-react";
@@ -6,7 +7,7 @@ import { useAppStore, useScanStore } from "@/stores";
 import { ipc } from "@/lib/ipc";
 import { cn, biosIssueLabel } from "@/lib/utils";
 import { SCENARIOS, SCENARIO_ORDER, dashboardChecks, type DashboardCheck, type Scenario } from "@/lib/scenario";
-import type { Project } from "@/types";
+import type { Project, RomioState } from "@/types";
 
 function biosBadge(project: Project): {
   label: string;
@@ -30,16 +31,24 @@ export function DashboardScreen() {
   const { activeProject, setActiveProject, setScreen, setRomioState, scenario, setScenario } = useAppStore();
   const { isScanning, setScanning, progress, setProgress } = useScanStore();
 
+  // The scan outlives this screen, so it only sets the mood while you're here
+  function scanMood(mood: RomioState) {
+    if (useAppStore.getState().screen === "dashboard") setRomioState(mood);
+  }
+
+  useEffect(() => {
+    if (isScanning) setRomioState("processing");
+  }, [isScanning, setRomioState]);
+
   const scanMut = useMutation({
     mutationFn: async () => {
       if (!activeProject) return;
       setScanning(true);
-      setRomioState("processing");
       await ipc.scanLibrary(activeProject.id, activeProject.libraryRoots);
     },
     onSuccess: async () => {
       setScanning(false);
-      setRomioState("pondering");
+      scanMood("pondering");
       // Re-fetch project so scanStats and lastScannedAt reflect persisted data.
       if (activeProject) {
         const updated = await ipc.getProject(activeProject.id);
@@ -49,7 +58,7 @@ export function DashboardScreen() {
     onError: () => {
       setScanning(false);
       setProgress(null);
-      setRomioState("concerned");
+      scanMood("concerned");
     },
   });
 

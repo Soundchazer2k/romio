@@ -103,4 +103,13 @@ describe("groupResultsBySystem", () => {
     const groups = groupResultsBySystem(results);
     expect(groups[0].system).toBe("unknown");
   });
+
+  it("sorts by the system name shown, not the order folders were read", () => {
+    const groups = groupResultsBySystem(
+      ["tic80", "genesis", "3ds", "ps1", "psvita"].map((system) => (
+        { path: `/${system}`, extension: "x", system, state: "Unknown" as const }
+      ))
+    );
+    expect(groups.map((g) => g.system)).toEqual(["3ds", "genesis", "ps1", "psvita", "tic80"]);
+  });
 });
