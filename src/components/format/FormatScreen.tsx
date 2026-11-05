@@ -200,14 +200,14 @@ export function FormatScreen() {
       )}
 
       {/* A picked emulator only runs on systems that list it; never let "All OK" imply otherwise */}
-      {!stale && pick !== "auto" && hasResults && (otherCount > 0 || pickedSystems.length === 0) && (
+      {!stale && pick !== "auto" && hasResults && pickedSystems.length < groups.length && (
         <p
           role="status"
           className="px-4 py-3 rounded-xl bg-amber-400/10 border border-amber-400/20
                      text-sm text-amber-400"
         >
           {pickedSystems.length > 0
-            ? `${pick} only applies to ${pickedSystems.join(", ")}. ${otherCount} other ${otherCount === 1 ? "system" : "systems"} used a different emulator, shown on each row.`
+            ? `${pick} only applies to ${pickedSystems.join(", ")}.${otherCount > 0 ? ` ${otherCount} other ${otherCount === 1 ? "system" : "systems"} used a different emulator, shown on each row.` : ""}`
             : `${pick} doesn't apply to any system in this scan.${otherCount > 0 ? " Each system with an emulator used a different one, shown on its row." : ""}`}
         </p>
       )}
@@ -233,12 +233,12 @@ export function FormatScreen() {
       )}
 
       {/* Empty state */}
-      {!hasResults && !isScanning && !scanError && (
+      {!hasResults && !isScanning && !bannerError && (
         <div className="text-center py-16 text-romio-gray space-y-2">
           <FileSearch className="w-10 h-10 mx-auto opacity-30" />
           <p>{scanned
             ? `No game files found in ${scannedWith.path}. Point it at your frontend folder or its roms folder.`
-            : "Run a scan to check your library"}</p>
+            : ready ? "Run a scan to check your library" : "Loading format rules…"}</p>
         </div>
       )}
 

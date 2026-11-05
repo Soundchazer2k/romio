@@ -138,7 +138,7 @@ describe("FormatScreen", () => {
     expect(screen.queryByRole("status")).toBeNull();
   });
 
-  it("doesn't count a system with no emulator as using a different one", async () => {
+  it("says where a pick applied, without counting a system with no emulator as using a different one", async () => {
     mocks.listLibraryFolders.mockResolvedValue([
       TWO_FOLDERS[1],
       { name: "foo", path: "/roms/foo", system: "foo", files: ["/roms/foo/c.x"] },
@@ -147,7 +147,9 @@ describe("FormatScreen", () => {
     fireEvent.change(screen.getByDisplayValue("auto"), { target: { value: "lr-nestopia" } });
     await scan();
 
-    expect(screen.queryByRole("status")).toBeNull();
+    const notice = screen.getByRole("status").textContent;
+    expect(notice).toContain("lr-nestopia only applies to nes");
+    expect(notice).not.toContain("different");
   });
 
   it("says a pick ran nowhere when no scanned system has an emulator", async () => {
@@ -171,6 +173,8 @@ describe("FormatScreen", () => {
 
     await screen.findByRole("option", { name: "lr-nestopia" });
     expect((screen.getByRole("button", { name: /Scan/ }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.queryByText("Run a scan to check your library")).toBeNull();
+    expect(screen.getByText("Loading format rules…")).toBeTruthy();
   });
 
   it("says so and can't scan when the rules fail to load", async () => {
@@ -180,6 +184,7 @@ describe("FormatScreen", () => {
 
     await screen.findByText(/couldn't load its format rules/);
     expect((screen.getByRole("button", { name: /Scan/ }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.queryByText("Run a scan to check your library")).toBeNull();
   });
 
   it("flags results as out of date when the emulator or frontend changes, until a new scan", async () => {
@@ -261,6 +266,14 @@ describe("FormatSystemRow badge", () => {
     );
     expect(screen.getByText("2 not checked")).toBeTruthy();
     expect(screen.queryByText("No rules yet")).toBeNull();
+  });
+
+  it("says No rules yet when the system has rules, but none for the emulator it used", () => {
+    renderRow(
+      [result("Unknown"), result("Unknown")],
+      [{ system: "xbox", extension: "iso", emulator: "another", support: "supported" }]
+    );
+    expect(screen.getByText("No rules yet")).toBeTruthy();
   });
 
   it("names the condition on the expanded file row", () => {
