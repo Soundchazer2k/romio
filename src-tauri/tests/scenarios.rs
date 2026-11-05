@@ -114,7 +114,7 @@ fn curator_retrobat_library_before_an_update() {
     // XISO is xemu's requirement (original Xbox), not Xenia's: Xenia reads full 360 disc images too
     let xbox = check("roms/xbox/Halo (USA).iso", "xbox", "xemu");
     assert_eq!(xbox.state, Fmt::Compatible);
-    assert!(xbox.notes.as_deref().unwrap_or("").starts_with("Must be an XISO"), "xemu warns about XISO");
+    assert!(xbox.condition.as_deref().unwrap_or("").starts_with("Must be an XISO"), "xemu warns about XISO");
     let x360 = check("roms/xbox360/Halo 3 (USA).iso", "xbox360", "xenia-canary");
     assert_eq!(x360.state, Fmt::Compatible);
     // A Conditional rule is how a format requirement is expressed, whatever its wording
@@ -635,6 +635,35 @@ fn steam_deck_saves_under_xdg_data_home() {
     assert!(discover_save_roots(std::path::Path::new(""), &anchors, &db::save::load_rules().unwrap()).is_empty());
 }
 
+/// Conditions must say only what the emulators' sources back up
+#[test]
+fn key_conditions_match_what_the_emulators_accept() {
+    let rules = db::format::load_rules().unwrap();
+    let condition = |system: &str, ext: &str, emu: &str| -> String {
+        let rule = rules.iter()
+            .find(|r| r.system == system && r.extension == ext && r.emulator == emu)
+            .unwrap_or_else(|| panic!("{system} .{ext} {emu} rule missing"));
+        match &rule.support {
+            FormatSupport::Conditional { condition } => condition.clone(),
+            _ => panic!("{system} .{ext} {emu} must stay conditional"),
+        }
+    };
+
+    // Eden and Citron only ask for a title key when the content has a rights ID
+    for emu in ["eden", "citron"] {
+        for ext in ["nsp", "xci"] {
+            let text = condition("switch", ext, emu);
+            assert!(text.contains("prod.keys") && text.contains("rights ID"), "{emu} .{ext}: {text}");
+            assert!(!text.contains("console-specific"), "{emu} .{ext}: {text}");
+        }
+    }
+    // Cemu takes the disc key from keys.txt or a .key file next to the image
+    for ext in ["wud", "wux"] {
+        let text = condition("wiiu", ext, "cemu");
+        assert!(text.contains("keys.txt") && text.contains(".key file"), ".{ext}: {text}");
+    }
+}
+
 /// Handheld setup checking formats before copying games over: each system's default
 /// emulator must give a verdict on its common formats, not "Unknown".
 #[test]
@@ -731,7 +760,7 @@ fn default_emulators_judge_their_common_formats() {
     // Disk games need the core's subsystem, so a plain yes would mislead
     let ndd = check("roms/n64dd/c.ndd", "n64dd", "lr-mupen64plus-next");
     assert_eq!(ndd.state, Fmt::Compatible);
-    assert!(ndd.notes.unwrap_or_default().contains("subsystem"));
+    assert!(ndd.condition.unwrap_or_default().contains("subsystem"));
 
     // PPSSPP can't read .zso; Romio says so and offers no rename
     let zso = check("roms/psp/Patapon.zso", "psp", "ppsspp");
@@ -741,7 +770,7 @@ fn default_emulators_judge_their_common_formats() {
     // .cia installs into Azahar rather than booting: allowed, with that warning
     let cia = check("roms/n3ds/Pokemon Y.cia", "3ds", "azahar");
     assert_eq!(cia.state, Fmt::Compatible);
-    assert!(cia.notes.unwrap_or_default().starts_with("Azahar installs"));
+    assert!(cia.condition.unwrap_or_default().starts_with("Azahar installs"));
 }
 
 /// Rescuer whose saves are locked: a save root Romio can't read, wholly or in part,

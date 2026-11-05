@@ -37,6 +37,8 @@ pub struct FormatCheckResult {
     pub emulator:   Option<String>,
     pub state:      crate::models::artifact::FormatCompatibilityState,
     pub notes:      Option<String>,
+    /// Set when the format only works under this condition; `state` stays Compatible
+    pub condition:  Option<String>,
     pub fix_action: Option<FormatFixAction>,
 }
 

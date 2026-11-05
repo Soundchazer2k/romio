@@ -10,6 +10,7 @@ interface Props {
   emulator:       string;           // "auto" or specific emulator id
   emulatorMatrix: EmulatorMatrixEntry[];
   isScanning:     boolean;
+  ready:          boolean;          // rules and emulators have loaded
   onPathChange:     (v: string) => void;
   onFrontendChange: (v: string) => void;
   onEmulatorChange: (v: string) => void;
@@ -18,7 +19,7 @@ interface Props {
 
 export function FormatConfigBar({
   path, frontend, emulator, emulatorMatrix,
-  isScanning, onPathChange, onFrontendChange, onEmulatorChange, onScan,
+  isScanning, ready, onPathChange, onFrontendChange, onEmulatorChange, onScan,
 }: Props) {
   const { activeProject } = useAppStore();
 
@@ -83,6 +84,7 @@ export function FormatConfigBar({
           <select
             value={emulator}
             onChange={(e) => onEmulatorChange(e.target.value)}
+            title="Used for the systems that can run it. Other systems keep their recommended emulator."
             className="appearance-none px-3 py-2 pr-8 rounded-lg bg-background-surface border border-white/10
                        text-sm text-romio-cream focus:outline-hidden focus:border-romio-green/40"
           >
@@ -96,7 +98,7 @@ export function FormatConfigBar({
       {/* Scan button */}
       <button
         onClick={onScan}
-        disabled={!path || isScanning}
+        disabled={!path || isScanning || !ready}
         className="px-4 py-2 rounded-lg bg-romio-green-fill text-white text-sm font-semibold
                    hover:bg-romio-green-fill/90 disabled:opacity-40 disabled:cursor-not-allowed
                    transition-colors flex items-center gap-2"

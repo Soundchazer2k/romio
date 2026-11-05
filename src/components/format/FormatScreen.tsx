@@ -9,7 +9,7 @@ import type {
   FormatSystemGroup, FormatRule, StagedFix,
   EmulatorMatrixEntry, FormatCheckResult,
 } from "@/types";
-import { groupResultsBySystem } from "@/lib/utils";
+import { emulatorForSystem, groupResultsBySystem } from "@/lib/utils";
 import { FormatConfigBar }       from "./FormatConfigBar";
 import { FormatSystemRow }       from "./FormatSystemRow";
 import { FormatFixTray }         from "./FormatFixTray";
@@ -32,6 +32,7 @@ export function FormatScreen() {
   const [isScanning,  setIsScanning]  = useState(false);
   const [scanError,   setScanError]   = useState<string | null>(null);
   const [scanned,     setScanned]     = useState(false);
+  const [scannedWith, setScannedWith] = useState({ path: "", frontend: "", emulator: "" });
   const [groups,      setGroups]      = useState<FormatSystemGroup[]>([]);
   const [expandedSys, setExpandedSys] = useState<string | null>(null);
 
@@ -41,24 +42,30 @@ export function FormatScreen() {
   const [drawerOpen,  setDrawerOpen]  = useState(false);
 
   // Load the format matrix on mount (used by impact tables + reference drawer)
-  const { data: rules = [] } = useQuery<FormatRule[]>({
+  const { data: rules = [], isSuccess: rulesLoaded, isError: rulesFailed } = useQuery<FormatRule[]>({
     queryKey: ["format-matrix"],
     queryFn:  () => ipc.getFormatMatrix(),
   });
 
   // Load emulator matrix on mount (used for "auto" emulator resolution)
-  const { data: emulatorMatrix = [] } = useQuery<EmulatorMatrixEntry[]>({
+  const { data: emulatorMatrix = [], isSuccess: matrixLoaded, isError: matrixFailed } = useQuery<EmulatorMatrixEntry[]>({
     queryKey: ["emulator-matrix"],
     queryFn:  () => ipc.getEmulatorMatrix(),
   });
 
+  // Without these, every file would read as "No rules yet"
+  const ready = rulesLoaded && matrixLoaded;
+  const bannerError = scanError
+    ?? (rulesFailed || matrixFailed ? "Romio couldn't load its format rules, so it can't check this library. Restart Romio and try again." : null);
+
   async function runScan() {
-    if (!libraryPath) return;
+    if (!libraryPath || !ready) return;
     setIsScanning(true);
     setScanError(null);
     setGroups([]);
     setScanned(false);
     setStagedFixes([]);
+    setScannedWith({ path: libraryPath, frontend, emulator: emulatorOverride });
 
     try {
       const allResults: FormatCheckResult[] = [];
@@ -70,10 +77,7 @@ export function FormatScreen() {
       for (const folder of folders) {
         const systemId = folder.system;
 
-        // Determine emulator for this system
-        const emu = emulatorOverride === "auto"
-          ? (emulatorMatrix.find((m) => m.system === systemId)?.recommended ?? "unknown")
-          : emulatorOverride;
+        const emu = emulatorForSystem(systemId, emulatorOverride, emulatorMatrix);
 
         for (const filePath of folder.files) {
           const name = filePath.split(/[\\/]/).pop() ?? filePath;
@@ -118,6 +122,19 @@ export function FormatScreen() {
   }
 
   const hasResults = groups.length > 0;
+  // scanned, not hasResults: an empty scan goes out of date too
+  const stale = scanned && (
+    scannedWith.path !== libraryPath ||
+    scannedWith.frontend !== frontend ||
+    scannedWith.emulator !== emulatorOverride
+  );
+  const pick = scannedWith.emulator;
+  const pickedSystems = groups.filter((g) => g.results[0]?.emulator === pick).map((g) => g.system);
+  // A system outside the matrix used no emulator at all, so it isn't "a different one"
+  const otherCount = groups.filter((g) => {
+    const emulator = g.results[0]?.emulator;
+    return emulator !== pick && emulator !== "unknown";
+  }).length;
 
   return (
     <div className="p-8 max-w-3xl mx-auto space-y-6 pb-20">
@@ -151,6 +168,7 @@ export function FormatScreen() {
         emulator={emulatorOverride}
         emulatorMatrix={emulatorMatrix}
         isScanning={isScanning}
+        ready={ready}
         onPathChange={setLibraryPath}
         onFrontendChange={setFrontend}
         onEmulatorChange={setEmulatorOverride}
@@ -158,15 +176,40 @@ export function FormatScreen() {
       />
 
       {/* Scan error banner */}
-      {scanError && (
+      {bannerError && (
         <motion.div
           initial={{ opacity: 0, y: -4 }}
           animate={{ opacity: 1, y: 0 }}
           className="px-4 py-3 rounded-xl bg-romio-red/10 border border-romio-red/20
                      text-sm text-romio-red"
         >
-          {scanError}
+          {bannerError}
         </motion.div>
+      )}
+
+      {/* Results no longer match the settings above */}
+      {stale && (
+        <p
+          role="status"
+          className="px-4 py-3 rounded-xl bg-amber-400/10 border border-amber-400/20
+                     text-sm text-amber-400"
+        >
+          You changed the settings, so these results are out of date. They're for{" "}
+          {scannedWith.path} on {scannedWith.frontend} with emulator {pick}. Scan again to update them.
+        </p>
+      )}
+
+      {/* A picked emulator only runs on systems that list it; never let "All OK" imply otherwise */}
+      {!stale && pick !== "auto" && hasResults && (otherCount > 0 || pickedSystems.length === 0) && (
+        <p
+          role="status"
+          className="px-4 py-3 rounded-xl bg-amber-400/10 border border-amber-400/20
+                     text-sm text-amber-400"
+        >
+          {pickedSystems.length > 0
+            ? `${pick} only applies to ${pickedSystems.join(", ")}. ${otherCount} other ${otherCount === 1 ? "system" : "systems"} used a different emulator, shown on each row.`
+            : `${pick} doesn't apply to any system in this scan.${otherCount > 0 ? " Each system with an emulator used a different one, shown on its row." : ""}`}
+        </p>
       )}
 
       {/* Results */}
@@ -194,7 +237,7 @@ export function FormatScreen() {
         <div className="text-center py-16 text-romio-gray space-y-2">
           <FileSearch className="w-10 h-10 mx-auto opacity-30" />
           <p>{scanned
-            ? `No game files found in ${libraryPath}. Point it at your frontend folder or its roms folder.`
+            ? `No game files found in ${scannedWith.path}. Point it at your frontend folder or its roms folder.`
             : "Run a scan to check your library"}</p>
         </div>
       )}
