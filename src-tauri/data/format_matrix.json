@@ -2470,7 +2470,7 @@
     "extension": "dat",
     "emulator": "lr-flycast",
     "frontend": null,
-    "support": { "conditional": { "condition": "Must be named exactly after its MAME set, or Flycast treats it as NAOMI. Legacy format: Flycast warns \"Please upgrade to MAME romsets or expect issues\". Prefer a MAME .zip." } },
+    "support": { "unsupported": { "reason": "Flycast runs a raw .dat or .lst as NAOMI, whatever its name, so this system's games get the wrong hardware. Use a MAME .zip instead." } },
     "notes": null,
     "sinceVersion": null
   },
@@ -2479,7 +2479,7 @@
     "extension": "lst",
     "emulator": "lr-flycast",
     "frontend": null,
-    "support": { "conditional": { "condition": "Must be named exactly after its MAME set, or Flycast treats it as NAOMI. The ROM files this .lst names must sit beside it. Legacy format: Flycast warns \"Please upgrade to MAME romsets or expect issues\". Prefer a MAME .zip." } },
+    "support": { "unsupported": { "reason": "Flycast runs a raw .dat or .lst as NAOMI, whatever its name, so this system's games get the wrong hardware. Use a MAME .zip instead." } },
     "notes": null,
     "sinceVersion": null
   },
@@ -2506,7 +2506,7 @@
     "extension": "dat",
     "emulator": "lr-flycast",
     "frontend": null,
-    "support": { "conditional": { "condition": "Must be named exactly after its MAME set, or Flycast treats it as NAOMI. Legacy format: Flycast warns \"Please upgrade to MAME romsets or expect issues\". Prefer a MAME .zip." } },
+    "support": { "unsupported": { "reason": "Flycast runs a raw .dat or .lst as NAOMI, whatever its name, so this system's games get the wrong hardware. Use a MAME .zip instead." } },
     "notes": null,
     "sinceVersion": null
   },
@@ -2515,7 +2515,7 @@
     "extension": "lst",
     "emulator": "lr-flycast",
     "frontend": null,
-    "support": { "conditional": { "condition": "Must be named exactly after its MAME set, or Flycast treats it as NAOMI. The ROM files this .lst names must sit beside it. Legacy format: Flycast warns \"Please upgrade to MAME romsets or expect issues\". Prefer a MAME .zip." } },
+    "support": { "unsupported": { "reason": "Flycast runs a raw .dat or .lst as NAOMI, whatever its name, so this system's games get the wrong hardware. Use a MAME .zip instead." } },
     "notes": null,
     "sinceVersion": null
   },

@@ -699,10 +699,6 @@ fn default_emulators_judge_their_common_formats() {
         ("roms/atomiswave/a.zip", "atomiswave", "lr-flycast"),
         ("roms/naomi/a.dat", "naomi", "lr-flycast"),
         ("roms/naomi/a.lst", "naomi", "lr-flycast"),
-        ("roms/naomi2/a.dat", "naomi2", "lr-flycast"),
-        ("roms/naomi2/a.lst", "naomi2", "lr-flycast"),
-        ("roms/atomiswave/a.dat", "atomiswave", "lr-flycast"),
-        ("roms/atomiswave/a.lst", "atomiswave", "lr-flycast"),
         ("roms/cps1/a.zip", "cps1", "lr-fbneo"),
         ("roms/cps2/a.zip", "cps2", "lr-fbneo"),
         ("roms/cps3/a.zip", "cps3", "lr-fbneo"),
@@ -744,11 +740,18 @@ fn default_emulators_judge_their_common_formats() {
     assert_eq!(zso.state, Fmt::FormatIncompatible);
     assert!(zso.notes.unwrap_or_default().contains(".cso"), "points to a format that works");
 
-    // Legacy arcade dumps load, but Flycast only finds the right platform from the set name
-    let dat = check("roms/atomiswave/a.dat", "atomiswave", "lr-flycast");
-    assert!(dat.notes.unwrap_or_default().contains("MAME set"), "says how to name it");
-    let lst = check("roms/naomi/a.lst", "naomi", "lr-flycast");
-    assert!(lst.notes.unwrap_or_default().contains("must sit beside it"), "a .lst is only an index");
+    // Flycast runs any raw .dat or .lst as NAOMI, so they only suit that system
+    for system in ["naomi2", "atomiswave"] {
+        for ext in ["dat", "lst"] {
+            let raw = check(&format!("roms/{system}/a.{ext}"), system, "lr-flycast");
+            assert_eq!(raw.state, Fmt::FormatIncompatible, "{system} .{ext}");
+            assert!(raw.notes.unwrap_or_default().contains("MAME .zip"), "says what to use instead");
+        }
+    }
+    // A .lst is only an index
+    let lst = rules.iter().find(|r| r.system == "naomi" && r.extension == "lst").unwrap();
+    assert!(matches!(&lst.support, romio_lib::models::format::FormatSupport::Conditional { condition }
+        if condition.contains("must sit beside it")));
 
     // .cia installs into Azahar rather than booting: allowed, with that warning
     let cia = check("roms/n3ds/Pokemon Y.cia", "3ds", "azahar");
