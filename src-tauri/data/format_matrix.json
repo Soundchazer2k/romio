@@ -2435,7 +2435,7 @@
     "emulator": "lr-flycast",
     "frontend": null,
     "support": "supported",
-    "notes": "Legacy format: Flycast warns \"Please upgrade to MAME romsets or expect issues\". Prefer a MAME .zip. Flycast source: https://github.com/flyinghead/flycast/blob/7adbf3caef251b153e348df3f469a0f35878339d/shell/libretro/libretro.cpp#L2566",
+    "notes": "Legacy format: Flycast warns \"Please upgrade to MAME romsets or expect issues\". Prefer a MAME .zip.",
     "sinceVersion": null
   },
   {
@@ -2444,7 +2444,7 @@
     "emulator": "lr-flycast",
     "frontend": null,
     "support": { "conditional": { "condition": "The ROM files this .lst names must sit beside it. Legacy format: Flycast warns \"Please upgrade to MAME romsets or expect issues\". Prefer a MAME .zip." } },
-    "notes": "Flycast source: https://github.com/flyinghead/flycast/blob/7adbf3caef251b153e348df3f469a0f35878339d/shell/libretro/libretro.cpp#L2566",
+    "notes": null,
     "sinceVersion": null
   },
   {
@@ -2471,7 +2471,7 @@
     "emulator": "lr-flycast",
     "frontend": null,
     "support": { "conditional": { "condition": "Must be named exactly after its MAME set, or Flycast treats it as NAOMI. Legacy format: Flycast warns \"Please upgrade to MAME romsets or expect issues\". Prefer a MAME .zip." } },
-    "notes": "Flycast source: https://github.com/flyinghead/flycast/blob/7adbf3caef251b153e348df3f469a0f35878339d/shell/libretro/libretro.cpp#L2566 and https://github.com/flyinghead/flycast/blob/7adbf3caef251b153e348df3f469a0f35878339d/core/hw/naomi/naomi_cart.cpp#L810",
+    "notes": null,
     "sinceVersion": null
   },
   {
@@ -2480,7 +2480,7 @@
     "emulator": "lr-flycast",
     "frontend": null,
     "support": { "conditional": { "condition": "Must be named exactly after its MAME set, or Flycast treats it as NAOMI. The ROM files this .lst names must sit beside it. Legacy format: Flycast warns \"Please upgrade to MAME romsets or expect issues\". Prefer a MAME .zip." } },
-    "notes": "Flycast source: https://github.com/flyinghead/flycast/blob/7adbf3caef251b153e348df3f469a0f35878339d/shell/libretro/libretro.cpp#L2566 and https://github.com/flyinghead/flycast/blob/7adbf3caef251b153e348df3f469a0f35878339d/core/hw/naomi/naomi_cart.cpp#L810",
+    "notes": null,
     "sinceVersion": null
   },
   {
@@ -2507,7 +2507,7 @@
     "emulator": "lr-flycast",
     "frontend": null,
     "support": { "conditional": { "condition": "Must be named exactly after its MAME set, or Flycast treats it as NAOMI. Legacy format: Flycast warns \"Please upgrade to MAME romsets or expect issues\". Prefer a MAME .zip." } },
-    "notes": "Flycast source: https://github.com/flyinghead/flycast/blob/7adbf3caef251b153e348df3f469a0f35878339d/shell/libretro/libretro.cpp#L2566 and https://github.com/flyinghead/flycast/blob/7adbf3caef251b153e348df3f469a0f35878339d/core/hw/naomi/naomi_cart.cpp#L810",
+    "notes": null,
     "sinceVersion": null
   },
   {
@@ -2516,7 +2516,7 @@
     "emulator": "lr-flycast",
     "frontend": null,
     "support": { "conditional": { "condition": "Must be named exactly after its MAME set, or Flycast treats it as NAOMI. The ROM files this .lst names must sit beside it. Legacy format: Flycast warns \"Please upgrade to MAME romsets or expect issues\". Prefer a MAME .zip." } },
-    "notes": "Flycast source: https://github.com/flyinghead/flycast/blob/7adbf3caef251b153e348df3f469a0f35878339d/shell/libretro/libretro.cpp#L2566 and https://github.com/flyinghead/flycast/blob/7adbf3caef251b153e348df3f469a0f35878339d/core/hw/naomi/naomi_cart.cpp#L810",
+    "notes": null,
     "sinceVersion": null
   },
   {
