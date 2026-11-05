@@ -81,15 +81,20 @@ export const useAppStore = create<AppStore>()(persist((set) => ({
 interface ScanStore {
   isScanning:   boolean;
   progress:     ScanProgress | null;
+  // Kept here: a scan can fail after the Dashboard has unmounted
+  scanError:    { projectId: string; message: string } | null;
   setScanning:  (v: boolean) => void;
   setProgress:  (p: ScanProgress | null) => void;
+  setScanError: (e: { projectId: string; message: string } | null) => void;
 }
 
 export const useScanStore = create<ScanStore>((set) => ({
   isScanning:  false,
   progress:    null,
+  scanError:   null,
   setScanning: (isScanning) => set({ isScanning }),
   setProgress: (progress)   => set({ progress }),
+  setScanError: (scanError) => set({ scanError }),
 }));
 
 // ── Preflight store ───────────────────────────────────────────────────────────

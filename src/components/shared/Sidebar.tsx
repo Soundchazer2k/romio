@@ -32,6 +32,11 @@ export function Sidebar() {
     setScreen(id);
   }
 
+  const idleLine = !activeProject ? undefined
+    : screen !== "dashboard" ? "Ready when you are."
+    : activeProject.scanStats ? "Pick a check and I'll get to it."
+    : "Scan your library first and we'll see what needs checking.";
+
   return (
     <motion.aside
       initial={{ x: -240 }}
@@ -73,7 +78,7 @@ export function Sidebar() {
       <div className="border-t border-border">
         <RomioCompanion
           state={romioState}
-          message={romioState === "idle" && activeProject ? "Pick a check and I'll get to it." : undefined}
+          message={romioState === "idle" ? idleLine : undefined}
         />
       </div>
     </motion.aside>

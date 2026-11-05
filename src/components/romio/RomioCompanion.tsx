@@ -39,7 +39,7 @@ const STATE_DEFAULT_MESSAGE: Record<RomioState, string> = {
   concerned:      "Found some issues that will prevent games from launching.",
   confused:       "Some results need your input before I can continue.",
   difficult_save: "Save data at risk. Review this carefully before proceeding.",
-  error:          "Critical error. No changes have been made.",
+  error:          "That didn't go to plan. Your files weren't changed.",
   success:        "All checks passed. Looking good!",
   accomplished:   "Library is clean. You're ready to play.",
 };

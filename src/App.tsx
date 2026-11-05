@@ -47,19 +47,17 @@ function PlaceholderScreen({ name }: { name: string }) {
 
 export default function App() {
   const { screen, sidebarOpen } = useAppStore();
-  const { setScanning, setProgress } = useScanStore();
+  const { setProgress } = useScanStore();
 
   // Listen for scan progress events from the Rust backend
   useEffect(() => {
     const unlisten = listen<ScanProgress>("scan_progress", (event) => {
       setProgress(event.payload);
-      if (event.payload.phase === "complete") {
-        setScanning(false);
-        setProgress(null);
-      }
+      // "complete" only ends the walk. The Dashboard ends the scan once saving and the BIOS sweep finish.
+      if (event.payload.phase === "complete") setProgress(null);
     });
     return () => { unlisten.then((fn) => fn()); };
-  }, [setScanning, setProgress]);
+  }, [setProgress]);
 
   const ActiveScreen = SCREENS[screen];
 

@@ -30,7 +30,7 @@ export function ProjectsScreen() {
     onSuccess: (project) => {
       qc.invalidateQueries({ queryKey: ["projects"] });
       setActiveProject(project);
-      setRomioState("pondering");
+      setRomioState("idle");
       setScreen(startScreen(scenario));
     },
   });
@@ -38,7 +38,7 @@ export function ProjectsScreen() {
   function openProject(id: string) {
     ipc.getProject(id).then((p) => {
       setActiveProject(p);
-      setRomioState("pondering");
+      setRomioState("idle");
       setScreen(startScreen(scenario));
     });
   }

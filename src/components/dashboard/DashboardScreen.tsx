@@ -29,36 +29,51 @@ function biosBadge(project: Project): {
 
 export function DashboardScreen() {
   const { activeProject, setActiveProject, setScreen, setRomioState, scenario, setScenario } = useAppStore();
-  const { isScanning, setScanning, progress, setProgress } = useScanStore();
+  const { isScanning, setScanning, progress, setProgress, scanError, setScanError } = useScanStore();
 
   // The scan outlives this screen, so it only sets the mood while you're here
   function scanMood(mood: RomioState) {
     if (useAppStore.getState().screen === "dashboard") setRomioState(mood);
   }
 
+  const scanFailed = !!scanError && scanError.projectId === activeProject?.id;
+
   useEffect(() => {
     if (isScanning) setRomioState("processing");
-  }, [isScanning, setRomioState]);
+    else if (scanFailed) setRomioState("error");
+  }, [isScanning, scanFailed, setRomioState]);
 
   const scanMut = useMutation({
     mutationFn: async () => {
       if (!activeProject) return;
       setScanning(true);
+      setScanError(null);
       await ipc.scanLibrary(activeProject.id, activeProject.libraryRoots);
     },
     onSuccess: async () => {
       setScanning(false);
-      scanMood("pondering");
       // Re-fetch project so scanStats and lastScannedAt reflect persisted data.
       if (activeProject) {
-        const updated = await ipc.getProject(activeProject.id);
-        setActiveProject(updated);
+        try {
+          setActiveProject(await ipc.getProject(activeProject.id));
+          scanMood("idle");
+        } catch {
+          setScanError({
+            projectId: activeProject.id,
+            message: "The scan finished, but Romio couldn't load the new results. Scan again to see them.",
+          });
+        }
       }
     },
-    onError: () => {
+    onError: (err) => {
       setScanning(false);
       setProgress(null);
-      scanMood("concerned");
+      if (activeProject) {
+        setScanError({
+          projectId: activeProject.id,
+          message: `${String(err)}. The scan stopped${activeProject.scanStats ? ", so these results may be out of date" : ""}.`,
+        });
+      }
     },
   });
 
@@ -141,9 +156,9 @@ export function DashboardScreen() {
       )}
 
       {/* Stats cards */}
-      {scanMut.isError && (
+      {scanFailed && (
         <div role="alert" className="px-4 py-3 rounded-xl bg-romio-red/10 border border-romio-red/20 text-sm text-romio-red">
-          {String(scanMut.error)}. The scan stopped, so your last results are unchanged.
+          {scanError.message}
         </div>
       )}
 
