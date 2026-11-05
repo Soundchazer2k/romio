@@ -2430,6 +2430,24 @@
     "sinceVersion": null
   },
   {
+    "system": "naomi",
+    "extension": "dat",
+    "emulator": "lr-flycast",
+    "frontend": null,
+    "support": "supported",
+    "notes": "Legacy format: Flycast warns \"Please upgrade to MAME romsets or expect issues\". Prefer a MAME .zip.",
+    "sinceVersion": null
+  },
+  {
+    "system": "naomi",
+    "extension": "lst",
+    "emulator": "lr-flycast",
+    "frontend": null,
+    "support": { "conditional": { "condition": "The ROM files this .lst names must sit beside it. Legacy format: Flycast warns \"Please upgrade to MAME romsets or expect issues\". Prefer a MAME .zip." } },
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
     "system": "naomi2",
     "extension": "zip",
     "emulator": "lr-flycast",
@@ -2448,6 +2466,24 @@
     "sinceVersion": null
   },
   {
+    "system": "naomi2",
+    "extension": "dat",
+    "emulator": "lr-flycast",
+    "frontend": null,
+    "support": { "unsupported": { "reason": "Flycast runs a raw .dat or .lst as NAOMI, whatever its name, so this system's games get the wrong hardware. Use a MAME .zip instead." } },
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "naomi2",
+    "extension": "lst",
+    "emulator": "lr-flycast",
+    "frontend": null,
+    "support": { "unsupported": { "reason": "Flycast runs a raw .dat or .lst as NAOMI, whatever its name, so this system's games get the wrong hardware. Use a MAME .zip instead." } },
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
     "system": "atomiswave",
     "extension": "zip",
     "emulator": "lr-flycast",
@@ -2463,6 +2499,24 @@
     "frontend": null,
     "support": "supported",
     "notes": "Romio checks the archive type, not what's inside.",
+    "sinceVersion": null
+  },
+  {
+    "system": "atomiswave",
+    "extension": "dat",
+    "emulator": "lr-flycast",
+    "frontend": null,
+    "support": { "unsupported": { "reason": "Flycast runs a raw .dat or .lst as NAOMI, whatever its name, so this system's games get the wrong hardware. Use a MAME .zip instead." } },
+    "notes": null,
+    "sinceVersion": null
+  },
+  {
+    "system": "atomiswave",
+    "extension": "lst",
+    "emulator": "lr-flycast",
+    "frontend": null,
+    "support": { "unsupported": { "reason": "Flycast runs a raw .dat or .lst as NAOMI, whatever its name, so this system's games get the wrong hardware. Use a MAME .zip instead." } },
+    "notes": null,
     "sinceVersion": null
   },
   {

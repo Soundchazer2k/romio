@@ -726,6 +726,8 @@ fn default_emulators_judge_their_common_formats() {
         ("roms/naomi/a.zip", "naomi", "lr-flycast"),
         ("roms/naomi2/a.zip", "naomi2", "lr-flycast"),
         ("roms/atomiswave/a.zip", "atomiswave", "lr-flycast"),
+        ("roms/naomi/a.dat", "naomi", "lr-flycast"),
+        ("roms/naomi/a.lst", "naomi", "lr-flycast"),
         ("roms/cps1/a.zip", "cps1", "lr-fbneo"),
         ("roms/cps2/a.zip", "cps2", "lr-fbneo"),
         ("roms/cps3/a.zip", "cps3", "lr-fbneo"),
@@ -766,6 +768,19 @@ fn default_emulators_judge_their_common_formats() {
     let zso = check("roms/psp/Patapon.zso", "psp", "ppsspp");
     assert_eq!(zso.state, Fmt::FormatIncompatible);
     assert!(zso.notes.unwrap_or_default().contains(".cso"), "points to a format that works");
+
+    // Flycast runs any raw .dat or .lst as NAOMI, so they only suit that system
+    for system in ["naomi2", "atomiswave"] {
+        for ext in ["dat", "lst"] {
+            let raw = check(&format!("roms/{system}/a.{ext}"), system, "lr-flycast");
+            assert_eq!(raw.state, Fmt::FormatIncompatible, "{system} .{ext}");
+            assert!(raw.notes.unwrap_or_default().contains("MAME .zip"), "says what to use instead");
+        }
+    }
+    // A .lst is only an index
+    let lst = rules.iter().find(|r| r.system == "naomi" && r.extension == "lst").unwrap();
+    assert!(matches!(&lst.support, romio_lib::models::format::FormatSupport::Conditional { condition }
+        if condition.contains("must sit beside it")));
 
     // .cia installs into Azahar rather than booting: allowed, with that warning
     let cia = check("roms/n3ds/Pokemon Y.cia", "3ds", "azahar");
@@ -914,11 +929,15 @@ fn format_check_lists_a_systems_own_formats_not_stray_files() {
         "roms/psx/notes.ids",
         "roms/psx/notes.min",
         "roms/psx/notes.bs",
+        "roms/psx/notes.dat",
+        "roms/psx/notes.lst",
         // Legitimate, including through a folder alias
         "roms/atari800/Star Raiders.car",
         "roms/nds/Mario Kart DS.ids",
         "roms/pokemini/Pichu Bros.min",
         "roms/sfc/BS Zelda.bs",
+        "roms/naomi/Marvel vs Capcom 2.dat",
+        "roms/atomiswave/Dolphin Blue.lst",
         "roms/pico8/celeste.p8.png",
         "roms/easyrpg/Yume.zip",
         // No rules for this system yet, so its formats can't be ruled out. Artwork still can.
@@ -953,6 +972,8 @@ fn format_check_lists_a_systems_own_formats_not_stray_files() {
     assert_eq!(listed("nds"), ["Mario Kart DS.ids"]);
     assert_eq!(listed("pokemini"), ["Pichu Bros.min"]);
     assert_eq!(listed("sfc"), ["BS Zelda.bs"], "sfc is an alias for snes");
+    assert_eq!(listed("naomi"), ["Marvel vs Capcom 2.dat"]);
+    assert_eq!(listed("atomiswave"), ["Dolphin Blue.lst"]);
     assert_eq!(listed("pico8"), ["celeste.p8.png"]);
     assert_eq!(listed("easyrpg"), ["Ib.easyrpg", "Yume.zip"]);
     assert_eq!(listed("satellaview"), ["BS Zelda.bs"]);
