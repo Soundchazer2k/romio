@@ -3,7 +3,8 @@
 //! Checks ROM container formats against emulator support for the active frontend.
 
 use anyhow::Result;
-use std::path::Path;
+use std::collections::HashSet;
+use std::path::{Path, PathBuf};
 use crate::models::format::{FormatRule, FormatCheckResult, FormatSupport, FormatFixAction, FormatFixType, SystemFolder};
 use crate::models::artifact::FormatCompatibilityState;
 
@@ -30,10 +31,14 @@ pub fn list_system_folders(root: &Path, rules: &[FormatRule]) -> Result<Vec<Syst
         match std::fs::read_dir(&dir) {
             Err(e) => SystemFolder { name, path, system, files: vec![], error: Some(e.to_string()) },
             Ok(entries) => {
-                let mut files: Vec<String> = entries
+                let entries: Vec<PathBuf> = entries
                     .filter_map(|e| e.ok())
                     .map(|e| e.path())
                     .filter(|p| p.is_file() || p.extension().is_some_and(|e| e.eq_ignore_ascii_case("easyrpg")))
+                    .collect();
+                let companions = disc_companions(&entries);
+                let mut files: Vec<String> = entries.iter()
+                    .filter(|p| !is_disc_track(p, &companions, &system, rules))
                     .filter(|p| is_game_file(p, &system, rules))
                     .map(|p| p.to_string_lossy().to_string())
                     .collect();
@@ -42,6 +47,84 @@ pub fn list_system_folders(root: &Path, rules: &[FormatRule]) -> Result<Vec<Syst
             }
         }
     }).collect())
+}
+
+/// A file a disc sheet names is that game's track, unless this system's rules judge its format:
+/// then it has a verdict worth showing, and may be a game in its own right.
+fn is_disc_track(path: &Path, companions: &HashSet<String>, system: &str, rules: &[FormatRule]) -> bool {
+    let named = path.file_name().is_some_and(|n| companions.contains(&n.to_string_lossy().to_lowercase()));
+    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
+    named && !rules.iter().any(|r| r.system == system && r.extension == ext)
+}
+
+/// Real disc sheets are a few kilobytes. Anything bigger isn't one.
+const MAX_SHEET_BYTES: u64 = 1024 * 1024;
+
+/// Lowercased names of the files the disc sheets in this folder point at. A sheet that is
+/// malformed or can't be read names nothing, so its files stay listed: a wrong Unknown row
+/// beats a game silently left unchecked.
+///
+/// shortcut: names compare case-insensitively, so on Linux a sheet can hide two files differing
+/// only by case. Compare exactly if that ever turns up.
+fn disc_companions(files: &[PathBuf]) -> HashSet<String> {
+    let mut names = HashSet::new();
+    for path in files {
+        let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
+        if !matches!(ext.as_str(), "cue" | "gdi" | "ccd") { continue; }
+        if std::fs::metadata(path).map_or(true, |m| m.len() > MAX_SHEET_BYTES) { continue; }
+        let Ok(bytes) = std::fs::read(path) else { continue };
+        let text = String::from_utf8_lossy(&bytes);
+        let text = text.trim_start_matches('\u{feff}');
+        match ext.as_str() {
+            "cue" => names.extend(cue_files(text)),
+            "gdi" => names.extend(gdi_files(text)),
+            _ if text.trim_start().starts_with("[CloneCD]") => {
+                let stem = path.file_stem().unwrap_or_default().to_string_lossy().to_lowercase();
+                names.insert(format!("{stem}.img"));
+                names.insert(format!("{stem}.sub"));
+            }
+            _ => {}
+        }
+    }
+    names
+}
+
+/// Files in a .cue that hold a track: `FILE "a.bin" BINARY` followed by `TRACK 01 ...`.
+fn cue_files(text: &str) -> Vec<String> {
+    let mut files = Vec::new();
+    let mut pending = None;
+    for line in text.lines() {
+        let mut tokens = line.split_whitespace();
+        let Some(keyword) = tokens.next() else { continue };
+        if keyword.eq_ignore_ascii_case("file") {
+            pending = sheet_name(line, tokens.next());
+        } else if keyword.eq_ignore_ascii_case("track") {
+            files.extend(pending.take());
+        }
+    }
+    files
+}
+
+/// Files in a .gdi: a track count, then that many `1 0 4 2352 a.bin 0` records. Anything else
+/// isn't a sheet Flycast would load, so it names nothing.
+fn gdi_files(text: &str) -> Vec<String> {
+    let mut lines = text.lines().filter(|l| !l.trim().is_empty());
+    let Some(count) = lines.next().and_then(|l| l.trim().parse::<usize>().ok()) else { return vec![] };
+    let files: Option<Vec<String>> = lines.take(count).map(|line| {
+        let tokens: Vec<&str> = line.split_whitespace().collect();
+        let numbered = tokens.len() >= 5 && tokens[..4].iter().all(|t| t.parse::<u32>().is_ok());
+        if numbered { sheet_name(line, tokens.get(4).copied()) } else { None }
+    }).collect();
+    files.filter(|f| f.len() == count).unwrap_or_default()
+}
+
+/// The quoted name on a sheet line, or its unquoted one.
+fn sheet_name(line: &str, unquoted: Option<&str>) -> Option<String> {
+    let name = match line.split_once('"') {
+        Some((_, rest)) => rest.split_once('"')?.0,
+        None => unquoted?,
+    };
+    Some(name.to_lowercase())
 }
 
 /// Romio system ID for a frontend's roms/ folder name.
@@ -255,5 +338,66 @@ mod tests {
     #[test]
     fn missing_root_is_an_error_not_an_empty_library() {
         assert!(list_system_folders(Path::new("Z:/no/such/romio/library"), &[]).is_err());
+    }
+
+    #[test]
+    fn lists_a_disc_once_not_the_files_its_sheet_names() {
+        let dir = tempfile::tempdir().unwrap();
+        let psx = dir.path().join("psx");
+        fs::create_dir_all(&psx).unwrap();
+        let oversized = format!("FILE \"big.bin\" BINARY\nTRACK 01 MODE2/2352\n{}", " ".repeat(1024 * 1024));
+        let sheets: [(&str, &[u8]); 9] = [
+            ("a.cue", b"REM \"not.bin\"\nFILE \"a (Track 1).bin\" BINARY\n  TRACK 01 MODE2/2352\nfile \"A (TRACK 2).BIN\" BINARY\n  TRACK 02 AUDIO\n"),
+            ("b.gdi", b"2\n1 0 4 2352 track01.bin 0\n2 450 0 2352 \"track 02.bin\" 0\n"),
+            ("d.cue", "\u{feff}FILE d.bin BINARY\nTRACK 01 MODE1/2352\n".as_bytes()),
+            ("broken.cue", &[0xff, 0xfe, 0x00, 0x22]),
+            ("c.ccd", b"[CloneCD]\n"),
+            // None of these describe a disc, so they name nothing
+            ("notrack.cue", b"FILE \"notrack.bin\" BINARY\n"),
+            ("stray.gdi", b"note \"stray.bin\"\n"),
+            ("short.gdi", b"2\n1 0 4 2352 short.bin 0\n"),
+            ("fake.ccd", b"not a CloneCD sheet"),
+        ];
+        for (name, contents) in sheets {
+            fs::write(psx.join(name), contents).unwrap();
+        }
+        fs::write(psx.join("big.cue"), oversized).unwrap();
+        for name in [
+            "a (Track 1).bin", "a (Track 2).bin", "track01.bin", "track 02.bin", "d.bin",
+            "c.img", "c.sub", "not.bin", "orphan.bin", "lone.img",
+            "notrack.bin", "stray.bin", "short.bin", "fake.img", "big.bin",
+        ] {
+            fs::write(psx.join(name), b"x").unwrap();
+        }
+
+        let folders = list_system_folders(dir.path(), &[]).unwrap();
+        let listed: Vec<_> = folders[0].files.iter()
+            .map(|p| Path::new(p).file_name().unwrap().to_string_lossy().to_string())
+            .collect();
+        assert_eq!(listed, [
+            "a.cue", "b.gdi", "big.bin", "big.cue", "broken.cue", "c.ccd", "d.cue", "fake.ccd", "fake.img",
+            "lone.img", "not.bin", "notrack.bin", "notrack.cue", "orphan.bin", "short.bin", "short.gdi",
+            "stray.bin", "stray.gdi",
+        ]);
+    }
+
+    #[test]
+    fn a_sheet_never_hides_a_file_with_a_verdict_of_its_own() {
+        let dir = tempfile::tempdir().unwrap();
+        let psx = dir.path().join("psx");
+        fs::create_dir_all(&psx).unwrap();
+        fs::write(psx.join("c.ccd"), b"[CloneCD]\n").unwrap();
+        fs::write(psx.join("c.img"), b"x").unwrap();
+        fs::write(psx.join("c.sub"), b"x").unwrap();
+        let rules = vec![FormatRule {
+            system: "ps1".into(), extension: "img".into(), emulator: "duckstation".into(),
+            frontend: None, support: FormatSupport::Supported, notes: None, since_version: None,
+        }];
+
+        let folders = list_system_folders(dir.path(), &rules).unwrap();
+        let listed: Vec<_> = folders[0].files.iter()
+            .map(|p| Path::new(p).file_name().unwrap().to_string_lossy().to_string())
+            .collect();
+        assert_eq!(listed, ["c.ccd", "c.img"]);
     }
 }

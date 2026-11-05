@@ -981,3 +981,19 @@ fn format_check_lists_a_systems_own_formats_not_stray_files() {
     assert_eq!(listed("tg16cd"), ["Ys.mds"]);
     assert_eq!(listed("tic80"), ["8bit panda.png"]);
 }
+
+#[test]
+fn a_cue_and_bin_disc_reads_as_one_compatible_game() {
+    let lib = Library::new();
+    lib.file("roms/psx/Disc.cue", b"FILE \"Disc.bin\" BINARY\n  TRACK 01 MODE2/2352\n");
+    lib.game("roms/psx/Disc.bin");
+
+    let rules = db::format::load_rules().unwrap();
+    let folders = list_system_folders(lib.root(), &rules).unwrap();
+    let files = &folders.iter().find(|f| f.name == "psx").unwrap().files;
+
+    assert_eq!(files.len(), 1, "{files:?}");
+    let result = check_format(std::path::Path::new(&files[0]), &rules, "ps1", "duckstation", "retrobat");
+    assert_eq!(result.extension, "cue");
+    assert_eq!(result.state, romio_lib::models::artifact::FormatCompatibilityState::Compatible);
+}
