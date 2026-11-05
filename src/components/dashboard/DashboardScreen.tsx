@@ -36,9 +36,12 @@ export function DashboardScreen() {
     if (useAppStore.getState().screen === "dashboard") setRomioState(mood);
   }
 
+  const scanFailed = !!scanError && scanError.projectId === activeProject?.id;
+
   useEffect(() => {
     if (isScanning) setRomioState("processing");
-  }, [isScanning, setRomioState]);
+    else if (scanFailed) setRomioState("error");
+  }, [isScanning, scanFailed, setRomioState]);
 
   const scanMut = useMutation({
     mutationFn: async () => {
@@ -49,18 +52,28 @@ export function DashboardScreen() {
     },
     onSuccess: async () => {
       setScanning(false);
-      scanMood("idle");
       // Re-fetch project so scanStats and lastScannedAt reflect persisted data.
       if (activeProject) {
-        const updated = await ipc.getProject(activeProject.id);
-        setActiveProject(updated);
+        try {
+          setActiveProject(await ipc.getProject(activeProject.id));
+          scanMood("idle");
+        } catch {
+          setScanError({
+            projectId: activeProject.id,
+            message: "The scan finished, but Romio couldn't load the new results. Scan again to see them.",
+          });
+        }
       }
     },
     onError: (err) => {
       setScanning(false);
       setProgress(null);
-      if (activeProject) setScanError({ projectId: activeProject.id, message: String(err) });
-      scanMood("error");
+      if (activeProject) {
+        setScanError({
+          projectId: activeProject.id,
+          message: `${String(err)}. The scan stopped${activeProject.scanStats ? ", so these results may be out of date" : ""}.`,
+        });
+      }
     },
   });
 
@@ -143,9 +156,9 @@ export function DashboardScreen() {
       )}
 
       {/* Stats cards */}
-      {scanError?.projectId === activeProject.id && (
+      {scanFailed && (
         <div role="alert" className="px-4 py-3 rounded-xl bg-romio-red/10 border border-romio-red/20 text-sm text-romio-red">
-          {scanError.message}. The scan stopped, so your last results are unchanged.
+          {scanError.message}
         </div>
       )}
 

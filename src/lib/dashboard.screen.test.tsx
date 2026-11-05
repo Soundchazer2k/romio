@@ -35,13 +35,13 @@ describe("DashboardScreen", () => {
   });
   afterEach(cleanup);
 
-  it("says why a scan failed and keeps the last results", async () => {
+  it("says why a scan failed and that results may be old", async () => {
     mocks.scanLibrary.mockRejectedValue("Couldn't read Z:\\Gone: not found");
     showScreen();
     fireEvent.click(screen.getByRole("button", { name: /Re-scan Library/ }));
 
     await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("Couldn't read Z:\\Gone"));
-    expect(screen.getByRole("alert").textContent).toContain("last results");
+    expect(screen.getByRole("alert").textContent).toContain("may be out of date");
     expect(screen.getByText("21")).toBeTruthy();
     expect(useScanStore.getState().isScanning).toBe(false);
   });

@@ -78,14 +78,55 @@ describe("Dashboard scan and the companion", () => {
     fail(new Error("unreadable"));
     await waitFor(() => expect(useScanStore.getState().isScanning).toBe(false));
 
+    useAppStore.setState({ romioState: "idle" });
     renderDashboard();
     expect(screen.getByRole("alert").textContent).toContain("unreadable");
+    expect(useAppStore.getState().romioState).toBe("error");
   });
 
   it("doesn't blame the games when the scan itself fails", async () => {
     const { fail } = startScan();
     fail(new Error("unreadable"));
     await waitFor(() => expect(useAppStore.getState().romioState).toBe("error"));
+  });
+
+  it("stays on processing until the new results have loaded", async () => {
+    let loaded!: (p: Project) => void;
+    mocks.getProject.mockReturnValue(new Promise<Project>((res) => { loaded = res; }));
+    const { finish } = startScan();
+    finish();
+
+    await waitFor(() => expect(useScanStore.getState().isScanning).toBe(false));
+    expect(useAppStore.getState().romioState).toBe("processing");
+
+    loaded(PROJECT);
+    await waitFor(() => expect(useAppStore.getState().romioState).toBe("idle"));
+  });
+
+  it("has no old results to mention when a first scan fails", async () => {
+    const { fail } = startScan();
+    fail(new Error("unreadable"));
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toContain("The scan stopped.");
+    expect(alert.textContent).not.toContain("results");
+  });
+
+  it("doesn't promise old results are intact after a failure", async () => {
+    useAppStore.setState({ activeProject: { ...PROJECT, scanStats: { totalFiles: 21 } } as Project });
+    const { fail } = startScan();
+    fail(new Error("Failed to persist artifacts"));
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toContain("may be out of date");
+    expect(alert.textContent).not.toContain("unchanged");
+  });
+
+  it("doesn't call a finished scan failed when only the reload fails", async () => {
+    mocks.getProject.mockRejectedValue(new Error("db locked"));
+    const { finish } = startScan();
+    finish();
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toContain("The scan finished");
+    expect(alert.textContent).not.toContain("stopped");
   });
 
   it("clears the failure when the next scan starts", async () => {

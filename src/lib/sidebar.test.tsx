@@ -23,8 +23,20 @@ describe("Sidebar companion", () => {
 
     expect(useAppStore.getState().screen).toBe("format");
     // The old line animates out first
-    expect(await screen.findByText("Pick a check and I'll get to it.")).toBeTruthy();
+    expect(await screen.findByText("Ready when you are.")).toBeTruthy();
     expect(screen.queryByText(WARNING)).toBeNull();
+  });
+
+  it("asks for a scan on a Dashboard that has no checks to pick yet", () => {
+    useAppStore.setState({ screen: "dashboard", romioState: "idle" });
+    render(<Sidebar />);
+    expect(screen.getByText("Scan your library first and we'll see what needs checking.")).toBeTruthy();
+  });
+
+  it("points at the checks once a scan has found something", () => {
+    useAppStore.setState({ screen: "dashboard", romioState: "idle", activeProject: { ...PROJECT, scanStats: { totalFiles: 21 } } as Project });
+    render(<Sidebar />);
+    expect(screen.getByText("Pick a check and I'll get to it.")).toBeTruthy();
   });
 
   it("keeps the warning when you click the screen you're already on", () => {
