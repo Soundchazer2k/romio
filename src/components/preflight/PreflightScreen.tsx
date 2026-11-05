@@ -30,7 +30,7 @@ export function PreflightScreen() {
   function proceed() {
     setCompleted(true);
     setScreen("dashboard");
-    setRomioState("pondering");
+    setRomioState("idle");
   }
 
   return (

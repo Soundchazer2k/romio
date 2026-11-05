@@ -29,7 +29,7 @@ function biosBadge(project: Project): {
 
 export function DashboardScreen() {
   const { activeProject, setActiveProject, setScreen, setRomioState, scenario, setScenario } = useAppStore();
-  const { isScanning, setScanning, progress, setProgress } = useScanStore();
+  const { isScanning, setScanning, progress, setProgress, scanError, setScanError } = useScanStore();
 
   // The scan outlives this screen, so it only sets the mood while you're here
   function scanMood(mood: RomioState) {
@@ -44,20 +44,22 @@ export function DashboardScreen() {
     mutationFn: async () => {
       if (!activeProject) return;
       setScanning(true);
+      setScanError(null);
       await ipc.scanLibrary(activeProject.id, activeProject.libraryRoots);
     },
     onSuccess: async () => {
       setScanning(false);
-      scanMood("pondering");
+      scanMood("idle");
       // Re-fetch project so scanStats and lastScannedAt reflect persisted data.
       if (activeProject) {
         const updated = await ipc.getProject(activeProject.id);
         setActiveProject(updated);
       }
     },
-    onError: () => {
+    onError: (err) => {
       setScanning(false);
       setProgress(null);
+      if (activeProject) setScanError({ projectId: activeProject.id, message: String(err) });
       scanMood("concerned");
     },
   });
@@ -141,9 +143,9 @@ export function DashboardScreen() {
       )}
 
       {/* Stats cards */}
-      {scanMut.isError && (
+      {scanError?.projectId === activeProject.id && (
         <div role="alert" className="px-4 py-3 rounded-xl bg-romio-red/10 border border-romio-red/20 text-sm text-romio-red">
-          {String(scanMut.error)}. The scan stopped, so your last results are unchanged.
+          {scanError.message}. The scan stopped, so your last results are unchanged.
         </div>
       )}
 

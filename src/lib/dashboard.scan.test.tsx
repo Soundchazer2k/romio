@@ -35,15 +35,15 @@ describe("Dashboard scan and the companion", () => {
     vi.clearAllMocks();
     mocks.getProject.mockResolvedValue(PROJECT);
     useAppStore.setState({ screen: "dashboard", romioState: "idle", activeProject: PROJECT });
-    useScanStore.setState({ isScanning: false, progress: null });
+    useScanStore.setState({ isScanning: false, progress: null, scanError: null });
   });
   afterEach(cleanup);
 
-  it("shows processing during a scan and pondering when it ends", async () => {
+  it("shows processing during a scan and nothing left running when it ends", async () => {
     const { finish } = startScan();
     await waitFor(() => expect(useAppStore.getState().romioState).toBe("processing"));
     finish();
-    await waitFor(() => expect(useAppStore.getState().romioState).toBe("pondering"));
+    await waitFor(() => expect(useAppStore.getState().romioState).toBe("idle"));
   });
 
   it("doesn't overwrite another screen's warning when the scan finishes", async () => {
@@ -68,6 +68,40 @@ describe("Dashboard scan and the companion", () => {
 
     await waitFor(() => expect(useScanStore.getState().isScanning).toBe(false));
     expect(useAppStore.getState().romioState).toBe("difficult_save");
+  });
+
+  it("still reports a failed scan if you were away when it failed", async () => {
+    const { view, fail } = startScan();
+    await waitFor(() => expect(useScanStore.getState().isScanning).toBe(true));
+
+    view.unmount();
+    fail(new Error("unreadable"));
+    await waitFor(() => expect(useScanStore.getState().isScanning).toBe(false));
+
+    renderDashboard();
+    expect(screen.getByRole("alert").textContent).toContain("unreadable");
+  });
+
+  it("clears the failure when the next scan starts", async () => {
+    const { fail } = startScan();
+    fail(new Error("unreadable"));
+    expect(await screen.findByRole("alert")).toBeTruthy();
+
+    mocks.scanLibrary.mockReturnValue(new Promise<void>(() => {}));
+    fireEvent.click(screen.getAllByRole("button", { name: /scan/i })[0]);
+
+    await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+  });
+
+  it("doesn't show one project's failure on another", async () => {
+    const { view, fail } = startScan();
+    fail(new Error("unreadable"));
+    await waitFor(() => expect(useScanStore.getState().scanError).toBeTruthy());
+
+    view.unmount();
+    useAppStore.setState({ activeProject: { ...PROJECT, id: "other" } });
+    renderDashboard();
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 
   it("shows processing again when you come back mid-scan", () => {
