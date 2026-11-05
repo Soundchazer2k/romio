@@ -3,6 +3,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { open } from "@tauri-apps/plugin-dialog";
 import { FormatScreen } from "@/components/format/FormatScreen";
 import { FormatSystemRow } from "@/components/format/FormatSystemRow";
 import { FormatReferenceDrawer } from "@/components/format/FormatReferenceDrawer";
@@ -185,6 +186,22 @@ describe("FormatScreen", () => {
     await screen.findByText(/couldn't load its format rules/);
     expect((screen.getByRole("button", { name: /Scan/ }) as HTMLButtonElement).disabled).toBe(true);
     expect(screen.queryByText("Run a scan to check your library")).toBeNull();
+  });
+
+  it("opens one folder picker at a time", async () => {
+    let close: (picked: string | null) => void = () => undefined;
+    vi.mocked(open).mockReset();
+    vi.mocked(open).mockReturnValue(new Promise((resolve) => { close = resolve; }));
+    await setUp();
+    const browse = screen.getByTitle("Browse") as HTMLButtonElement;
+
+    fireEvent.click(browse);
+    fireEvent.click(browse);
+    expect(open).toHaveBeenCalledTimes(1);
+
+    close("/picked");
+    await waitFor(() => expect(browse.disabled).toBe(false));
+    expect(screen.getByDisplayValue("/picked")).toBeTruthy();
   });
 
   it("flags results as out of date when the emulator or frontend changes, until a new scan", async () => {

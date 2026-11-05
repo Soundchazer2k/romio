@@ -23,7 +23,14 @@ const NAV: NavItem[] = [
 ];
 
 export function Sidebar() {
-  const { screen, setScreen, romioState, activeProject } = useAppStore();
+  const { screen, setScreen, romioState, setRomioState, activeProject } = useAppStore();
+
+  function goTo(id: Screen) {
+    if (id === screen) return;
+    // A screen's mood belongs to that screen. The next one sets its own on mount if it has one.
+    setRomioState("idle");
+    setScreen(id);
+  }
 
   return (
     <motion.aside
@@ -56,7 +63,7 @@ export function Sidebar() {
             <NavButton
               item={item}
               active={screen === item.id}
-              onClick={() => setScreen(item.id)}
+              onClick={() => goTo(item.id)}
             />
           </div>
         ))}
@@ -64,7 +71,10 @@ export function Sidebar() {
 
       {/* Romio companion — bottom of sidebar */}
       <div className="border-t border-border">
-        <RomioCompanion state={romioState} />
+        <RomioCompanion
+          state={romioState}
+          message={romioState === "idle" && activeProject ? "Pick a check and I'll get to it." : undefined}
+        />
       </div>
     </motion.aside>
   );

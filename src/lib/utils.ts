@@ -153,5 +153,7 @@ export function groupResultsBySystem(results: FormatCheckResult[]): FormatSystem
     if (!map.has(key)) map.set(key, []);
     map.get(key)!.push(r);
   }
-  return Array.from(map.entries()).map(([system, results]) => ({ system, results }));
+  return Array.from(map.entries())
+    .map(([system, results]) => ({ system, results }))
+    .sort((a, b) => a.system.localeCompare(b.system));
 }
