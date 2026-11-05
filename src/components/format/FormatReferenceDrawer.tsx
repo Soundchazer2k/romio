@@ -111,7 +111,9 @@ function DrawerContent({ rules, onClose }: Omit<Props, "open">) {
             {filtered.map((rule, i) => {
               const condition = typeof rule.support === "object" && "conditional" in rule.support
                 ? rule.support.conditional.condition
-                : null;
+                : typeof rule.support === "object" && "unsupported" in rule.support
+                  ? rule.support.unsupported.reason
+                  : null;
               const hasDetail = condition || rule.notes;
               return (
                 <Fragment key={i}>

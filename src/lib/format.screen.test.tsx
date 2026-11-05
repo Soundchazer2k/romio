@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { FormatScreen } from "@/components/format/FormatScreen";
 import { FormatSystemRow } from "@/components/format/FormatSystemRow";
 import { FormatReferenceDrawer } from "@/components/format/FormatReferenceDrawer";
+import { FormatImpactTable } from "@/components/format/FormatImpactTable";
 import { emulatorForSystem } from "@/lib/utils";
 import type { EmulatorMatrixEntry, FormatCheckResult, FormatCompatibilityState, FormatRule } from "@/types";
 
@@ -45,11 +46,11 @@ function result(state: FormatCompatibilityState, extra: Partial<FormatCheckResul
   return { path: `/roms/x/${Math.random()}.iso`, extension: "iso", system: "xbox", emulator: "xemu", state, ...extra };
 }
 
-function renderRow(results: FormatCheckResult[]) {
+function renderRow(results: FormatCheckResult[], rules: FormatRule[] = []) {
   return render(
     <FormatSystemRow
       group={{ system: "xbox", results }}
-      rules={[]}
+      rules={rules}
       stagedFixes={[]}
       expanded={false}
       onToggle={() => undefined}
@@ -131,6 +132,18 @@ describe("FormatScreen", () => {
     expect(screen.queryByRole("status")).toBeNull();
   });
 
+  it("doesn't count a system with no emulator as using a different one", async () => {
+    mocks.listLibraryFolders.mockResolvedValue([
+      TWO_FOLDERS[1],
+      { name: "foo", path: "/roms/foo", system: "foo", files: ["/roms/foo/c.x"] },
+    ]);
+    await setUp();
+    fireEvent.change(screen.getByDisplayValue("auto"), { target: { value: "lr-nestopia" } });
+    await scan();
+
+    expect(screen.queryByRole("status")).toBeNull();
+  });
+
   it("flags results as out of date when the emulator or frontend changes, until a new scan", async () => {
     await setUp();
     await scan();
@@ -199,6 +212,15 @@ describe("FormatSystemRow badge", () => {
     expect(screen.getByText("No rules yet")).toBeTruthy();
   });
 
+  it("says not checked, not No rules yet, when the system has rules but none cover its files", () => {
+    renderRow(
+      [result("Unknown"), result("Unknown")],
+      [{ system: "xbox", extension: "chd", emulator: "xemu", support: "supported" }]
+    );
+    expect(screen.getByText("2 not checked")).toBeTruthy();
+    expect(screen.queryByText("No rules yet")).toBeNull();
+  });
+
   it("names the condition on the expanded file row", () => {
     render(
       <FormatSystemRow
@@ -223,5 +245,26 @@ describe("FormatReferenceDrawer", () => {
     expect(table.getByText("Must be an XISO")).toBeTruthy();
     expect(table.getByText("xemu docs")).toBeTruthy();
     expect(table.getByText("Plain note")).toBeTruthy();
+  });
+
+  it("shows why a format is unsupported", () => {
+    const rules: FormatRule[] = [
+      { system: "gamecube", extension: "rvz", emulator: "lr-dolphin", support: { unsupported: { reason: "Convert it to .iso" } } },
+    ];
+    render(<FormatReferenceDrawer open rules={rules} onClose={() => undefined} />);
+    expect(within(screen.getByRole("table")).getByText("Convert it to .iso")).toBeTruthy();
+  });
+});
+
+describe("FormatImpactTable", () => {
+  it("shows a conditional rule in amber, like the file row", () => {
+    render(
+      <FormatImpactTable
+        extension="iso"
+        system="xbox"
+        rules={[{ system: "xbox", extension: "iso", emulator: "xemu", support: { conditional: { condition: "Must be an XISO" } } }]}
+      />
+    );
+    expect(screen.getByText("Conditional").className).toContain("text-amber-400");
   });
 });

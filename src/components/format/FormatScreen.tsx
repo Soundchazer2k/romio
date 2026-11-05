@@ -125,7 +125,11 @@ export function FormatScreen() {
   );
   const pick = scannedWith.emulator;
   const pickedSystems = groups.filter((g) => g.results[0]?.emulator === pick).map((g) => g.system);
-  const otherCount = groups.length - pickedSystems.length;
+  // A system outside the matrix used no emulator at all, so it isn't "a different one"
+  const otherCount = groups.filter((g) => {
+    const emulator = g.results[0]?.emulator;
+    return emulator !== pick && emulator !== "unknown";
+  }).length;
 
   return (
     <div className="p-8 max-w-3xl mx-auto space-y-6 pb-20">
@@ -198,7 +202,7 @@ export function FormatScreen() {
         >
           {pickedSystems.length > 0
             ? `${pick} only applies to ${pickedSystems.join(", ")}. ${otherCount} other ${otherCount === 1 ? "system" : "systems"} used a different emulator, shown on each row.`
-            : `${pick} doesn't apply to any system in this scan, so each system used a different emulator, shown on each row.`}
+            : `${pick} doesn't apply to any system in this scan, so each system with an emulator used a different one, shown on its row.`}
         </p>
       )}
 

@@ -27,7 +27,7 @@ export function FormatSystemRow({
   const uncheckedCount = group.results.filter((r) => r.state === "Unknown").length;
   const conditionalCount = group.results.filter((r) => r.condition).length;
   const allOk    = issueCount === 0 && uncheckedCount === 0 && conditionalCount === 0;
-  const noRules  = uncheckedCount === group.results.length;
+  const noRules  = uncheckedCount === group.results.length && !rules.some((r) => r.system === group.system);
   const emulator = group.results[0]?.emulator;
 
   return (

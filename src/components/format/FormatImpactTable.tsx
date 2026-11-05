@@ -50,7 +50,7 @@ export function FormatImpactTable({ extension, system, rules }: Props) {
             <span className={cn(
               "text-xs",
               rule.support === "supported"           ? "text-romio-green" :
-              typeof rule.support === "object" && "deprecated"  in rule.support ? "text-amber-400" :
+              typeof rule.support === "object" && ("deprecated" in rule.support || "conditional" in rule.support) ? "text-amber-400" :
               typeof rule.support === "object" && "unsupported" in rule.support ? "text-romio-red" :
               "text-romio-gray"
             )}>
@@ -70,7 +70,7 @@ export function FormatImpactTable({ extension, system, rules }: Props) {
 
 function SupportIcon({ support }: { support: FormatSupport }) {
   if (support === "supported")                                    return <Check        className="w-3 h-3 text-romio-green shrink-0" />;
-  if (typeof support === "object" && "deprecated"  in support)   return <AlertTriangle className="w-3 h-3 text-amber-400 shrink-0" />;
+  if (typeof support === "object" && ("deprecated" in support || "conditional" in support)) return <AlertTriangle className="w-3 h-3 text-amber-400 shrink-0" />;
   if (typeof support === "object" && "unsupported" in support)   return <X            className="w-3 h-3 text-romio-red shrink-0" />;
   return                                                                <HelpCircle   className="w-3 h-3 text-romio-gray shrink-0" />;
 }
