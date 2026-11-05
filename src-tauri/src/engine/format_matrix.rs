@@ -12,7 +12,7 @@ use crate::models::artifact::FormatCompatibilityState;
 ///
 /// A frontend install (RetroBat, Batocera, ES-DE) keeps games in `roms/`, so that is
 /// used when present; otherwise `root` itself holds the system folders. See
-/// `is_game_file` for what counts as a game. EasyRPG games can be `<game>.easyrpg/` folders.
+/// `is_game_file` for what counts as a game, and `games_under` for subfolders.
 pub fn list_system_folders(root: &Path, rules: &[FormatRule]) -> Result<Vec<SystemFolder>> {
     let roms = root.join("roms");
     let base = if roms.is_dir() { roms } else { root.to_path_buf() };
@@ -28,33 +28,79 @@ pub fn list_system_folders(root: &Path, rules: &[FormatRule]) -> Result<Vec<Syst
         let name = dir.file_name().unwrap_or_default().to_string_lossy().to_string();
         let path = dir.to_string_lossy().to_string();
         let system = system_for_folder(&name);
-        match std::fs::read_dir(&dir) {
-            Err(e) => SystemFolder { name, path, system, files: vec![], error: Some(e.to_string()) },
-            Ok(entries) => {
-                let entries: Vec<PathBuf> = entries
-                    .filter_map(|e| e.ok())
-                    .map(|e| e.path())
-                    .filter(|p| p.is_file() || p.extension().is_some_and(|e| e.eq_ignore_ascii_case("easyrpg")))
-                    .collect();
-                let companions = disc_companions(&entries);
-                let mut files: Vec<String> = entries.iter()
-                    .filter(|p| !is_disc_track(p, &companions, &system, rules))
-                    .filter(|p| is_game_file(p, &system, rules))
-                    .map(|p| p.to_string_lossy().to_string())
-                    .collect();
-                files.sort();
-                SystemFolder { name, path, system, files, error: None }
-            }
-        }
+        let (files, error) = games_under(&dir, &system, rules);
+        SystemFolder { name, path, system, files, error }
     }).collect())
+}
+
+/// Game files in a system folder and its subfolders, plus the first read failure if any.
+///
+/// Every frontend walks subfolders with no depth limit by default, so this does too.
+/// A folder named with a game format (`<game>.easyrpg/`, `<game>.cue/`) is one game, as it is
+/// to the frontends. Disc sheets match their tracks within each folder.
+///
+/// shortcut: below the system folder, only formats this system's rules name are listed, because
+/// installed game trees (PS3, DOS, MAME CHDs) are full of ROM-like files. So a subfolder game in
+/// a format the rules miss gets no row. List more if that turns up on real libraries.
+fn games_under(system_dir: &Path, system: &str, rules: &[FormatRule]) -> (Vec<String>, Option<String>) {
+    let (mut files, mut error, mut seen) = (Vec::new(), None, HashSet::new());
+    let mut pending = vec![system_dir.to_path_buf()];
+    while let Some(dir) = pending.pop() {
+        // A symlink or junction can lead back to a folder already walked
+        if std::fs::canonicalize(&dir).is_ok_and(|real| !seen.insert(real)) { continue; }
+        let entries = match std::fs::read_dir(&dir) {
+            Ok(entries) => entries,
+            Err(e) => { error.get_or_insert(e.to_string()); continue; }
+        };
+        let (candidates, subfolders): (Vec<PathBuf>, Vec<PathBuf>) = entries
+            .filter_map(|e| e.ok())
+            .map(|e| e.path())
+            .partition(|p| p.is_file() || is_game_folder(p, system, rules));
+        pending.extend(subfolders.into_iter().filter(|p| p.is_dir() && !is_non_game_folder(p)));
+
+        let nested = dir != system_dir;
+        let companions = disc_companions(&candidates);
+        files.extend(candidates.iter()
+            .filter(|p| !is_disc_track(p, &companions, system, rules))
+            .filter(|p| is_game_file(p, system, rules))
+            .filter(|p| !nested || rules_name_format(p, system, rules))
+            .map(|p| p.to_string_lossy().to_string()));
+    }
+    files.sort();
+    (files, error)
+}
+
+/// A folder the frontends would show as one game. Playlists aren't games, so a `<game>.m3u/`
+/// folder is walked and its discs are checked like loose ones.
+fn is_game_folder(path: &Path, system: &str, rules: &[FormatRule]) -> bool {
+    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
+    path.is_dir() && ext != "m3u" && (ext == "easyrpg" || rules_name_format(path, system, rules))
+}
+
+fn rules_name_format(path: &Path, system: &str, rules: &[FormatRule]) -> bool {
+    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
+    rules.iter().any(|r| r.system == system && r.extension == ext)
+}
+
+/// Folders Batocera and RetroBat never look in for games (SystemData::populateFolder), plus saves.
+const NON_GAME_FOLDERS: &[&str] = &[
+    "media", "medias", "images", "manuals", "videos", "assets", "html_arrm", "bezels",
+    "fonts", "logs", "screenshots", "artwork", "saves",
+];
+
+/// ES-DE adds `noload.txt`, its marker for a folder to leave alone, such as a texture pack.
+fn is_non_game_folder(dir: &Path) -> bool {
+    let name = dir.file_name().unwrap_or_default().to_string_lossy().to_lowercase();
+    name.starts_with('.') || name.starts_with("downloaded_")
+        || NON_GAME_FOLDERS.contains(&name.as_str())
+        || dir.join("noload.txt").exists()
 }
 
 /// A file a disc sheet names is that game's track, unless this system's rules judge its format:
 /// then it has a verdict worth showing, and may be a game in its own right.
 fn is_disc_track(path: &Path, companions: &HashSet<String>, system: &str, rules: &[FormatRule]) -> bool {
     let named = path.file_name().is_some_and(|n| companions.contains(&n.to_string_lossy().to_lowercase()));
-    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
-    named && !rules.iter().any(|r| r.system == system && r.extension == ext)
+    named && !rules_name_format(path, system, rules)
 }
 
 /// Real disc sheets are a few kilobytes. Anything bigger isn't one.
