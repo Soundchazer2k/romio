@@ -56,5 +56,4 @@ These are hidden from the sidebar until built; add each back to `NAV` in `Sideba
 ## Type Sync
 
 `src/types/index.ts` mirrors `src-tauri/src/models/`. When adding a Rust model, add the
-matching TS type. `SaveCheckpoint` is defined in Rust but currently missing from TS types —
-fix before using `create_save_checkpoint` IPC call.
+matching TS type.
