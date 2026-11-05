@@ -919,6 +919,26 @@ fn every_system_with_format_rules_has_a_recommended_emulator() {
 /// Format Check lists a file wherever it could be a game: artwork and a few formats
 /// that are rarely games elsewhere stay out, but a wrong Unknown row beats a missing game.
 #[test]
+fn rule_notes_are_written_for_users_not_source_readers() {
+    for rule in db::format::load_rules().unwrap() {
+        let notes = rule.notes.unwrap_or_default();
+        let cites_source = [".cpp", ".cc", "src/", "Source/", "Core/", "pcsx2/", "README"]
+            .iter().any(|s| notes.contains(s));
+        assert!(!cites_source, "{} .{}: {notes}", rule.system, rule.extension);
+    }
+}
+
+#[test]
+fn vita3k_formats_it_installs_are_conditional() {
+    let lib = Library::new();
+    let rules = db::format::load_rules().unwrap();
+    for name in ["roms/psvita/Game.vpk", "roms/psvita/Game.zip"] {
+        let result = check_format(&lib.game(name), &rules, "psvita", "vita3k", "retrobat");
+        assert!(result.condition.is_some(), "{name}: {result:#?}");
+    }
+}
+
+#[test]
 fn format_check_lists_a_systems_own_formats_not_stray_files() {
     let lib = Library::new();
     for g in [
