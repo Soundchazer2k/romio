@@ -5,7 +5,7 @@ use crate::models::artifact::Artifact;
 /// Replace all artifacts for a project with a fresh batch from the latest scan.
 /// Called at the end of `scan_library` after the scan completes successfully.
 pub fn save_batch(project_id: &str, artifacts: &[Artifact]) -> Result<()> {
-    crate::db::with_conn(|conn| {
+    crate::db::with_transaction(|conn| {
         // Delete stale artifacts before inserting fresh ones
         conn.execute(
             "DELETE FROM artifacts WHERE project_id = ?1",
@@ -61,4 +61,67 @@ pub fn save_batch(project_id: &str, artifacts: &[Artifact]) -> Result<()> {
         }
         Ok(())
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::artifact::{
+        ArtifactType, BiosValidationState, ExportStatus, FormatCompatibilityState, ScanVisibility,
+    };
+    use serial_test::serial;
+    use tempfile::TempDir;
+
+    fn artifact() -> Artifact {
+        Artifact {
+            id:                    uuid::Uuid::new_v4(),
+            artifact_type:         ArtifactType::Rom,
+            source_path:           "/test/file.zip".into(),
+            normalized_path:       "/test/file.zip".into(),
+            md5_hash:              None,
+            file_size:             Some(1024),
+            detected_system:       None,
+            detected_format:       Some("zip".into()),
+            bios_state:            BiosValidationState::NotApplicable,
+            format_state:          FormatCompatibilityState::NotApplicable,
+            frontend_tags:         vec![],
+            scan_visibility:       ScanVisibility::Visible,
+            title_id:              None,
+            export_status:         ExportStatus::NotExported,
+            validation_findings:   vec![],
+            save_root_association: None,
+            notes:                 None,
+            scanned_at:            chrono::Utc::now(),
+        }
+    }
+
+    fn count(project_id: &str) -> i64 {
+        crate::db::with_conn(|conn| {
+            Ok(conn.query_row(
+                "SELECT COUNT(*) FROM artifacts WHERE project_id = ?1",
+                rusqlite::params![project_id],
+                |row| row.get(0),
+            )?)
+        }).unwrap()
+    }
+
+    #[test]
+    #[serial]
+    fn failed_save_keeps_the_previous_scan() {
+        let dir = TempDir::new().unwrap();
+        crate::db::init(dir.path()).unwrap();
+        let project = crate::db::projects::create(crate::models::project::CreateProjectRequest {
+            name:             "test".to_string(),
+            library_roots:    vec![],
+            target_frontends: vec![],
+        }).unwrap().id.to_string();
+
+        save_batch(&project, &[artifact(), artifact()]).unwrap();
+
+        // The repeated id fails on the second insert, after the old rows were deleted
+        let repeated = artifact();
+        assert!(save_batch(&project, &[repeated.clone(), repeated]).is_err());
+
+        assert_eq!(count(&project), 2);
+    }
 }
