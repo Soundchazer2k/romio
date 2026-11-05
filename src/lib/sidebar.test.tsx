@@ -39,6 +39,14 @@ describe("Sidebar companion", () => {
     expect(screen.getByText("Pick a check and I'll get to it.")).toBeTruthy();
   });
 
+  it("goes back to Projects with the project still open, so you can return to it", () => {
+    render(<Sidebar />);
+    fireEvent.click(screen.getByRole("button", { name: /^Projects$/ }));
+    expect(useAppStore.getState().screen).toBe("projects");
+    expect(useAppStore.getState().activeProject).toBe(PROJECT);
+    expect(useAppStore.getState().romioState).toBe("idle");
+  });
+
   it("keeps the warning when you click the screen you're already on", () => {
     render(<Sidebar />);
     fireEvent.click(screen.getByRole("button", { name: /Save Migration/ }));
