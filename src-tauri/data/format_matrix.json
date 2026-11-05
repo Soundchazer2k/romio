@@ -2965,7 +2965,7 @@
     "extension": "vpk",
     "emulator": "vita3k",
     "frontend": null,
-    "support": { "conditional": { "condition": "Vita3K installs this file rather than running it directly, so it needs installing first." } },
+    "support": { "conditional": { "condition": "Must be a Vita package. Vita3K installs it before it can run, from Vita3K's own menu or when started with this file." } },
     "notes": null,
     "sinceVersion": null
   },
@@ -2974,7 +2974,7 @@
     "extension": "zip",
     "emulator": "vita3k",
     "frontend": null,
-    "support": { "conditional": { "condition": "Vita3K installs this file rather than running it directly, so it needs installing first." } },
+    "support": { "conditional": { "condition": "Must be a Vita package. Vita3K installs it before it can run, from Vita3K's own menu or when started with this file." } },
     "notes": null,
     "sinceVersion": null
   }
