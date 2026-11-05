@@ -60,7 +60,7 @@ export function DashboardScreen() {
       setScanning(false);
       setProgress(null);
       if (activeProject) setScanError({ projectId: activeProject.id, message: String(err) });
-      scanMood("concerned");
+      scanMood("error");
     },
   });
 

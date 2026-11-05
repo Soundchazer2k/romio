@@ -82,6 +82,12 @@ describe("Dashboard scan and the companion", () => {
     expect(screen.getByRole("alert").textContent).toContain("unreadable");
   });
 
+  it("doesn't blame the games when the scan itself fails", async () => {
+    const { fail } = startScan();
+    fail(new Error("unreadable"));
+    await waitFor(() => expect(useAppStore.getState().romioState).toBe("error"));
+  });
+
   it("clears the failure when the next scan starts", async () => {
     const { fail } = startScan();
     fail(new Error("unreadable"));
