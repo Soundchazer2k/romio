@@ -935,7 +935,7 @@ fn format_check_lists_a_systems_own_formats_not_stray_files() {
 #[test]
 fn a_cue_and_bin_disc_reads_as_one_compatible_game() {
     let lib = Library::new();
-    lib.file("roms/psx/Disc.cue", b"FILE \"Disc.bin\" BINARY\n");
+    lib.file("roms/psx/Disc.cue", b"FILE \"Disc.bin\" BINARY\n  TRACK 01 MODE2/2352\n");
     lib.game("roms/psx/Disc.bin");
 
     let rules = db::format::load_rules().unwrap();
