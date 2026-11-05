@@ -50,7 +50,7 @@
     "emulator": "xenia",
     "frontend": null,
     "support": "supported",
-    "notes": "Xenia finds the game partition in a trimmed XISO or a full XGD2/XGD3 disc image, so no conversion is needed (src/xenia/vfs/devices/disc_image_device.cc).",
+    "notes": "Xenia finds the game partition in a trimmed XISO or a full XGD2/XGD3 disc image, so no conversion is needed.",
     "sinceVersion": null
   },
   {
@@ -140,7 +140,7 @@
     "emulator": "ymir",
     "frontend": null,
     "support": "supported",
-    "notes": "Ymir loads MAME CHD, BIN+CUE, IMG+CCD, MDF+MDS and ISO (Ymir README).",
+    "notes": "Ymir loads MAME CHD, BIN+CUE, IMG+CCD, MDF+MDS and ISO.",
     "sinceVersion": null
   },
   {
@@ -185,7 +185,7 @@
     "emulator": "ppsspp",
     "frontend": null,
     "support": "supported",
-    "notes": "PPSSPP Core/FileSystems/BlockDevices.cpp detects CISO, PBP, CHD and plain ISO.",
+    "notes": "PPSSPP detects CISO, PBP, CHD and plain ISO.",
     "sinceVersion": null
   },
   {
@@ -194,7 +194,7 @@
     "emulator": "ppsspp",
     "frontend": null,
     "support": "supported",
-    "notes": "PPSSPP Core/FileSystems/BlockDevices.cpp detects CISO, PBP, CHD and plain ISO.",
+    "notes": "PPSSPP detects CISO, PBP, CHD and plain ISO.",
     "sinceVersion": null
   },
   {
@@ -203,7 +203,7 @@
     "emulator": "ppsspp",
     "frontend": null,
     "support": "supported",
-    "notes": "PPSSPP Core/FileSystems/BlockDevices.cpp detects CISO, PBP, CHD and plain ISO.",
+    "notes": "PPSSPP detects CISO, PBP, CHD and plain ISO.",
     "sinceVersion": null
   },
   {
@@ -212,7 +212,7 @@
     "emulator": "ppsspp",
     "frontend": null,
     "support": "supported",
-    "notes": "CHD support arrived in PPSSPP 1.17. PPSSPP Core/FileSystems/BlockDevices.cpp detects CISO, PBP, CHD and plain ISO.",
+    "notes": "CHD support arrived in PPSSPP 1.17. PPSSPP detects CISO, PBP, CHD and plain ISO.",
     "sinceVersion": "1.17"
   },
   {
@@ -221,7 +221,7 @@
     "emulator": "ppsspp",
     "frontend": null,
     "support": { "unsupported": { "reason": "PPSSPP only reads the CISO header used by .cso; .zso (ZISO, LZ4) isn't recognised. Convert it to .cso or .iso with maxcso." } },
-    "notes": "PPSSPP Core/FileSystems/BlockDevices.cpp detects CISO, PBP, CHD and plain ISO.",
+    "notes": "PPSSPP detects CISO, PBP, CHD and plain ISO.",
     "sinceVersion": null
   },
   {
@@ -230,7 +230,7 @@
     "emulator": "azahar",
     "frontend": null,
     "support": "supported",
-    "notes": "Azahar src/core/loader/loader.cpp boots CCI, CXI and 3DSX (plain and Z3DS-compressed). Dumps must be decrypted.",
+    "notes": "Azahar boots CCI, CXI and 3DSX (plain and Z3DS-compressed). Dumps must be decrypted.",
     "sinceVersion": null
   },
   {
@@ -239,7 +239,7 @@
     "emulator": "azahar",
     "frontend": null,
     "support": "supported",
-    "notes": "Azahar src/core/loader/loader.cpp boots CCI, CXI and 3DSX (plain and Z3DS-compressed). Dumps must be decrypted.",
+    "notes": "Azahar boots CCI, CXI and 3DSX (plain and Z3DS-compressed). Dumps must be decrypted.",
     "sinceVersion": null
   },
   {
@@ -248,7 +248,7 @@
     "emulator": "azahar",
     "frontend": null,
     "support": "supported",
-    "notes": "Azahar src/core/loader/loader.cpp boots CCI, CXI and 3DSX (plain and Z3DS-compressed). Dumps must be decrypted.",
+    "notes": "Azahar boots CCI, CXI and 3DSX (plain and Z3DS-compressed). Dumps must be decrypted.",
     "sinceVersion": null
   },
   {
@@ -257,7 +257,7 @@
     "emulator": "azahar",
     "frontend": null,
     "support": "supported",
-    "notes": "Azahar src/core/loader/loader.cpp boots CCI, CXI and 3DSX (plain and Z3DS-compressed). Dumps must be decrypted.",
+    "notes": "Azahar boots CCI, CXI and 3DSX (plain and Z3DS-compressed). Dumps must be decrypted.",
     "sinceVersion": null
   },
   {
@@ -266,7 +266,7 @@
     "emulator": "azahar",
     "frontend": null,
     "support": "supported",
-    "notes": "Azahar src/core/loader/loader.cpp boots CCI, CXI and 3DSX (plain and Z3DS-compressed). Dumps must be decrypted.",
+    "notes": "Azahar boots CCI, CXI and 3DSX (plain and Z3DS-compressed). Dumps must be decrypted.",
     "sinceVersion": null
   },
   {
@@ -275,7 +275,7 @@
     "emulator": "azahar",
     "frontend": null,
     "support": "supported",
-    "notes": "Azahar src/core/loader/loader.cpp boots CCI, CXI and 3DSX (plain and Z3DS-compressed). Dumps must be decrypted.",
+    "notes": "Azahar boots CCI, CXI and 3DSX (plain and Z3DS-compressed). Dumps must be decrypted.",
     "sinceVersion": null
   },
   {
@@ -284,7 +284,7 @@
     "emulator": "azahar",
     "frontend": null,
     "support": "supported",
-    "notes": "Azahar src/core/loader/loader.cpp boots CCI, CXI and 3DSX (plain and Z3DS-compressed). Dumps must be decrypted.",
+    "notes": "Azahar boots CCI, CXI and 3DSX (plain and Z3DS-compressed). Dumps must be decrypted.",
     "sinceVersion": null
   },
   {
@@ -293,7 +293,7 @@
     "emulator": "azahar",
     "frontend": null,
     "support": { "conditional": { "condition": "Azahar installs .cia files; it can't boot one. Install it (File > Install CIA) and launch it from Azahar's home menu, or keep a .cci/.3ds dump in roms/ instead." } },
-    "notes": "Azahar src/core/loader/loader.cpp boots CCI, CXI and 3DSX (plain and Z3DS-compressed). Dumps must be decrypted.",
+    "notes": "Azahar boots CCI, CXI and 3DSX (plain and Z3DS-compressed). Dumps must be decrypted.",
     "sinceVersion": null
   },
   {
@@ -302,7 +302,7 @@
     "emulator": "azahar",
     "frontend": null,
     "support": { "conditional": { "condition": "Azahar installs .cia files; it can't boot one. Install it (File > Install CIA) and launch it from Azahar's home menu, or keep a .cci/.3ds dump in roms/ instead." } },
-    "notes": "Azahar src/core/loader/loader.cpp boots CCI, CXI and 3DSX (plain and Z3DS-compressed). Dumps must be decrypted.",
+    "notes": "Azahar boots CCI, CXI and 3DSX (plain and Z3DS-compressed). Dumps must be decrypted.",
     "sinceVersion": null
   },
   {
@@ -320,7 +320,7 @@
     "emulator": "pcsx2",
     "frontend": null,
     "support": "supported",
-    "notes": "PCSX2 pcsx2/CDVD has readers for plain ISO, CHD, CSO/ZSO and GZ.",
+    "notes": "PCSX2 has readers for plain ISO, CHD, CSO/ZSO and GZ.",
     "sinceVersion": null
   },
   {
@@ -329,7 +329,7 @@
     "emulator": "pcsx2",
     "frontend": null,
     "support": "supported",
-    "notes": "PCSX2 pcsx2/CDVD has readers for plain ISO, CHD, CSO/ZSO and GZ.",
+    "notes": "PCSX2 has readers for plain ISO, CHD, CSO/ZSO and GZ.",
     "sinceVersion": null
   },
   {
@@ -338,7 +338,7 @@
     "emulator": "pcsx2",
     "frontend": null,
     "support": "supported",
-    "notes": "PCSX2 pcsx2/CDVD has readers for plain ISO, CHD, CSO/ZSO and GZ.",
+    "notes": "PCSX2 has readers for plain ISO, CHD, CSO/ZSO and GZ.",
     "sinceVersion": null
   },
   {
@@ -347,7 +347,7 @@
     "emulator": "pcsx2",
     "frontend": null,
     "support": "supported",
-    "notes": "PCSX2 pcsx2/CDVD has readers for plain ISO, CHD, CSO/ZSO and GZ.",
+    "notes": "PCSX2 has readers for plain ISO, CHD, CSO/ZSO and GZ.",
     "sinceVersion": null
   },
   {
@@ -356,7 +356,7 @@
     "emulator": "dolphin",
     "frontend": null,
     "support": "supported",
-    "notes": "Dolphin Source/Core/DiscIO/Blob.cpp reads plain images, GCZ, CISO, WBFS, WIA and RVZ.",
+    "notes": "Dolphin reads plain images, GCZ, CISO, WBFS, WIA and RVZ.",
     "sinceVersion": null
   },
   {
@@ -365,7 +365,7 @@
     "emulator": "dolphin",
     "frontend": null,
     "support": "supported",
-    "notes": "Dolphin Source/Core/DiscIO/Blob.cpp reads plain images, GCZ, CISO, WBFS, WIA and RVZ.",
+    "notes": "Dolphin reads plain images, GCZ, CISO, WBFS, WIA and RVZ.",
     "sinceVersion": null
   },
   {
@@ -374,7 +374,7 @@
     "emulator": "dolphin",
     "frontend": null,
     "support": "supported",
-    "notes": "Dolphin Source/Core/DiscIO/Blob.cpp reads plain images, GCZ, CISO, WBFS, WIA and RVZ.",
+    "notes": "Dolphin reads plain images, GCZ, CISO, WBFS, WIA and RVZ.",
     "sinceVersion": null
   },
   {
@@ -383,7 +383,7 @@
     "emulator": "dolphin",
     "frontend": null,
     "support": "supported",
-    "notes": "Dolphin Source/Core/DiscIO/Blob.cpp reads plain images, GCZ, CISO, WBFS, WIA and RVZ.",
+    "notes": "Dolphin reads plain images, GCZ, CISO, WBFS, WIA and RVZ.",
     "sinceVersion": null
   },
   {
@@ -392,7 +392,7 @@
     "emulator": "dolphin",
     "frontend": null,
     "support": "supported",
-    "notes": "Dolphin Source/Core/DiscIO/Blob.cpp reads plain images, GCZ, CISO, WBFS, WIA and RVZ.",
+    "notes": "Dolphin reads plain images, GCZ, CISO, WBFS, WIA and RVZ.",
     "sinceVersion": null
   },
   {
@@ -401,7 +401,7 @@
     "emulator": "dolphin",
     "frontend": null,
     "support": "supported",
-    "notes": "Dolphin Source/Core/DiscIO/Blob.cpp reads plain images, GCZ, CISO, WBFS, WIA and RVZ.",
+    "notes": "Dolphin reads plain images, GCZ, CISO, WBFS, WIA and RVZ.",
     "sinceVersion": null
   },
   {
@@ -410,7 +410,7 @@
     "emulator": "dolphin",
     "frontend": null,
     "support": "supported",
-    "notes": "Dolphin Source/Core/DiscIO/Blob.cpp reads plain images, GCZ, CISO, WBFS, WIA and RVZ.",
+    "notes": "Dolphin reads plain images, GCZ, CISO, WBFS, WIA and RVZ.",
     "sinceVersion": null
   },
   {
@@ -419,7 +419,7 @@
     "emulator": "dolphin",
     "frontend": null,
     "support": "supported",
-    "notes": "Dolphin Source/Core/DiscIO/Blob.cpp reads plain images, GCZ, CISO, WBFS, WIA and RVZ.",
+    "notes": "Dolphin reads plain images, GCZ, CISO, WBFS, WIA and RVZ.",
     "sinceVersion": null
   },
   {
@@ -428,7 +428,7 @@
     "emulator": "dolphin",
     "frontend": null,
     "support": "supported",
-    "notes": "Dolphin Source/Core/DiscIO/Blob.cpp reads plain images, GCZ, CISO, WBFS, WIA and RVZ.",
+    "notes": "Dolphin reads plain images, GCZ, CISO, WBFS, WIA and RVZ.",
     "sinceVersion": null
   },
   {
@@ -2965,8 +2965,8 @@
     "extension": "vpk",
     "emulator": "vita3k",
     "frontend": null,
-    "support": "supported",
-    "notes": "Vita3K installs this file rather than running it directly.",
+    "support": { "conditional": { "condition": "Vita3K installs this file rather than running it directly, so it needs installing first." } },
+    "notes": null,
     "sinceVersion": null
   },
   {
@@ -2974,8 +2974,8 @@
     "extension": "zip",
     "emulator": "vita3k",
     "frontend": null,
-    "support": "supported",
-    "notes": "Vita3K installs this file rather than running it directly.",
+    "support": { "conditional": { "condition": "Vita3K installs this file rather than running it directly, so it needs installing first." } },
+    "notes": null,
     "sinceVersion": null
   }
 ]
