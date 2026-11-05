@@ -42,19 +42,24 @@ export function FormatScreen() {
   const [drawerOpen,  setDrawerOpen]  = useState(false);
 
   // Load the format matrix on mount (used by impact tables + reference drawer)
-  const { data: rules = [] } = useQuery<FormatRule[]>({
+  const { data: rules = [], isSuccess: rulesLoaded, isError: rulesFailed } = useQuery<FormatRule[]>({
     queryKey: ["format-matrix"],
     queryFn:  () => ipc.getFormatMatrix(),
   });
 
   // Load emulator matrix on mount (used for "auto" emulator resolution)
-  const { data: emulatorMatrix = [] } = useQuery<EmulatorMatrixEntry[]>({
+  const { data: emulatorMatrix = [], isSuccess: matrixLoaded, isError: matrixFailed } = useQuery<EmulatorMatrixEntry[]>({
     queryKey: ["emulator-matrix"],
     queryFn:  () => ipc.getEmulatorMatrix(),
   });
 
+  // Without these, every file would read as "No rules yet"
+  const ready = rulesLoaded && matrixLoaded;
+  const bannerError = scanError
+    ?? (rulesFailed || matrixFailed ? "Romio couldn't load its format rules, so it can't check this library. Restart Romio and try again." : null);
+
   async function runScan() {
-    if (!libraryPath) return;
+    if (!libraryPath || !ready) return;
     setIsScanning(true);
     setScanError(null);
     setGroups([]);
@@ -163,6 +168,7 @@ export function FormatScreen() {
         emulator={emulatorOverride}
         emulatorMatrix={emulatorMatrix}
         isScanning={isScanning}
+        ready={ready}
         onPathChange={setLibraryPath}
         onFrontendChange={setFrontend}
         onEmulatorChange={setEmulatorOverride}
@@ -170,14 +176,14 @@ export function FormatScreen() {
       />
 
       {/* Scan error banner */}
-      {scanError && (
+      {bannerError && (
         <motion.div
           initial={{ opacity: 0, y: -4 }}
           animate={{ opacity: 1, y: 0 }}
           className="px-4 py-3 rounded-xl bg-romio-red/10 border border-romio-red/20
                      text-sm text-romio-red"
         >
-          {scanError}
+          {bannerError}
         </motion.div>
       )}
 
@@ -194,7 +200,7 @@ export function FormatScreen() {
       )}
 
       {/* A picked emulator only runs on systems that list it; never let "All OK" imply otherwise */}
-      {!stale && pick !== "auto" && otherCount > 0 && (
+      {!stale && pick !== "auto" && hasResults && (otherCount > 0 || pickedSystems.length === 0) && (
         <p
           role="status"
           className="px-4 py-3 rounded-xl bg-amber-400/10 border border-amber-400/20
@@ -202,7 +208,7 @@ export function FormatScreen() {
         >
           {pickedSystems.length > 0
             ? `${pick} only applies to ${pickedSystems.join(", ")}. ${otherCount} other ${otherCount === 1 ? "system" : "systems"} used a different emulator, shown on each row.`
-            : `${pick} doesn't apply to any system in this scan, so each system with an emulator used a different one, shown on its row.`}
+            : `${pick} doesn't apply to any system in this scan.${otherCount > 0 ? " Each system with an emulator used a different one, shown on its row." : ""}`}
         </p>
       )}
 

@@ -23,6 +23,8 @@ const TWO_FOLDERS = [
 const mocks = vi.hoisted(() => ({
   checkFormat: vi.fn(),
   listLibraryFolders: vi.fn(),
+  getFormatMatrix: vi.fn(),
+  getEmulatorMatrix: vi.fn(),
 }));
 
 vi.mock("@/stores", () => ({
@@ -35,8 +37,8 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({ open: vi.fn() }));
 
 vi.mock("@/lib/ipc", () => ({
   ipc: {
-    getFormatMatrix:    () => Promise.resolve([]),
-    getEmulatorMatrix:  () => Promise.resolve(MATRIX),
+    getFormatMatrix:    () => mocks.getFormatMatrix(),
+    getEmulatorMatrix:  () => mocks.getEmulatorMatrix(),
     listLibraryFolders: () => mocks.listLibraryFolders(),
     checkFormat: (...args: unknown[]) => mocks.checkFormat(...args),
   },
@@ -75,6 +77,10 @@ describe("FormatScreen", () => {
   beforeEach(() => {
     mocks.listLibraryFolders.mockReset();
     mocks.listLibraryFolders.mockResolvedValue(TWO_FOLDERS);
+    mocks.getFormatMatrix.mockReset();
+    mocks.getFormatMatrix.mockResolvedValue([]);
+    mocks.getEmulatorMatrix.mockReset();
+    mocks.getEmulatorMatrix.mockResolvedValue(MATRIX);
     mocks.checkFormat.mockReset();
     mocks.checkFormat.mockImplementation((path: string, system: string, emulator: string) =>
       Promise.resolve({ path, extension: "x", system, emulator, state: "Compatible" }));
@@ -144,6 +150,38 @@ describe("FormatScreen", () => {
     expect(screen.queryByRole("status")).toBeNull();
   });
 
+  it("says a pick ran nowhere when no scanned system has an emulator", async () => {
+    mocks.listLibraryFolders.mockResolvedValue([
+      { name: "foo", path: "/roms/foo", system: "foo", files: ["/roms/foo/c.x"] },
+    ]);
+    await setUp();
+    fireEvent.change(screen.getByDisplayValue("auto"), { target: { value: "lr-nestopia" } });
+    fireEvent.click(screen.getByRole("button", { name: /Scan/ }));
+
+    await screen.findByText("foo");
+    const notice = screen.getByRole("status").textContent;
+    expect(notice).toContain("lr-nestopia doesn't apply to any system in this scan");
+    expect(notice).not.toContain("different");
+  });
+
+  it("can't scan until the rules and emulators have loaded", async () => {
+    mocks.getFormatMatrix.mockReturnValue(new Promise(() => undefined));
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(<QueryClientProvider client={client}><FormatScreen /></QueryClientProvider>);
+
+    await screen.findByRole("option", { name: "lr-nestopia" });
+    expect((screen.getByRole("button", { name: /Scan/ }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it("says so and can't scan when the rules fail to load", async () => {
+    mocks.getEmulatorMatrix.mockRejectedValue(new Error("no"));
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(<QueryClientProvider client={client}><FormatScreen /></QueryClientProvider>);
+
+    await screen.findByText(/couldn't load its format rules/);
+    expect((screen.getByRole("button", { name: /Scan/ }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
   it("flags results as out of date when the emulator or frontend changes, until a new scan", async () => {
     await setUp();
     await scan();
@@ -167,11 +205,15 @@ describe("FormatScreen after an empty scan", () => {
   beforeEach(() => {
     mocks.listLibraryFolders.mockReset();
     mocks.listLibraryFolders.mockResolvedValue([]);
+    mocks.getFormatMatrix.mockResolvedValue([]);
+    mocks.getEmulatorMatrix.mockResolvedValue(MATRIX);
   });
 
   it("names the scanned library and flags it out of date when the root changes", async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(<QueryClientProvider client={client}><FormatScreen /></QueryClientProvider>);
+    await screen.findByRole("option", { name: "lr-nestopia" });
+    await waitFor(() => expect((screen.getByRole("button", { name: /Scan/ }) as HTMLButtonElement).disabled).toBe(false));
     fireEvent.click(screen.getByRole("button", { name: /Scan/ }));
     await screen.findByText(/No game files found in \/roms\./);
     expect(screen.queryByRole("status")).toBeNull();
