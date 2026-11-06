@@ -89,7 +89,7 @@ fn games_under(system_dir: &Path, real_base: &Path, system: &str, rules: &[Forma
         for path in candidates.iter().filter(|p| !is_disc_track(p, &companions, system, rules)) {
             if is_game_file(path, system, rules) && (!rules_only || rules_name_format(path, system, rules)) {
                 files.push(path.to_string_lossy().to_string());
-            } else if rules_only && path.is_file() {
+            } else if rules_only && path.is_file() && !rules_name_format(path, system, rules) {
                 unchecked_file = true;
             }
         }

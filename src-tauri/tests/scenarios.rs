@@ -1244,6 +1244,7 @@ fn installed_tree_systems_say_only_when_a_nested_file_gets_no_row() {
     // Every file was judged, or is a track its sheet stands in for
     assert!(!flagged("dos", &[("Game/Valid.zip", b"x")]));
     assert!(!flagged("dos", &[("Game/Game.cue", sheet), ("Game/Game.bin", b"x")]));
+    assert!(!flagged("dos", &[("Game/Game.m3u", b"x"), ("Game/Disc 1.chd", b"x"), ("Game/Disc 2.chd", b"x")]));
     // No file below the system folder
     assert!(!flagged("ps3", &[("Loose.iso", b"x")]));
     // Skipped folders and one-game folders aren't looked inside
@@ -1256,6 +1257,7 @@ fn installed_tree_systems_say_only_when_a_nested_file_gets_no_row() {
     assert!(flagged("dos", &[("Game/Valid.zip", b"x"), ("Game/readme.txt", b"x")]));
     assert!(flagged("dos", &[("Game/Game.bin", b"x")]), "a track with no sheet gets no row");
     assert!(flagged("windows", &[("Game/setup.iso", b"x")]), "also with no rules at all");
+    assert!(flagged("windows", &[("Game/Game.m3u", b"x")]), "a playlist only passes where the rules name it");
 }
 
 /// RetroBat lists .hypseus for this system, so a folder named that must not lose its row.
