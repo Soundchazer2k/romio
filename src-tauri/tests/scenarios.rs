@@ -1228,23 +1228,34 @@ fn a_system_folder_that_is_itself_a_link_still_works() {
 }
 
 #[test]
-fn installed_tree_systems_say_when_they_have_game_folders() {
-    let lib = Library::new();
-    lib.game("roms/dos/Game/readme.md"); // true: a walked subfolder in an installed-tree system
-    lib.game("roms/windows/Game/setup.exe"); // true: also with no rules at all
-    lib.game("roms/ps3/Loose.iso"); // false: no subfolder
-    lib.game("roms/xbox/media/cover.png"); // false: a skipped folder isn't walked
-    lib.game("roms/xbox360/Game.iso/Inner.iso"); // false: one game, not walked
-    lib.game("roms/psx/Disc/Disc.chd"); // false: not an installed-tree system
+fn installed_tree_systems_say_only_when_a_nested_file_gets_no_row() {
+    let flagged = |system: &str, files: &[(&str, &[u8])]| -> bool {
+        let lib = Library::new();
+        for (rel, contents) in files {
+            lib.file(&format!("roms/{system}/{rel}"), contents);
+        }
+        let folders = list_system_folders(lib.root(), &db::format::load_rules().unwrap()).unwrap();
+        folders.iter().find(|f| f.name == system).unwrap().unchecked_subfolders
+    };
+    let sheet: &[u8] = b"FILE \"Game.bin\" BINARY
+  TRACK 01 MODE1/2352
+";
 
-    let folders = list_system_folders(lib.root(), &db::format::load_rules().unwrap()).unwrap();
-    let flagged = |name: &str| folders.iter().find(|f| f.name == name).unwrap().unchecked_subfolders;
+    // Every file was judged, or is a track its sheet stands in for
+    assert!(!flagged("dos", &[("Game/Valid.zip", b"x")]));
+    assert!(!flagged("dos", &[("Game/Game.cue", sheet), ("Game/Game.bin", b"x")]));
+    // No file below the system folder
+    assert!(!flagged("ps3", &[("Loose.iso", b"x")]));
+    // Skipped folders and one-game folders aren't looked inside
+    assert!(!flagged("dos", &[("media/Skipped.exe", b"x")]));
+    assert!(!flagged("xbox360", &[("Game.iso/Inner.exe", b"x")]));
+    // Not an installed-tree system: nested files are judged like loose ones
+    assert!(!flagged("psx", &[("Disc/Other.exe", b"x")]));
 
-    assert!(flagged("dos"));
-    assert!(flagged("windows"));
-    for name in ["ps3", "xbox", "xbox360", "psx"] {
-        assert!(!flagged(name), "{name}");
-    }
+    assert!(flagged("dos", &[("Game/PLAY.EXE", b"x")]));
+    assert!(flagged("dos", &[("Game/Valid.zip", b"x"), ("Game/readme.txt", b"x")]));
+    assert!(flagged("dos", &[("Game/Game.bin", b"x")]), "a track with no sheet gets no row");
+    assert!(flagged("windows", &[("Game/setup.iso", b"x")]), "also with no rules at all");
 }
 
 /// RetroBat lists .hypseus for this system, so a folder named that must not lose its row.

@@ -226,7 +226,7 @@ export function FormatScreen() {
           className="px-4 py-3 rounded-xl bg-background-surface border border-border
                      text-sm text-romio-gray"
         >
-          On these systems, Romio only checks formats it has rules for inside game folders: {limitedFolders.join(", ")}.
+          Some files in subfolders of these systems weren't checked, because Romio can't judge their formats yet: {limitedFolders.join(", ")}.
         </p>
       )}
 

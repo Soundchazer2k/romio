@@ -53,7 +53,7 @@ pub struct SystemFolder {
     pub files: Vec<String>,
     /// Set when any of the folder couldn't be read; `files` holds what could be
     pub error: Option<String>,
-    /// An installed-tree system with game folders, where only rule-named formats are listed
+    /// An installed-tree system left a file in a subfolder without a row
     pub unchecked_subfolders: bool,
 }
 

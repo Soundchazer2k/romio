@@ -28,14 +28,13 @@ pub fn list_system_folders(root: &Path, rules: &[FormatRule]) -> Result<Vec<Syst
         let name = dir.file_name().unwrap_or_default().to_string_lossy().to_string();
         let path = dir.to_string_lossy().to_string();
         let system = system_for_folder(&name);
-        let (files, error, walked_subfolder) = games_under(&dir, &real_base, &system, rules);
-        let unchecked_subfolders = walked_subfolder && INSTALLED_TREE_SYSTEMS.contains(&system.as_str());
+        let (files, error, unchecked_subfolders) = games_under(&dir, &real_base, &system, rules);
         SystemFolder { name, path, system, files, error, unchecked_subfolders }
     }).collect())
 }
 
 /// Game files in a system folder and its subfolders, the first read failure if any, and
-/// whether any subfolder was walked.
+/// whether an installed-tree system left a nested file without a row.
 ///
 /// Every frontend walks subfolders with no depth limit by default, so this does too.
 /// A folder named with a game format (`<game>.easyrpg/`, `<game>.cue/`) is one game, as it is
@@ -51,7 +50,7 @@ fn games_under(system_dir: &Path, real_base: &Path, system: &str, rules: &[Forma
         Ok(real) => real,
         Err(e) => return (Vec::new(), Some(e.to_string()), false),
     };
-    let (mut files, mut error, mut seen, mut walked_subfolder) = (Vec::new(), None, HashSet::new(), false);
+    let (mut files, mut error, mut seen, mut unchecked_file) = (Vec::new(), None, HashSet::new(), false);
     let mut pending = vec![system_dir.to_path_buf()];
     while let Some(dir) = pending.pop() {
         let real = match std::fs::canonicalize(&dir) {
@@ -83,20 +82,20 @@ fn games_under(system_dir: &Path, real_base: &Path, system: &str, rules: &[Forma
         }
         let (candidates, subfolders): (Vec<PathBuf>, Vec<PathBuf>) = paths.into_iter()
             .partition(|p| p.is_file() || is_game_folder(p, system, rules));
-        let before = pending.len();
         pending.extend(subfolders.into_iter().filter(|p| p.is_dir() && !is_non_game_folder(p)));
-        walked_subfolder |= pending.len() > before;
 
         let rules_only = dir != system_dir && INSTALLED_TREE_SYSTEMS.contains(&system);
         let companions = disc_companions(&candidates);
-        files.extend(candidates.iter()
-            .filter(|p| !is_disc_track(p, &companions, system, rules))
-            .filter(|p| is_game_file(p, system, rules))
-            .filter(|p| !rules_only || rules_name_format(p, system, rules))
-            .map(|p| p.to_string_lossy().to_string()));
+        for path in candidates.iter().filter(|p| !is_disc_track(p, &companions, system, rules)) {
+            if is_game_file(path, system, rules) && (!rules_only || rules_name_format(path, system, rules)) {
+                files.push(path.to_string_lossy().to_string());
+            } else if rules_only && path.is_file() {
+                unchecked_file = true;
+            }
+        }
     }
     files.sort();
-    (files, error, walked_subfolder)
+    (files, error, unchecked_file)
 }
 
 /// Systems whose game folders hold whole installs or companion data, full of files with
