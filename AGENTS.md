@@ -41,8 +41,8 @@ root-level `tauri.conf.json`; the CLI finds it first and fails with "No package 
 
 ## Screens & Status
 
-Implemented: `welcome`, `projects`, `dashboard`, `preflight`, `bios`, `saves`
-Placeholder (backend stubs exist, UI TODO): `format`, `multidisc`, `scummvm`, `installed`, `export`, `preview`, `rollback`
+Implemented: `welcome`, `projects`, `dashboard`, `preflight`, `bios`, `format`, `saves`
+Placeholder (backend stubs exist, UI TODO): `multidisc`, `scummvm`, `installed`, `export`, `preview`, `rollback`
 
 ## Type Sync
 
