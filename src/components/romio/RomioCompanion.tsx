@@ -50,8 +50,8 @@ export function RomioCompanion({ state, message }: Props) {
 
   return (
     <div className="flex flex-col items-center gap-3 p-4">
-      {/* No exit animation: AnimatePresence mode="wait" can strand the old line
-          if the state changes again as its exit ends, and a stale warning misleads. */}
+      {/* No exit animation: AnimatePresence mode="wait" holds the old line until its exit
+          ends, and a stuck line was reproduced with it and not without it. */}
       <motion.div
         key={state}
         initial={{ opacity: 0, scale: 0.9 }}
