@@ -248,8 +248,24 @@ describe("FormatScreen", () => {
 
     expect(screen.getByText("All OK")).toBeTruthy();
     fireEvent.click(screen.getByText("ps1"));
-    expect(await screen.findByText(/Check failed/)).toBeTruthy();
+    expect(await screen.findByText("Check failed: no")).toBeTruthy();
     expect(screen.getByText("a.chd")).toBeTruthy();
+  });
+
+  it("gives every file in a failed call the real reason, with no claim about the file", async () => {
+    mocks.listLibraryFolders.mockResolvedValue([
+      { name: "psx", path: "/roms/psx", system: "ps1", files: ["/roms/psx/a.chd", "/roms/psx/b.chd"] },
+    ]);
+    // Tauri rejects with the command's error string, not an Error
+    mocks.checkFormatBatch.mockRejectedValue("rules failed to load");
+    await setUp();
+    fireEvent.click(screen.getByRole("button", { name: /Scan/ }));
+    fireEvent.click(await screen.findByText("ps1"));
+
+    expect(await screen.findAllByText("Check failed: rules failed to load")).toHaveLength(2);
+    expect(screen.getByText("a.chd")).toBeTruthy();
+    expect(screen.getByText("b.chd")).toBeTruthy();
+    expect(screen.queryByText(/unreadable/)).toBeNull();
   });
 
   it("flags results as out of date when the emulator or frontend changes, until a new scan", async () => {

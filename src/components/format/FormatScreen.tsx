@@ -96,8 +96,9 @@ export function FormatScreen() {
           const chunk = folder.files.slice(i, i + CHECK_CHUNK_SIZE);
           try {
             allResults.push(...await ipc.checkFormatBatch(chunk, systemId, emu, frontend));
-          } catch {
+          } catch (err) {
             // Failed call: its files become Unknown results, and the scan goes on
+            const reason = err instanceof Error ? err.message : String(err);
             for (const filePath of chunk) {
               const name = filePath.split(/[\\/]/).pop() ?? filePath;
               const ext = name.includes(".")
@@ -109,7 +110,7 @@ export function FormatScreen() {
                 system:    systemId,
                 emulator:  emu,
                 state:     "Unknown",
-                notes:     "Check failed — file may be unreadable",
+                notes:     `Check failed: ${reason}`,
               });
             }
           }
