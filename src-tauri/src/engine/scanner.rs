@@ -51,7 +51,7 @@ const ROM_EXTENSIONS: &[&str] = &[
     "lnx",
     "a26", "a78",
     "j64", "jag",
-    "hypseus", "daphne",  // daphne flagged as deprecated
+    "hypseus", "daphne",
     "m3u",
     "ccd", "sub",
     "gdi",
@@ -135,9 +135,6 @@ fn classify_file(path: &Path) -> Option<Artifact> {
 
     let artifact_type = if ext == "m3u" {
         ArtifactType::M3u
-    } else if ext == "daphne" {
-        // Deprecated LaserDisc extension — flag in format validation
-        ArtifactType::Rom
     } else if ROM_EXTENSIONS.contains(&ext.as_str()) {
         ArtifactType::Rom
     } else {
