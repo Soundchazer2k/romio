@@ -277,17 +277,20 @@ mod tests {
         }
         let events = std::cell::RefCell::new(Vec::new());
 
+        let started = Instant::now();
         let artifacts = scan_roots(
             &[dir.path().to_path_buf()],
             Arc::new(AtomicBool::new(false)),
             |p| events.borrow_mut().push(p),
         )
         .unwrap();
+        let elapsed = started.elapsed();
 
         let events = events.into_inner();
         assert_eq!(artifacts.len(), 200);
-        // Far fewer than the 201 entries walked, even on a slow test machine.
-        assert!(events.len() < 100, "sent {} events", events.len());
+        // One update per elapsed interval, plus the first update and Complete.
+        let limit = elapsed.as_millis() / PROGRESS_INTERVAL.as_millis() + 2;
+        assert!(events.len() as u128 <= limit, "sent {} events, limit {limit}", events.len());
         let last = events.last().unwrap();
         assert!(matches!(last.phase, ScanPhase::Complete));
         assert_eq!(last.files_scanned, 200);
