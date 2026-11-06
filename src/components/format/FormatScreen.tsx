@@ -104,7 +104,7 @@ export function FormatScreen() {
       setGroups(groupResultsBySystem(allResults));
       setScanned(true);
       if (unreadable.length > 0) {
-        setScanError(`Romio couldn't read these folders, so their games weren't checked: ${unreadable.join(", ")}.`);
+        setScanError(`Romio couldn't finish reading these folders, so some of their games may not be checked: ${unreadable.join(", ")}.`);
       }
     } catch (err) {
       setScanError(err instanceof Error ? err.message : String(err));

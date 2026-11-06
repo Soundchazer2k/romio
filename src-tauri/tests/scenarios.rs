@@ -1109,3 +1109,88 @@ fn a_junction_back_to_a_parent_does_not_loop_or_repeat_games() {
     assert_eq!(psx.files.len(), 1, "{:?}", psx.files);
     std::fs::remove_dir(&link).unwrap();
 }
+
+#[test]
+fn nested_files_are_judged_like_loose_ones_outside_installed_trees() {
+    let lib = Library::new();
+    lib.game("roms/tic80/Carts/Cart.png");
+    lib.game("roms/satellaview/Carts/Cart.bs");
+    lib.game("roms/dreamcast/Disc/Disc.iso");
+    lib.game("roms/psx/Bare/Bare.bin");
+    // A sheet still speaks for its own folder's tracks
+    lib.file("roms/saturn/Disc/Disc.cue", b"FILE \"Disc.bin\" BINARY
+  TRACK 01 MODE1/2352
+");
+    lib.game("roms/saturn/Disc/Disc.bin");
+    lib.game("roms/saturn/Other/Disc.bin");
+
+    let folders = list_system_folders(lib.root(), &db::format::load_rules().unwrap()).unwrap();
+    let listed = |name: &str| -> Vec<String> {
+        let root = lib.path("roms").join(name);
+        let folder = folders.iter().find(|f| f.name == name).unwrap_or_else(|| panic!("no folder {name}"));
+        folder.files.iter()
+            .map(|f| std::path::Path::new(f).strip_prefix(&root).unwrap().to_string_lossy().replace(std::path::MAIN_SEPARATOR, "/"))
+            .collect()
+    };
+
+    assert_eq!(listed("tic80"), ["Carts/Cart.png"]);
+    assert_eq!(listed("satellaview"), ["Carts/Cart.bs"]);
+    assert_eq!(listed("dreamcast"), ["Disc/Disc.iso"]);
+    assert_eq!(listed("psx"), ["Bare/Bare.bin"]);
+    assert_eq!(listed("saturn"), ["Disc/Disc.cue", "Other/Disc.bin"], "only the sheet's own folder hides its track");
+}
+
+#[test]
+fn skipped_folders_stay_out_even_when_named_like_a_game() {
+    let lib = Library::new();
+    lib.game("roms/psx/downloaded_x.chd/Skipped.chd");
+    lib.game("roms/psx/Disc.cue/Skipped.cue");
+    lib.game("roms/psx/Disc.cue/noload.txt");
+    lib.game("roms/psx/Racing/Disc.cue/Skipped.cue");
+    lib.game("roms/psx/Racing/Disc.cue/noload.txt");
+    lib.game("roms/psx/Listed.chd/Inner.chd");
+
+    let folders = list_system_folders(lib.root(), &db::format::load_rules().unwrap()).unwrap();
+    let psx = folders.iter().find(|f| f.name == "psx").unwrap();
+    let names: Vec<_> = psx.files.iter()
+        .map(|f| std::path::Path::new(f).file_name().unwrap().to_string_lossy().to_string())
+        .collect();
+    assert_eq!(names, ["Listed.chd"]);
+}
+
+#[cfg(windows)]
+fn junction(link: &std::path::Path, target: &std::path::Path) {
+    let made = std::process::Command::new("cmd").args(["/C", "mklink", "/J"]).arg(link).arg(target).output().unwrap();
+    assert!(made.status.success(), "{}", String::from_utf8_lossy(&made.stderr));
+}
+
+#[cfg(windows)]
+#[test]
+fn a_link_out_of_the_system_folder_is_reported_not_walked() {
+    let lib = Library::new();
+    lib.game("roms/psx/Own.chd");
+    lib.game("roms/saturn/Other.chd");
+    junction(&lib.path("roms/psx/Linked"), &lib.path("roms/saturn"));
+
+    let folders = list_system_folders(lib.root(), &db::format::load_rules().unwrap()).unwrap();
+    let psx = folders.iter().find(|f| f.name == "psx").unwrap();
+    assert_eq!(psx.files.len(), 1, "{:?}", psx.files);
+    assert!(psx.error.is_some(), "a game left unchecked must say so");
+    let saturn = folders.iter().find(|f| f.name == "saturn").unwrap();
+    assert_eq!((saturn.files.len(), saturn.error.is_none()), (1, true));
+    std::fs::remove_dir(lib.path("roms/psx/Linked")).unwrap();
+}
+
+#[cfg(windows)]
+#[test]
+fn a_system_folder_that_is_itself_a_link_still_works() {
+    let lib = Library::new();
+    lib.game("elsewhere/ps2/Racing/Disc.chd");
+    lib.game("roms/psx/Own.chd");
+    junction(&lib.path("roms/ps2"), &lib.path("elsewhere/ps2"));
+
+    let folders = list_system_folders(lib.root(), &db::format::load_rules().unwrap()).unwrap();
+    let ps2 = folders.iter().find(|f| f.name == "ps2").unwrap();
+    assert_eq!((ps2.files.len(), ps2.error.as_deref()), (1, None), "{:?}", ps2.files);
+    std::fs::remove_dir(lib.path("roms/ps2")).unwrap();
+}

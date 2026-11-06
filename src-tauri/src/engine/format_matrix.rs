@@ -17,11 +17,10 @@ pub fn list_system_folders(root: &Path, rules: &[FormatRule]) -> Result<Vec<Syst
     let roms = root.join("roms");
     let base = if roms.is_dir() { roms } else { root.to_path_buf() };
 
-    let mut dirs: Vec<_> = std::fs::read_dir(&base)?
-        .filter_map(|e| e.ok())
-        .map(|e| e.path())
-        .filter(|p| p.is_dir())
-        .collect();
+    let mut dirs = std::fs::read_dir(&base)?
+        .map(|e| e.map(|e| e.path()))
+        .collect::<std::io::Result<Vec<_>>>()?;
+    dirs.retain(|p| p.is_dir());
     dirs.sort();
 
     Ok(dirs.into_iter().map(|dir| {
@@ -37,44 +36,70 @@ pub fn list_system_folders(root: &Path, rules: &[FormatRule]) -> Result<Vec<Syst
 ///
 /// Every frontend walks subfolders with no depth limit by default, so this does too.
 /// A folder named with a game format (`<game>.easyrpg/`, `<game>.cue/`) is one game, as it is
-/// to the frontends. Disc sheets match their tracks within each folder.
+/// to the frontends. Disc sheets match their tracks within each folder. A link leading out of the
+/// system folder isn't walked, since its games would be judged as the wrong system.
 ///
-/// shortcut: below the system folder, only formats this system's rules name are listed, because
-/// installed game trees (PS3, DOS, MAME CHDs) are full of ROM-like files. So a subfolder game in
-/// a format the rules miss gets no row. List more if that turns up on real libraries.
+/// shortcut: below an `INSTALLED_TREE_SYSTEMS` folder, only formats the system's rules name are
+/// listed, so a game there in a format the rules miss gets no row. Add a system to the list if
+/// its game folders fill up with Unknown rows.
 fn games_under(system_dir: &Path, system: &str, rules: &[FormatRule]) -> (Vec<String>, Option<String>) {
+    let real_root = match std::fs::canonicalize(system_dir) {
+        Ok(real) => real,
+        Err(e) => return (Vec::new(), Some(e.to_string())),
+    };
     let (mut files, mut error, mut seen) = (Vec::new(), None, HashSet::new());
     let mut pending = vec![system_dir.to_path_buf()];
     while let Some(dir) = pending.pop() {
+        let real = match std::fs::canonicalize(&dir) {
+            Ok(real) => real,
+            Err(e) => { error.get_or_insert(e.to_string()); continue; }
+        };
+        if !real.starts_with(&real_root) {
+            error.get_or_insert(format!("{} leads outside its system folder", dir.display()));
+            continue;
+        }
         // A symlink or junction can lead back to a folder already walked
-        if std::fs::canonicalize(&dir).is_ok_and(|real| !seen.insert(real)) { continue; }
+        if !seen.insert(real) { continue; }
         let entries = match std::fs::read_dir(&dir) {
             Ok(entries) => entries,
             Err(e) => { error.get_or_insert(e.to_string()); continue; }
         };
-        let (candidates, subfolders): (Vec<PathBuf>, Vec<PathBuf>) = entries
-            .filter_map(|e| e.ok())
-            .map(|e| e.path())
+        let mut paths = Vec::new();
+        for entry in entries {
+            match entry {
+                Ok(entry) => paths.push(entry.path()),
+                Err(e) => { error.get_or_insert(e.to_string()); }
+            }
+        }
+        let (candidates, subfolders): (Vec<PathBuf>, Vec<PathBuf>) = paths.into_iter()
             .partition(|p| p.is_file() || is_game_folder(p, system, rules));
         pending.extend(subfolders.into_iter().filter(|p| p.is_dir() && !is_non_game_folder(p)));
 
-        let nested = dir != system_dir;
+        let rules_only = dir != system_dir && INSTALLED_TREE_SYSTEMS.contains(&system);
         let companions = disc_companions(&candidates);
         files.extend(candidates.iter()
             .filter(|p| !is_disc_track(p, &companions, system, rules))
             .filter(|p| is_game_file(p, system, rules))
-            .filter(|p| !nested || rules_name_format(p, system, rules))
+            .filter(|p| !rules_only || rules_name_format(p, system, rules))
             .map(|p| p.to_string_lossy().to_string()));
     }
     files.sort();
     (files, error)
 }
 
+/// Systems whose game folders hold whole installs or companion data, full of files with
+/// ROM-like extensions (`EBOOT.BIN`, `readme.md`, a MAME set's CHD folder).
+const INSTALLED_TREE_SYSTEMS: &[&str] = &[
+    "arcade", "dos", "gog", "ports", "ps3", "ps4", "ps5", "scummvm", "teknoparrot",
+    "wiiu", "windows", "xbox", "xbox360",
+];
+
 /// A folder the frontends would show as one game. Playlists aren't games, so a `<game>.m3u/`
 /// folder is walked and its discs are checked like loose ones.
 fn is_game_folder(path: &Path, system: &str, rules: &[FormatRule]) -> bool {
     let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
-    path.is_dir() && ext != "m3u" && (ext == "easyrpg" || rules_name_format(path, system, rules))
+    path.is_dir() && !is_non_game_folder(path) && ext != "m3u"
+        && (ext == "easyrpg" || rules_name_format(path, system, rules))
 }
 
 fn rules_name_format(path: &Path, system: &str, rules: &[FormatRule]) -> bool {
