@@ -15,7 +15,7 @@ use romio_lib::engine::save_registry::{discover_save_roots, SaveAnchors};
 use romio_lib::engine::scanner::scan_roots;
 use romio_lib::models::artifact::{ArtifactType, BiosValidationState as Bios, FormatCompatibilityState as Fmt};
 use romio_lib::models::bios::{BiosEntryResult, BiosSystemResult};
-use romio_lib::models::format::{FormatFixType, FormatSupport};
+use romio_lib::models::format::FormatSupport;
 use romio_lib::models::save::{SaveMigrationState as Save, SaveRoot};
 
 fn bios_entry<'a>(results: &'a [BiosSystemResult], filename: &str) -> &'a BiosEntryResult {
@@ -95,7 +95,7 @@ fn curator_retrobat_library_before_an_update() {
     assert_eq!(type_of("roms/psx/Ape Escape (USA).chd"), ArtifactType::Rom);
     assert_eq!(type_of("roms/psx/Final Fantasy VII (USA).m3u"), ArtifactType::M3u);
     assert_eq!(type_of("roms/gamecube/Wind Waker (USA).rvz"), ArtifactType::Rom);
-    assert_eq!(type_of("roms/daphne/lair.daphne"), ArtifactType::Rom, "deprecated, but still a game");
+    assert_eq!(type_of("roms/daphne/lair.daphne"), ArtifactType::Rom);
     assert_eq!(type_of("roms/n64/Mario Kart 64 (USA).z64"), ArtifactType::Rom);
     assert_eq!(type_of("roms/psx/gamelist.xml"), ArtifactType::Unknown, "gamelist.xml is not a game");
 
@@ -106,8 +106,8 @@ fn curator_retrobat_library_before_an_update() {
     assert_eq!(check("roms/psx/Ape Escape (USA).chd", "ps1", "duckstation").state, Fmt::Compatible);
     assert_eq!(check("roms/gamecube/Wind Waker (USA).rvz", "gamecube", "lr-dolphin").state, Fmt::FormatIncompatible);
     let daphne = check("roms/daphne/lair.daphne", "daphne", "hypseus");
-    assert_eq!(daphne.state, Fmt::FormatDeprecated);
-    assert!(matches!(daphne.fix_action.map(|f| f.action_type), Some(FormatFixType::Rename)));
+    assert_eq!(daphne.state, Fmt::Compatible, "every frontend still lists .daphne");
+    assert!(daphne.fix_action.is_none(), "renaming could hide it from the frontend");
     assert_eq!(check("roms/n64/Mario Kart 64 (USA).z64", "n64", "mupen64plus").state, Fmt::Unknown,
         "no rule means unknown, never a guess");
 
@@ -1016,4 +1016,266 @@ fn a_cue_and_bin_disc_reads_as_one_compatible_game() {
     let result = check_format(std::path::Path::new(&files[0]), &rules, "ps1", "duckstation", "retrobat");
     assert_eq!(result.extension, "cue");
     assert_eq!(result.state, romio_lib::models::artifact::FormatCompatibilityState::Compatible);
+}
+
+#[test]
+fn format_check_finds_games_in_subfolders_like_the_frontends_do() {
+    let lib = Library::new();
+    // A disc game in its own folder reads as one game, at any depth
+    lib.file("roms/dreamcast/Disc A/Disc A.gdi", b"2\n1 0 4 2352 track01.bin 0\n2 450 0 2352 track02.raw 0\n");
+    lib.game("roms/dreamcast/Disc A/track01.bin");
+    lib.game("roms/dreamcast/Disc A/track02.raw");
+    lib.file("roms/psx/Disc B/Disc B.cue", b"FILE \"Disc B.bin\" BINARY\n  TRACK 01 MODE2/2352\n");
+    lib.game("roms/psx/Disc B/Disc B.bin");
+    lib.game("roms/psx/Racing/Disc C/Disc C.chd");
+    // A sheet only speaks for its own folder, so this top-level file stays listed
+    lib.file("roms/psx/Disc D/Disc D.cue", b"FILE \"Loose.bin\" BINARY\n  TRACK 01 MODE2/2352\n");
+    lib.game("roms/psx/Loose.bin");
+    // Folders the frontends skip, plus saves
+    for skipped in [
+        "media", "Media", "medias", "images", "manuals", "videos", "assets", "html_arrm", "bezels",
+        "fonts", "logs", "screenshots", "artwork", "saves", "downloaded_images", ".hidden",
+    ] {
+        lib.game(&format!("roms/psx/{skipped}/Skipped.chd"));
+    }
+    lib.game("roms/psx/Texture Pack/Skipped.chd");
+    lib.game("roms/psx/Texture Pack/noload.txt");
+    // A folder named like a game format is one game, wherever it sits
+    lib.game("roms/easyrpg/RPG/Ib.easyrpg/game.zip");
+    lib.game("roms/dreamcast/Disc E.cue/Disc E.cue");
+    lib.game("roms/dreamcast/Disc E.cue/Disc E.gdi");
+    // A playlist folder is not, as playlists aren't games: its discs are checked like loose ones
+    lib.game("roms/saturn/Disc F.m3u/Disc F.m3u");
+    lib.game("roms/saturn/Disc F.m3u/Disc F (Disc 1).chd");
+    // Installed game trees are full of files with ROM-like extensions
+    lib.game("roms/ps3/Game.ps3/PS3_GAME/USRDIR/EBOOT.BIN");
+    lib.game("roms/dos/Game/readme.md");
+    lib.game("roms/windows/Game/setup.iso");
+    lib.game("roms/mame/game/game.chd");
+
+    let folders = list_system_folders(lib.root(), &db::format::load_rules().unwrap()).unwrap();
+    let listed = |name: &str| -> Vec<String> {
+        let folder = folders.iter().find(|f| f.name == name).unwrap_or_else(|| panic!("no folder {name}"));
+        let mut names: Vec<String> = folder.files.iter()
+            .map(|f| std::path::Path::new(f).file_name().unwrap().to_string_lossy().to_string())
+            .collect();
+        names.sort();
+        names
+    };
+
+    assert_eq!(listed("dreamcast"), ["Disc A.gdi", "Disc E.cue"]);
+    assert_eq!(listed("psx"), ["Disc B.cue", "Disc C.chd", "Disc D.cue", "Loose.bin"]);
+    assert_eq!(listed("easyrpg"), ["Ib.easyrpg"]);
+    assert_eq!(listed("saturn"), ["Disc F (Disc 1).chd"]);
+    for tree in ["ps3", "dos", "windows", "mame"] {
+        assert!(listed(tree).is_empty(), "{tree}: {:?}", listed(tree));
+    }
+}
+
+#[test]
+fn an_unreadable_subfolder_is_reported_and_keeps_the_games_already_found() {
+    let lib = Library::new();
+    lib.game("roms/psx/Readable.chd");
+    lib.game("roms/psx/Readable Folder/Nested.chd");
+    let locked = lib.path("roms/psx/Locked");
+    lib.game("roms/psx/Locked/Hidden.chd");
+    let Some(_guard) = common::deny_read(&locked) else {
+        eprintln!("can't deny read here; skipping");
+        return;
+    };
+
+    let folders = list_system_folders(lib.root(), &db::format::load_rules().unwrap()).unwrap();
+    let psx = folders.iter().find(|f| f.name == "psx").unwrap();
+    assert!(psx.error.is_some(), "a locked subfolder must not look like fewer games");
+    assert_eq!(psx.files.len(), 2, "{:?}", psx.files);
+}
+
+#[cfg(windows)]
+#[test]
+fn a_junction_back_to_a_parent_does_not_loop_or_repeat_games() {
+    let lib = Library::new();
+    lib.game("roms/psx/Racing/Disc.chd");
+    let link = lib.path("roms/psx/Racing/Loop");
+    let made = std::process::Command::new("cmd")
+        .args(["/C", "mklink", "/J"])
+        .arg(&link)
+        .arg(lib.path("roms/psx"))
+        .output()
+        .unwrap();
+    assert!(made.status.success(), "{}", String::from_utf8_lossy(&made.stderr));
+
+    let folders = list_system_folders(lib.root(), &db::format::load_rules().unwrap()).unwrap();
+    let psx = folders.iter().find(|f| f.name == "psx").unwrap();
+    assert_eq!(psx.files.len(), 1, "{:?}", psx.files);
+    std::fs::remove_dir(&link).unwrap();
+}
+
+#[test]
+fn nested_files_are_judged_like_loose_ones_outside_installed_trees() {
+    let lib = Library::new();
+    lib.game("roms/tic80/Carts/Cart.png");
+    lib.game("roms/satellaview/Carts/Cart.bs");
+    lib.game("roms/dreamcast/Disc/Disc.iso");
+    lib.game("roms/psx/Bare/Bare.bin");
+    // A sheet still speaks for its own folder's tracks
+    lib.file("roms/saturn/Disc/Disc.cue", b"FILE \"Disc.bin\" BINARY
+  TRACK 01 MODE1/2352
+");
+    lib.game("roms/saturn/Disc/Disc.bin");
+    lib.game("roms/saturn/Other/Disc.bin");
+
+    let folders = list_system_folders(lib.root(), &db::format::load_rules().unwrap()).unwrap();
+    let listed = |name: &str| -> Vec<String> {
+        let root = lib.path("roms").join(name);
+        let folder = folders.iter().find(|f| f.name == name).unwrap_or_else(|| panic!("no folder {name}"));
+        folder.files.iter()
+            .map(|f| std::path::Path::new(f).strip_prefix(&root).unwrap().to_string_lossy().replace(std::path::MAIN_SEPARATOR, "/"))
+            .collect()
+    };
+
+    assert_eq!(listed("tic80"), ["Carts/Cart.png"]);
+    assert_eq!(listed("satellaview"), ["Carts/Cart.bs"]);
+    assert_eq!(listed("dreamcast"), ["Disc/Disc.iso"]);
+    assert_eq!(listed("psx"), ["Bare/Bare.bin"]);
+    assert_eq!(listed("saturn"), ["Disc/Disc.cue", "Other/Disc.bin"], "only the sheet's own folder hides its track");
+}
+
+#[test]
+fn skipped_folders_stay_out_even_when_named_like_a_game() {
+    let lib = Library::new();
+    lib.game("roms/psx/downloaded_x.chd/Skipped.chd");
+    lib.game("roms/psx/Disc.cue/Skipped.cue");
+    lib.game("roms/psx/Disc.cue/noload.txt");
+    lib.game("roms/psx/Racing/Disc.cue/Skipped.cue");
+    lib.game("roms/psx/Racing/Disc.cue/noload.txt");
+    lib.game("roms/psx/Listed.chd/Inner.chd");
+
+    let folders = list_system_folders(lib.root(), &db::format::load_rules().unwrap()).unwrap();
+    let psx = folders.iter().find(|f| f.name == "psx").unwrap();
+    let names: Vec<_> = psx.files.iter()
+        .map(|f| std::path::Path::new(f).file_name().unwrap().to_string_lossy().to_string())
+        .collect();
+    assert_eq!(names, ["Listed.chd"]);
+}
+
+#[cfg(windows)]
+fn junction(link: &std::path::Path, target: &std::path::Path) {
+    let made = std::process::Command::new("cmd").args(["/C", "mklink", "/J"]).arg(link).arg(target).output().unwrap();
+    assert!(made.status.success(), "{}", String::from_utf8_lossy(&made.stderr));
+}
+
+#[cfg(windows)]
+#[test]
+fn a_link_to_a_sibling_system_is_reported_not_walked() {
+    let lib = Library::new();
+    lib.game("roms/psx/Own.chd");
+    lib.game("roms/saturn/Other.chd");
+    junction(&lib.path("roms/psx/Linked"), &lib.path("roms/saturn"));
+
+    let folders = list_system_folders(lib.root(), &db::format::load_rules().unwrap()).unwrap();
+    let psx = folders.iter().find(|f| f.name == "psx").unwrap();
+    assert_eq!(psx.files.len(), 1, "{:?}", psx.files);
+    assert!(psx.error.is_some(), "a game left unchecked must say so");
+    let saturn = folders.iter().find(|f| f.name == "saturn").unwrap();
+    assert_eq!((saturn.files.len(), saturn.error.is_none()), (1, true));
+    std::fs::remove_dir(lib.path("roms/psx/Linked")).unwrap();
+}
+
+#[cfg(windows)]
+#[test]
+fn a_link_outside_the_library_is_followed_like_the_frontends_do() {
+    let lib = Library::new();
+    lib.game("roms/psx/Own.chd");
+    lib.game("elsewhere/Disc/Disc.chd");
+    lib.game("elsewhere/Disc/More/Inner.chd");
+    junction(&lib.path("roms/psx/Linked"), &lib.path("elsewhere/Disc"));
+
+    let folders = list_system_folders(lib.root(), &db::format::load_rules().unwrap()).unwrap();
+    let psx = folders.iter().find(|f| f.name == "psx").unwrap();
+    assert_eq!((psx.files.len(), psx.error.as_deref()), (3, None), "{:?}", psx.files);
+    std::fs::remove_dir(lib.path("roms/psx/Linked")).unwrap();
+}
+
+#[cfg(windows)]
+#[test]
+fn a_link_to_the_library_itself_is_reported_not_walked() {
+    for target in ["roms", ""] {
+        let lib = Library::new();
+        lib.game("roms/psx/Own.chd");
+        lib.game("roms/saturn/Other.chd");
+        junction(&lib.path("roms/psx/Linked"), &lib.path(target));
+
+        let folders = list_system_folders(lib.root(), &db::format::load_rules().unwrap()).unwrap();
+        let psx = folders.iter().find(|f| f.name == "psx").unwrap();
+        assert_eq!(psx.files.len(), 1, "{target:?}: {:?}", psx.files);
+        assert!(psx.error.is_some(), "{target:?}");
+        std::fs::remove_dir(lib.path("roms/psx/Linked")).unwrap();
+    }
+}
+
+#[cfg(windows)]
+#[test]
+fn a_system_folder_that_is_itself_a_link_still_works() {
+    let lib = Library::new();
+    lib.game("elsewhere/ps2/Racing/Disc.chd");
+    lib.game("roms/psx/Own.chd");
+    junction(&lib.path("roms/ps2"), &lib.path("elsewhere/ps2"));
+
+    let folders = list_system_folders(lib.root(), &db::format::load_rules().unwrap()).unwrap();
+    let ps2 = folders.iter().find(|f| f.name == "ps2").unwrap();
+    assert_eq!((ps2.files.len(), ps2.error.as_deref()), (1, None), "{:?}", ps2.files);
+    std::fs::remove_dir(lib.path("roms/ps2")).unwrap();
+}
+
+#[test]
+fn installed_tree_systems_say_only_when_a_nested_file_gets_no_row() {
+    let flagged = |system: &str, files: &[(&str, &[u8])]| -> bool {
+        let lib = Library::new();
+        for (rel, contents) in files {
+            lib.file(&format!("roms/{system}/{rel}"), contents);
+        }
+        let folders = list_system_folders(lib.root(), &db::format::load_rules().unwrap()).unwrap();
+        folders.iter().find(|f| f.name == system).unwrap().unchecked_subfolders
+    };
+    let sheet: &[u8] = b"FILE \"Game.bin\" BINARY
+  TRACK 01 MODE1/2352
+";
+
+    // Every file was judged, or is a track its sheet stands in for
+    assert!(!flagged("dos", &[("Game/Valid.zip", b"x")]));
+    assert!(!flagged("dos", &[("Game/Game.cue", sheet), ("Game/Game.bin", b"x")]));
+    assert!(!flagged("dos", &[("Game/Game.m3u", b"x"), ("Game/Disc 1.chd", b"x"), ("Game/Disc 2.chd", b"x")]));
+    // No file below the system folder
+    assert!(!flagged("ps3", &[("Loose.iso", b"x")]));
+    // Skipped folders and one-game folders aren't looked inside
+    assert!(!flagged("dos", &[("media/Skipped.exe", b"x")]));
+    assert!(!flagged("xbox360", &[("Game.iso/Inner.exe", b"x")]));
+    // Not an installed-tree system: nested files are judged like loose ones
+    assert!(!flagged("psx", &[("Disc/Other.exe", b"x")]));
+
+    assert!(flagged("dos", &[("Game/PLAY.EXE", b"x")]));
+    assert!(flagged("dos", &[("Game/Valid.zip", b"x"), ("Game/readme.txt", b"x")]));
+    assert!(flagged("dos", &[("Game/Game.bin", b"x")]), "a track with no sheet gets no row");
+    assert!(flagged("windows", &[("Game/setup.iso", b"x")]), "also with no rules at all");
+    assert!(flagged("windows", &[("Game/Game.m3u", b"x")]), "a playlist only passes where the rules name it");
+}
+
+/// RetroBat lists .hypseus for this system, so a folder named that must not lose its row.
+#[test]
+fn a_hypseus_folder_is_one_game_and_judged_by_frontend() {
+    let lib = Library::new();
+    lib.game("roms/daphne/Game.hypseus/Game.txt");
+    lib.game("roms/daphne/Game.hypseus/Game.dat");
+    lib.game("roms/daphne/Game.hypseus/Game.m2v");
+
+    let rules = db::format::load_rules().unwrap();
+    let folders = list_system_folders(lib.root(), &rules).unwrap();
+    let files = &folders.iter().find(|f| f.name == "daphne").unwrap().files;
+    assert_eq!(files.len(), 1, "{files:?}");
+    assert!(files[0].ends_with("Game.hypseus"), "{files:?}");
+
+    let state = |frontend| check_format(std::path::Path::new(&files[0]), &rules, "daphne", "hypseus", frontend).state;
+    assert_eq!(state("retrobat"), romio_lib::models::artifact::FormatCompatibilityState::Compatible);
+    // Only RetroBat's es_systems.cfg lists .hypseus for this system
+    assert_eq!(state("esde"), romio_lib::models::artifact::FormatCompatibilityState::Unknown);
 }

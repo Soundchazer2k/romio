@@ -388,3 +388,65 @@ describe("FormatImpactTable", () => {
     expect(screen.getByText("Conditional").className).toContain("text-amber-400");
   });
 });
+
+describe("FormatScreen on folders it didn't fully check", () => {
+  beforeEach(() => {
+    mocks.checkFormatBatch.mockReset();
+    mocks.listLibraryFolders.mockReset();
+    mocks.getFormatMatrix.mockReset();
+    mocks.getEmulatorMatrix.mockReset();
+    mocks.getFormatMatrix.mockResolvedValue([]);
+    mocks.getEmulatorMatrix.mockResolvedValue(MATRIX);
+    mocks.checkFormatBatch.mockImplementation(compatible);
+  });
+
+  async function scan() {
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <FormatScreen />
+      </QueryClientProvider>
+    );
+    await waitFor(() => expect((screen.getByRole("button", { name: /Scan/ }) as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.click(screen.getByRole("button", { name: /Scan/ }));
+  }
+
+  it("shows no All OK on a system with a read failure, and alerts", async () => {
+    mocks.listLibraryFolders.mockResolvedValue([
+      { name: "psx", path: "/roms/psx", system: "ps1", files: ["/roms/psx/a.chd"], error: "denied", uncheckedSubfolders: false },
+    ]);
+    await scan();
+    expect((await screen.findByRole("alert")).textContent).toContain("psx");
+    expect(await screen.findByText("Not fully checked")).toBeTruthy();
+    expect(screen.queryByText("All OK")).toBeNull();
+  });
+
+  it("shows no All OK on an installed-tree system, and names it without an alert", async () => {
+    mocks.listLibraryFolders.mockResolvedValue([
+      { name: "dos", path: "/roms/dos", system: "dos", files: ["/roms/dos/a.zip"], error: null, uncheckedSubfolders: true },
+    ]);
+    await scan();
+    expect(await screen.findByText("Not fully checked")).toBeTruthy();
+    expect(screen.queryByText("All OK")).toBeNull();
+    expect((await screen.findByText(/weren't checked, because Romio can't judge their formats yet/)).textContent).toContain("dos");
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("says All OK on an installed-tree system when every nested file was judged", async () => {
+    mocks.listLibraryFolders.mockResolvedValue([
+      { name: "dos", path: "/roms/dos", system: "dos", files: ["/roms/dos/Game/a.zip"], error: null, uncheckedSubfolders: false },
+    ]);
+    await scan();
+    expect(await screen.findByText("All OK")).toBeTruthy();
+    expect(screen.queryByText("Not fully checked")).toBeNull();
+    expect(screen.queryByText(/weren't checked/)).toBeNull();
+  });
+
+  it("still names an installed-tree system that has no rows, instead of saying nothing was found", async () => {
+    mocks.listLibraryFolders.mockResolvedValue([
+      { name: "windows", path: "/roms/windows", system: "windows", files: [], error: null, uncheckedSubfolders: true },
+    ]);
+    await scan();
+    expect((await screen.findByText(/weren't checked, because Romio can't judge their formats yet/)).textContent).toContain("windows");
+    expect(screen.queryByText(/No game files found/)).toBeNull();
+  });
+});

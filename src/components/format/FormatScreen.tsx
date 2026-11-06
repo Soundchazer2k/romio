@@ -39,6 +39,8 @@ export function FormatScreen() {
   const [scannedWith, setScannedWith] = useState({ path: "", frontend: "", emulator: "" });
   const [groups,      setGroups]      = useState<FormatSystemGroup[]>([]);
   const [expandedSys, setExpandedSys] = useState<string | null>(null);
+  const [partialSystems, setPartialSystems] = useState<string[]>([]);
+  const [limitedFolders, setLimitedFolders] = useState<string[]>([]);
 
   // Fix plan state
   const [stagedFixes, setStagedFixes] = useState<StagedFix[]>([]);
@@ -70,6 +72,8 @@ export function FormatScreen() {
     setGroups([]);
     setScanned(false);
     setStagedFixes([]);
+    setPartialSystems([]);
+    setLimitedFolders([]);
     setScannedWith({ path: libraryPath, frontend, emulator: emulatorOverride });
 
     try {
@@ -115,9 +119,11 @@ export function FormatScreen() {
       }
 
       setGroups(groupResultsBySystem(allResults));
+      setPartialSystems(folders.filter((f) => f.error || f.uncheckedSubfolders).map((f) => f.system));
+      setLimitedFolders(folders.filter((f) => f.uncheckedSubfolders).map((f) => f.name));
       setScanned(true);
       if (unreadable.length > 0) {
-        setScanError(`Romio couldn't read these folders, so their games weren't checked: ${unreadable.join(", ")}.`);
+        setScanError(`Romio couldn't finish reading these folders, so some of their games may not be checked: ${unreadable.join(", ")}.`);
       }
     } catch (err) {
       setScanError(err instanceof Error ? err.message : String(err));
@@ -200,6 +206,7 @@ export function FormatScreen() {
       {/* Scan error banner */}
       {bannerError && (
         <motion.div
+          role="alert"
           initial={{ opacity: 0, y: -4 }}
           animate={{ opacity: 1, y: 0 }}
           className="px-4 py-3 rounded-xl bg-romio-red/10 border border-romio-red/20
@@ -234,6 +241,17 @@ export function FormatScreen() {
         </p>
       )}
 
+      {/* A limit of the check, not a failure */}
+      {limitedFolders.length > 0 && (
+        <p
+          role="status"
+          className="px-4 py-3 rounded-xl bg-background-surface border border-border
+                     text-sm text-romio-gray"
+        >
+          Some files in subfolders of these systems weren't checked, because Romio can't judge their formats yet: {limitedFolders.join(", ")}.
+        </p>
+      )}
+
       {/* Results */}
       {hasResults && (
         <div className="space-y-2">
@@ -249,13 +267,14 @@ export function FormatScreen() {
               )}
               index={i}
               onStageFix={stageFix}
+              notFullyChecked={partialSystems.includes(group.system)}
             />
           ))}
         </div>
       )}
 
       {/* Empty state */}
-      {!hasResults && !isScanning && !bannerError && (
+      {!hasResults && !isScanning && !bannerError && limitedFolders.length === 0 && (
         <div className="text-center py-16 text-romio-gray space-y-2">
           <FileSearch className="w-10 h-10 mx-auto opacity-30" />
           <p>{scanned

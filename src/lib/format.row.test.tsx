@@ -47,3 +47,36 @@ describe("FormatSystemRow badge", () => {
     expect(screen.getByText("All OK")).toBeTruthy();
   });
 });
+
+describe("FormatSystemRow on a system Romio didn't fully check", () => {
+  afterEach(cleanup);
+
+  function renderPartial(...states: FormatCheckResult["state"][]) {
+    return render(
+      <FormatSystemRow
+        group={{ system: "pico8", results: states.map(file) }}
+        rules={[]}
+        stagedFixes={[]}
+        expanded={false}
+        onToggle={() => {}}
+        index={0}
+        onStageFix={() => {}}
+        notFullyChecked
+      />
+    );
+  }
+
+  it("says Not fully checked instead of All OK, without the green border", () => {
+    const { container } = renderPartial("Compatible", "Compatible");
+    expect(screen.getByText("Not fully checked")).toBeTruthy();
+    expect(screen.queryByText("All OK")).toBeNull();
+    expect((container.firstChild as HTMLElement).className).not.toContain("border-romio-green");
+  });
+
+  it("keeps showing issues first", () => {
+    renderPartial("Compatible", "FormatIncompatible");
+    expect(screen.getByText("1 issue")).toBeTruthy();
+    expect(screen.queryByText("Not fully checked")).toBeNull();
+    expect(screen.queryByText("All OK")).toBeNull();
+  });
+});
