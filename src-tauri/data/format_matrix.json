@@ -4,8 +4,8 @@
     "extension": "daphne",
     "emulator": "hypseus",
     "frontend": null,
-    "support": { "deprecated": { "replacement": "hypseus" } },
-    "notes": "The .daphne extension was replaced by .hypseus when Hypseus Singe replaced Daphne. Files with .daphne are silently rejected. Safe to rename — content unchanged.",
+    "support": "supported",
+    "notes": "RetroBat, Batocera and ES-DE all accept .daphne on this system.",
     "sinceVersion": null
   },
   {

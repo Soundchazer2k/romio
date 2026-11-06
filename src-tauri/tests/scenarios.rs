@@ -15,7 +15,7 @@ use romio_lib::engine::save_registry::{discover_save_roots, SaveAnchors};
 use romio_lib::engine::scanner::scan_roots;
 use romio_lib::models::artifact::{ArtifactType, BiosValidationState as Bios, FormatCompatibilityState as Fmt};
 use romio_lib::models::bios::{BiosEntryResult, BiosSystemResult};
-use romio_lib::models::format::{FormatFixType, FormatSupport};
+use romio_lib::models::format::FormatSupport;
 use romio_lib::models::save::{SaveMigrationState as Save, SaveRoot};
 
 fn bios_entry<'a>(results: &'a [BiosSystemResult], filename: &str) -> &'a BiosEntryResult {
@@ -95,7 +95,7 @@ fn curator_retrobat_library_before_an_update() {
     assert_eq!(type_of("roms/psx/Ape Escape (USA).chd"), ArtifactType::Rom);
     assert_eq!(type_of("roms/psx/Final Fantasy VII (USA).m3u"), ArtifactType::M3u);
     assert_eq!(type_of("roms/gamecube/Wind Waker (USA).rvz"), ArtifactType::Rom);
-    assert_eq!(type_of("roms/daphne/lair.daphne"), ArtifactType::Rom, "deprecated, but still a game");
+    assert_eq!(type_of("roms/daphne/lair.daphne"), ArtifactType::Rom);
     assert_eq!(type_of("roms/n64/Mario Kart 64 (USA).z64"), ArtifactType::Rom);
     assert_eq!(type_of("roms/psx/gamelist.xml"), ArtifactType::Unknown, "gamelist.xml is not a game");
 
@@ -106,8 +106,8 @@ fn curator_retrobat_library_before_an_update() {
     assert_eq!(check("roms/psx/Ape Escape (USA).chd", "ps1", "duckstation").state, Fmt::Compatible);
     assert_eq!(check("roms/gamecube/Wind Waker (USA).rvz", "gamecube", "lr-dolphin").state, Fmt::FormatIncompatible);
     let daphne = check("roms/daphne/lair.daphne", "daphne", "hypseus");
-    assert_eq!(daphne.state, Fmt::FormatDeprecated);
-    assert!(matches!(daphne.fix_action.map(|f| f.action_type), Some(FormatFixType::Rename)));
+    assert_eq!(daphne.state, Fmt::Compatible, "every frontend still lists .daphne");
+    assert!(daphne.fix_action.is_none(), "renaming could hide it from the frontend");
     assert_eq!(check("roms/n64/Mario Kart 64 (USA).z64", "n64", "mupen64plus").state, Fmt::Unknown,
         "no rule means unknown, never a guess");
 
@@ -1166,7 +1166,7 @@ fn junction(link: &std::path::Path, target: &std::path::Path) {
 
 #[cfg(windows)]
 #[test]
-fn a_link_out_of_the_system_folder_is_reported_not_walked() {
+fn a_link_to_a_sibling_system_is_reported_not_walked() {
     let lib = Library::new();
     lib.game("roms/psx/Own.chd");
     lib.game("roms/saturn/Other.chd");
@@ -1179,6 +1179,38 @@ fn a_link_out_of_the_system_folder_is_reported_not_walked() {
     let saturn = folders.iter().find(|f| f.name == "saturn").unwrap();
     assert_eq!((saturn.files.len(), saturn.error.is_none()), (1, true));
     std::fs::remove_dir(lib.path("roms/psx/Linked")).unwrap();
+}
+
+#[cfg(windows)]
+#[test]
+fn a_link_outside_the_library_is_followed_like_the_frontends_do() {
+    let lib = Library::new();
+    lib.game("roms/psx/Own.chd");
+    lib.game("elsewhere/Disc/Disc.chd");
+    lib.game("elsewhere/Disc/More/Inner.chd");
+    junction(&lib.path("roms/psx/Linked"), &lib.path("elsewhere/Disc"));
+
+    let folders = list_system_folders(lib.root(), &db::format::load_rules().unwrap()).unwrap();
+    let psx = folders.iter().find(|f| f.name == "psx").unwrap();
+    assert_eq!((psx.files.len(), psx.error.as_deref()), (3, None), "{:?}", psx.files);
+    std::fs::remove_dir(lib.path("roms/psx/Linked")).unwrap();
+}
+
+#[cfg(windows)]
+#[test]
+fn a_link_to_the_library_itself_is_reported_not_walked() {
+    for target in ["roms", ""] {
+        let lib = Library::new();
+        lib.game("roms/psx/Own.chd");
+        lib.game("roms/saturn/Other.chd");
+        junction(&lib.path("roms/psx/Linked"), &lib.path(target));
+
+        let folders = list_system_folders(lib.root(), &db::format::load_rules().unwrap()).unwrap();
+        let psx = folders.iter().find(|f| f.name == "psx").unwrap();
+        assert_eq!(psx.files.len(), 1, "{target:?}: {:?}", psx.files);
+        assert!(psx.error.is_some(), "{target:?}");
+        std::fs::remove_dir(lib.path("roms/psx/Linked")).unwrap();
+    }
 }
 
 #[cfg(windows)]
@@ -1215,7 +1247,7 @@ fn installed_tree_systems_say_when_they_have_game_folders() {
     }
 }
 
-/// The .daphne rule tells people to rename to .hypseus, so that must not lose the game.
+/// RetroBat lists .hypseus for this system, so a folder named that must not lose its row.
 #[test]
 fn a_hypseus_folder_is_one_game_and_judged_by_frontend() {
     let lib = Library::new();

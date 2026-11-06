@@ -57,13 +57,13 @@ No dependencies to install. No terminal required. Just download and run.
 ## Features
 
 - **BIOS validation** — hash-first identification, frontend-aware path rules, 5-state output model
-- **Format compatibility** — catches .daphne, standard Xbox ISO, .rvz cross-emulator issues and more
+- **Format compatibility** — catches standard Xbox ISO, .rvz cross-emulator issues and more
 - **Save protection** — detects save roots at risk before emulator updates, creates checkpoints
 - **Host environment checks** — catches missing VC++, Vulkan, .NET before your first launch attempt
 - **Multi-disc toolkit** — M3U generation with explicit confirmation, no silent grouping
 - **ScummVM support** — pointer file generation, engine:game ID disambiguation
 - **Installed title validation** — shortcut content validity, title ID naming convention checks
-- **ES-DE quirks encoded** — arcade BIOS path rules, .hypseus extension, all silent failures documented
+- **ES-DE quirks encoded** — arcade BIOS path rules, all silent failures documented
 - **Preview before write** — nothing touches your library without you seeing the change plan first
 
 ## Building from Source

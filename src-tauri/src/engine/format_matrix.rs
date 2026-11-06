@@ -16,6 +16,7 @@ use crate::models::artifact::FormatCompatibilityState;
 pub fn list_system_folders(root: &Path, rules: &[FormatRule]) -> Result<Vec<SystemFolder>> {
     let roms = root.join("roms");
     let base = if roms.is_dir() { roms } else { root.to_path_buf() };
+    let real_base = std::fs::canonicalize(&base)?;
 
     let mut dirs = std::fs::read_dir(&base)?
         .map(|e| e.map(|e| e.path()))
@@ -27,7 +28,7 @@ pub fn list_system_folders(root: &Path, rules: &[FormatRule]) -> Result<Vec<Syst
         let name = dir.file_name().unwrap_or_default().to_string_lossy().to_string();
         let path = dir.to_string_lossy().to_string();
         let system = system_for_folder(&name);
-        let (files, error, walked_subfolder) = games_under(&dir, &system, rules);
+        let (files, error, walked_subfolder) = games_under(&dir, &real_base, &system, rules);
         let unchecked_subfolders = walked_subfolder && INSTALLED_TREE_SYSTEMS.contains(&system.as_str());
         SystemFolder { name, path, system, files, error, unchecked_subfolders }
     }).collect())
@@ -38,13 +39,14 @@ pub fn list_system_folders(root: &Path, rules: &[FormatRule]) -> Result<Vec<Syst
 ///
 /// Every frontend walks subfolders with no depth limit by default, so this does too.
 /// A folder named with a game format (`<game>.easyrpg/`, `<game>.cue/`) is one game, as it is
-/// to the frontends. Disc sheets match their tracks within each folder. A link leading out of the
-/// system folder isn't walked, since its games would be judged as the wrong system.
+/// to the frontends. Disc sheets match their tracks within each folder. Links are followed, as
+/// the frontends do, except into another system's folder, where its games would be judged as the
+/// wrong system, or up to a folder holding this one, which would walk the whole library.
 ///
 /// shortcut: below an `INSTALLED_TREE_SYSTEMS` folder, only formats the system's rules name are
 /// listed, so a game there in a format the rules miss gets no row; `unchecked_subfolders` tells
 /// the user. Add a system to the list if its game folders fill up with Unknown rows.
-fn games_under(system_dir: &Path, system: &str, rules: &[FormatRule]) -> (Vec<String>, Option<String>, bool) {
+fn games_under(system_dir: &Path, real_base: &Path, system: &str, rules: &[FormatRule]) -> (Vec<String>, Option<String>, bool) {
     let real_root = match std::fs::canonicalize(system_dir) {
         Ok(real) => real,
         Err(e) => return (Vec::new(), Some(e.to_string()), false),
@@ -56,12 +58,18 @@ fn games_under(system_dir: &Path, system: &str, rules: &[FormatRule]) -> (Vec<St
             Ok(real) => real,
             Err(e) => { error.get_or_insert(e.to_string()); continue; }
         };
-        if !real.starts_with(&real_root) {
-            error.get_or_insert(format!("{} leads outside its system folder", dir.display()));
+        // A symlink or junction can lead back to a folder already walked
+        if seen.contains(&real) { continue; }
+        let other_system = real.starts_with(real_base) && !real.starts_with(&real_root);
+        let holds_library = real_root.starts_with(&real) || real_base.starts_with(&real);
+        if dir != system_dir && (other_system || holds_library) {
+            error.get_or_insert(format!(
+                "{} links to another system's folder or a folder holding this one, so it wasn't followed",
+                dir.display(),
+            ));
             continue;
         }
-        // A symlink or junction can lead back to a folder already walked
-        if !seen.insert(real) { continue; }
+        seen.insert(real);
         let entries = match std::fs::read_dir(&dir) {
             Ok(entries) => entries,
             Err(e) => { error.get_or_insert(e.to_string()); continue; }
@@ -408,6 +416,18 @@ mod tests {
         ] {
             assert_eq!(system_for_folder(folder), system);
         }
+    }
+
+    #[test]
+    fn deprecated_rule_offers_a_rename() {
+        let rules = vec![FormatRule {
+            system: "x".into(), extension: "old".into(), emulator: "e".into(), frontend: None,
+            support: FormatSupport::Deprecated { replacement: "new".into() },
+            notes: None, since_version: None,
+        }];
+        let result = check_format(Path::new("Game.old"), &rules, "x", "e", "esde");
+        assert_eq!(result.state, FormatCompatibilityState::FormatDeprecated);
+        assert_eq!(result.fix_action.and_then(|f| f.new_filename).as_deref(), Some("Game.new"));
     }
 
     #[test]
