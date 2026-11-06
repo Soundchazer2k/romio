@@ -47,7 +47,7 @@ pub fn run() {
             commands::bios::set_bios_root,
 
             // Format compatibility
-            commands::format::check_format_compatibility,
+            commands::format::check_format_batch,
             commands::format::get_format_matrix,
             commands::format::list_library_folders,
 

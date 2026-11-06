@@ -16,6 +16,9 @@ import { FormatFixTray }         from "./FormatFixTray";
 import { FormatFixPlanModal }    from "./FormatFixPlanModal";
 import { FormatReferenceDrawer } from "./FormatReferenceDrawer";
 
+// Small enough that the count keeps moving inside one big folder
+const CHECK_CHUNK_SIZE = 200;
+
 export function FormatScreen() {
   const { activeProject } = useAppStore();
 
@@ -30,6 +33,7 @@ export function FormatScreen() {
 
   // Scan state
   const [isScanning,  setIsScanning]  = useState(false);
+  const [progress,    setProgress]    = useState<{ checked: number; total: number } | null>(null);
   const [scanError,   setScanError]   = useState<string | null>(null);
   const [scanned,     setScanned]     = useState(false);
   const [scannedWith, setScannedWith] = useState({ path: "", frontend: "", emulator: "" });
@@ -61,6 +65,7 @@ export function FormatScreen() {
   async function runScan() {
     if (!libraryPath || !ready) return;
     setIsScanning(true);
+    setProgress(null);
     setScanError(null);
     setGroups([]);
     setScanned(false);
@@ -74,30 +79,38 @@ export function FormatScreen() {
       const folders = await ipc.listLibraryFolders(libraryPath);
       const unreadable = folders.filter((f) => f.error).map((f) => f.name);
 
+      const total = folders.reduce((sum, f) => sum + f.files.length, 0);
+      let checked = 0;
+      setProgress({ checked, total });
+
       for (const folder of folders) {
         const systemId = folder.system;
 
         const emu = emulatorForSystem(systemId, emulatorOverride, emulatorMatrix);
 
-        for (const filePath of folder.files) {
-          const name = filePath.split(/[\\/]/).pop() ?? filePath;
+        for (let i = 0; i < folder.files.length; i += CHECK_CHUNK_SIZE) {
+          const chunk = folder.files.slice(i, i + CHECK_CHUNK_SIZE);
           try {
-            const result = await ipc.checkFormat(filePath, systemId, emu, frontend);
-            allResults.push(result);
+            allResults.push(...await ipc.checkFormatBatch(chunk, systemId, emu, frontend));
           } catch {
-            // Per-file error: push Unknown result
-            const ext = name.includes(".")
-              ? name.split(".").pop() ?? ""
-              : "";
-            allResults.push({
-              path:      filePath,
-              extension: ext,
-              system:    systemId,
-              emulator:  emu,
-              state:     "Unknown",
-              notes:     "Check failed — file may be unreadable",
-            });
+            // Failed call: its files become Unknown results, and the scan goes on
+            for (const filePath of chunk) {
+              const name = filePath.split(/[\\/]/).pop() ?? filePath;
+              const ext = name.includes(".")
+                ? name.split(".").pop() ?? ""
+                : "";
+              allResults.push({
+                path:      filePath,
+                extension: ext,
+                system:    systemId,
+                emulator:  emu,
+                state:     "Unknown",
+                notes:     "Check failed — file may be unreadable",
+              });
+            }
           }
+          checked += chunk.length;
+          setProgress({ checked, total });
         }
       }
 
@@ -174,6 +187,15 @@ export function FormatScreen() {
         onEmulatorChange={setEmulatorOverride}
         onScan={runScan}
       />
+
+      {/* Scan progress */}
+      {isScanning && (
+        <p role="status" className="font-mono text-sm text-romio-gray">
+          {progress
+            ? `Checked ${progress.checked.toLocaleString()} of ${progress.total.toLocaleString()} ${progress.total === 1 ? "file" : "files"}`
+            : "Finding game files…"}
+        </p>
+      )}
 
       {/* Scan error banner */}
       {bannerError && (
