@@ -305,6 +305,7 @@ export interface SystemFolder {
   system: string;
   files:  string[];
   error?: string | null;
+  uncheckedSubfolders: boolean;
 }
 
 // Client-side only — not from Rust
