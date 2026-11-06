@@ -29,7 +29,8 @@ pub enum ScanPhase {
     Hashing,
     Classifying,
     Complete,
-    /// The walk is done and its results are being written. Never sent for a cancelled scan.
+    /// The walk is done and its results are being saved. Never sent for a cancelled scan.
+    /// `files_scanned` is the results being saved, which can be fewer than the walk's count: don't show it.
     Saving,
 }
 

@@ -153,21 +153,25 @@ describe("Dashboard scan and the companion", () => {
     expect(screen.queryByRole("alert")).toBeNull();
   });
 
-  it("shows the saving state until the command returns", async () => {
+  it("keeps the panel up from the walk's end until the command returns", async () => {
     const { finish } = startScan();
     await waitFor(() => expect(useScanStore.getState().isScanning).toBe(true));
 
+    act(() => useScanStore.setState({ progress: { filesScanned: 5, filesTotal: 5, currentPath: "", phase: "complete" } }));
+    expect(screen.getByText("5 files")).toBeTruthy();
+
     act(() => useScanStore.setState({ progress: SAVING }));
-    expect(screen.getByText("Saving scan results…")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Saving…" })).toBeTruthy();
+    expect(screen.getByText("Finishing scan…")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Finishing…" })).toBeTruthy();
+    expect(screen.queryByText(/d files/)).toBeNull();
 
     finish();
-    await waitFor(() => expect(screen.queryByText("Saving scan results…")).toBeNull());
+    await waitFor(() => expect(screen.queryByText("Finishing scan…")).toBeNull());
     expect(useScanStore.getState().isScanning).toBe(false);
     expect(useScanStore.getState().progress).toBeNull();
   });
 
-  it("drops the saving state and shows no results when saving fails", async () => {
+  it("drops the finishing state and shows no results when saving fails", async () => {
     const { fail } = startScan();
     await waitFor(() => expect(useScanStore.getState().isScanning).toBe(true));
     act(() => useScanStore.setState({ progress: SAVING }));
@@ -175,23 +179,24 @@ describe("Dashboard scan and the companion", () => {
     fail(new Error("Failed to persist artifacts"));
 
     expect((await screen.findByRole("alert")).textContent).toContain("Failed to persist artifacts");
-    expect(screen.queryByText("Saving scan results…")).toBeNull();
+    expect(screen.queryByText("Finishing scan…")).toBeNull();
+    expect(useScanStore.getState().progress).toBeNull();
     expect(mocks.getProject).not.toHaveBeenCalled();
   });
 
-  it("never says saving for a cancelled scan: no saving event arrives", async () => {
+  it("clears a cancelled scan's panel when the command returns: no saving event arrives", async () => {
     const { finish } = startScan();
     await waitFor(() => expect(useScanStore.getState().isScanning).toBe(true));
     act(() => useScanStore.setState({ progress: { filesScanned: 3, currentPath: "/roms/a", phase: "classifying" } }));
-    expect(screen.queryByText("Saving scan results…")).toBeNull();
 
-    // The walk stops, its "complete" clears the progress, and the command returns.
-    act(() => useScanStore.setState({ progress: null }));
-    expect(screen.queryByText("Saving scan results…")).toBeNull();
+    // The walk stops, sends "complete", and the command returns without saving.
+    act(() => useScanStore.setState({ progress: { filesScanned: 3, filesTotal: 3, currentPath: "", phase: "complete" } }));
+    expect(screen.queryByText("Finishing scan…")).toBeNull();
 
     finish();
     await waitFor(() => expect(useScanStore.getState().isScanning).toBe(false));
-    expect(screen.queryByText("Saving scan results…")).toBeNull();
+    expect(useScanStore.getState().progress).toBeNull();
+    expect(screen.queryByText("3 files")).toBeNull();
   });
 
   it("doesn't start a new scan showing a saving event that arrived late", async () => {
@@ -199,7 +204,7 @@ describe("Dashboard scan and the companion", () => {
     const { finish } = startScan();
 
     await waitFor(() => expect(useScanStore.getState().isScanning).toBe(true));
-    expect(screen.queryByText("Saving scan results…")).toBeNull();
+    expect(screen.queryByText("Finishing scan…")).toBeNull();
     finish();
   });
 

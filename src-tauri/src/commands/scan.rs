@@ -248,7 +248,8 @@ mod tests {
     fn failed_save_reports_the_error_and_keeps_the_previous_scan() {
         let dir = TempDir::new().unwrap();
         let project = new_project(&dir);
-        crate::db::artifacts::save_batch(&project, &[artifact()]).unwrap();
+        let original = artifact();
+        crate::db::artifacts::save_batch(&project, std::slice::from_ref(&original)).unwrap();
 
         // The repeated id fails on the second insert
         let repeated = artifact();
@@ -256,6 +257,14 @@ mod tests {
 
         assert!(result.unwrap_err().contains("Failed to persist artifacts"));
         assert_eq!(saved_rows(&project), 1);
+        let surviving_id: String = crate::db::with_conn(|conn| {
+            Ok(conn.query_row(
+                "SELECT id FROM artifacts WHERE project_id = ?1",
+                rusqlite::params![project],
+                |row| row.get(0),
+            )?)
+        }).unwrap();
+        assert_eq!(surviving_id, original.id.to_string());
         assert!(crate::db::projects::get(&project).unwrap().last_scanned_at.is_none());
     }
 }

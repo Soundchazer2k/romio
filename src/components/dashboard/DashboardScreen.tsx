@@ -88,7 +88,7 @@ export function DashboardScreen() {
   }
 
   const stats = activeProject.scanStats;
-  const saving = progress?.phase === "saving";
+  const finishing = progress?.phase === "saving";
 
   return (
     <div className="p-8 space-y-8 max-w-4xl mx-auto">
@@ -124,7 +124,7 @@ export function DashboardScreen() {
             <>
               <div className="w-4 h-4 rounded-full border-2 border-romio-green/40
                                border-t-romio-green animate-spin" />
-              {saving ? "Saving…" : "Scanning…"}
+              {finishing ? "Finishing…" : "Scanning…"}
             </>
           ) : (
             <>
@@ -143,15 +143,15 @@ export function DashboardScreen() {
           className="space-y-2"
         >
           <div className="flex justify-between text-xs text-romio-gray">
-            <span className={cn("truncate max-w-xs", !saving && "font-mono")}>
-              {saving ? "Saving scan results…" : progress.currentPath || "Scanning…"}
+            <span className={cn("truncate max-w-xs", !finishing && "font-mono")}>
+              {finishing ? "Finishing scan…" : progress.currentPath || "Scanning…"}
             </span>
-            <span>{progress.filesScanned.toLocaleString()} files</span>
+            {!finishing && <span>{progress.filesScanned.toLocaleString()} files</span>}
           </div>
           <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
             <motion.div
               className="h-full bg-romio-green rounded-full"
-              animate={{ width: progress.filesTotal
+              animate={{ width: finishing ? "100%" : progress.filesTotal
                 ? `${Math.min(100, (progress.filesScanned / progress.filesTotal) * 100)}%`
                 : "60%" }}
               transition={{ ease: "easeOut" }}

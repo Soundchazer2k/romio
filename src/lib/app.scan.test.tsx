@@ -25,10 +25,11 @@ describe("scan progress events", () => {
     events.handler!({ payload: { filesScanned: 3, filesTotal: 3, currentPath: "", phase: "complete" } as ScanProgress });
 
     expect(useScanStore.getState().isScanning).toBe(true);
-    expect(useScanStore.getState().progress).toBeNull();
+    // Stays up, so the panel doesn't vanish before the saving event arrives.
+    expect(useScanStore.getState().progress?.phase).toBe("complete");
   });
 
-  it("says it's saving once the walk's results are being written", async () => {
+  it("says it's finishing, with no count, once the walk's results are being saved", async () => {
     useScanStore.setState({ isScanning: true });
     render(<QueryClientProvider client={new QueryClient()}><App /></QueryClientProvider>);
     await waitFor(() => expect(events.handler).toBeTruthy());
@@ -36,6 +37,7 @@ describe("scan progress events", () => {
     act(() => events.handler!({ payload: { filesScanned: 3, currentPath: "", phase: "saving" } }));
 
     expect(useScanStore.getState().progress?.phase).toBe("saving");
-    expect(screen.getByText(/Saving scan results…/)).toBeTruthy();
+    expect(screen.getByText("Finishing scan…")).toBeTruthy();
+    expect(screen.queryByText(/d files/)).toBeNull();
   });
 });
