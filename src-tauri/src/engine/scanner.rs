@@ -28,6 +28,8 @@ pub enum ScanPhase {
     Hashing,
     Classifying,
     Complete,
+    /// The walk is done and its results are being written. Never sent for a cancelled scan.
+    Saving,
 }
 
 /// Extensions that are ROM/image files (not BIOS, not metadata)

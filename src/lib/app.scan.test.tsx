@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from "vitest";
-import { render, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import App from "@/App";
 import { useScanStore } from "@/stores";
@@ -26,5 +26,16 @@ describe("scan progress events", () => {
 
     expect(useScanStore.getState().isScanning).toBe(true);
     expect(useScanStore.getState().progress).toBeNull();
+  });
+
+  it("says it's saving once the walk's results are being written", async () => {
+    useScanStore.setState({ isScanning: true });
+    render(<QueryClientProvider client={new QueryClient()}><App /></QueryClientProvider>);
+    await waitFor(() => expect(events.handler).toBeTruthy());
+
+    act(() => events.handler!({ payload: { filesScanned: 3, currentPath: "", phase: "saving" } }));
+
+    expect(useScanStore.getState().progress?.phase).toBe("saving");
+    expect(screen.getByText(/Saving scan results…/)).toBeTruthy();
   });
 });
