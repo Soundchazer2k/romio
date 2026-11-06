@@ -9,6 +9,15 @@
     "sinceVersion": null
   },
   {
+    "system": "daphne",
+    "extension": "hypseus",
+    "emulator": "hypseus",
+    "frontend": "retrobat",
+    "support": "supported",
+    "notes": "RetroBat runs this system's games with Hypseus Singe.",
+    "sinceVersion": null
+  },
+  {
     "system": "gamecube",
     "extension": "rvz",
     "emulator": "dolphin",

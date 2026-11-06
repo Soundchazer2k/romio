@@ -249,6 +249,7 @@ export const ipc = {
       system,
       files: [`${root}/${name}/game1.bin`, `${root}/${name}/game2.chd`],
       error: null,
+      uncheckedSubfolders: false,
     })),
   getEmulatorMatrix: async (): Promise<EmulatorMatrixEntry[]> =>
     FIXTURE_EMULATOR_MATRIX,

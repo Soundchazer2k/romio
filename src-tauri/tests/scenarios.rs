@@ -1194,3 +1194,43 @@ fn a_system_folder_that_is_itself_a_link_still_works() {
     assert_eq!((ps2.files.len(), ps2.error.as_deref()), (1, None), "{:?}", ps2.files);
     std::fs::remove_dir(lib.path("roms/ps2")).unwrap();
 }
+
+#[test]
+fn installed_tree_systems_say_when_they_have_game_folders() {
+    let lib = Library::new();
+    lib.game("roms/dos/Game/readme.md"); // true: a walked subfolder in an installed-tree system
+    lib.game("roms/windows/Game/setup.exe"); // true: also with no rules at all
+    lib.game("roms/ps3/Loose.iso"); // false: no subfolder
+    lib.game("roms/xbox/media/cover.png"); // false: a skipped folder isn't walked
+    lib.game("roms/xbox360/Game.iso/Inner.iso"); // false: one game, not walked
+    lib.game("roms/psx/Disc/Disc.chd"); // false: not an installed-tree system
+
+    let folders = list_system_folders(lib.root(), &db::format::load_rules().unwrap()).unwrap();
+    let flagged = |name: &str| folders.iter().find(|f| f.name == name).unwrap().unchecked_subfolders;
+
+    assert!(flagged("dos"));
+    assert!(flagged("windows"));
+    for name in ["ps3", "xbox", "xbox360", "psx"] {
+        assert!(!flagged(name), "{name}");
+    }
+}
+
+/// The .daphne rule tells people to rename to .hypseus, so that must not lose the game.
+#[test]
+fn a_hypseus_folder_is_one_game_and_judged_by_frontend() {
+    let lib = Library::new();
+    lib.game("roms/daphne/Game.hypseus/Game.txt");
+    lib.game("roms/daphne/Game.hypseus/Game.dat");
+    lib.game("roms/daphne/Game.hypseus/Game.m2v");
+
+    let rules = db::format::load_rules().unwrap();
+    let folders = list_system_folders(lib.root(), &rules).unwrap();
+    let files = &folders.iter().find(|f| f.name == "daphne").unwrap().files;
+    assert_eq!(files.len(), 1, "{files:?}");
+    assert!(files[0].ends_with("Game.hypseus"), "{files:?}");
+
+    let state = |frontend| check_format(std::path::Path::new(&files[0]), &rules, "daphne", "hypseus", frontend).state;
+    assert_eq!(state("retrobat"), romio_lib::models::artifact::FormatCompatibilityState::Compatible);
+    // Only RetroBat's es_systems.cfg lists .hypseus for this system
+    assert_eq!(state("esde"), romio_lib::models::artifact::FormatCompatibilityState::Unknown);
+}

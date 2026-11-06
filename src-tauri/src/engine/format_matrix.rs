@@ -27,12 +27,14 @@ pub fn list_system_folders(root: &Path, rules: &[FormatRule]) -> Result<Vec<Syst
         let name = dir.file_name().unwrap_or_default().to_string_lossy().to_string();
         let path = dir.to_string_lossy().to_string();
         let system = system_for_folder(&name);
-        let (files, error) = games_under(&dir, &system, rules);
-        SystemFolder { name, path, system, files, error }
+        let (files, error, walked_subfolder) = games_under(&dir, &system, rules);
+        let unchecked_subfolders = walked_subfolder && INSTALLED_TREE_SYSTEMS.contains(&system.as_str());
+        SystemFolder { name, path, system, files, error, unchecked_subfolders }
     }).collect())
 }
 
-/// Game files in a system folder and its subfolders, plus the first read failure if any.
+/// Game files in a system folder and its subfolders, the first read failure if any, and
+/// whether any subfolder was walked.
 ///
 /// Every frontend walks subfolders with no depth limit by default, so this does too.
 /// A folder named with a game format (`<game>.easyrpg/`, `<game>.cue/`) is one game, as it is
@@ -40,14 +42,14 @@ pub fn list_system_folders(root: &Path, rules: &[FormatRule]) -> Result<Vec<Syst
 /// system folder isn't walked, since its games would be judged as the wrong system.
 ///
 /// shortcut: below an `INSTALLED_TREE_SYSTEMS` folder, only formats the system's rules name are
-/// listed, so a game there in a format the rules miss gets no row. Add a system to the list if
-/// its game folders fill up with Unknown rows.
-fn games_under(system_dir: &Path, system: &str, rules: &[FormatRule]) -> (Vec<String>, Option<String>) {
+/// listed, so a game there in a format the rules miss gets no row; `unchecked_subfolders` tells
+/// the user. Add a system to the list if its game folders fill up with Unknown rows.
+fn games_under(system_dir: &Path, system: &str, rules: &[FormatRule]) -> (Vec<String>, Option<String>, bool) {
     let real_root = match std::fs::canonicalize(system_dir) {
         Ok(real) => real,
-        Err(e) => return (Vec::new(), Some(e.to_string())),
+        Err(e) => return (Vec::new(), Some(e.to_string()), false),
     };
-    let (mut files, mut error, mut seen) = (Vec::new(), None, HashSet::new());
+    let (mut files, mut error, mut seen, mut walked_subfolder) = (Vec::new(), None, HashSet::new(), false);
     let mut pending = vec![system_dir.to_path_buf()];
     while let Some(dir) = pending.pop() {
         let real = match std::fs::canonicalize(&dir) {
@@ -73,7 +75,9 @@ fn games_under(system_dir: &Path, system: &str, rules: &[FormatRule]) -> (Vec<St
         }
         let (candidates, subfolders): (Vec<PathBuf>, Vec<PathBuf>) = paths.into_iter()
             .partition(|p| p.is_file() || is_game_folder(p, system, rules));
+        let before = pending.len();
         pending.extend(subfolders.into_iter().filter(|p| p.is_dir() && !is_non_game_folder(p)));
+        walked_subfolder |= pending.len() > before;
 
         let rules_only = dir != system_dir && INSTALLED_TREE_SYSTEMS.contains(&system);
         let companions = disc_companions(&candidates);
@@ -84,7 +88,7 @@ fn games_under(system_dir: &Path, system: &str, rules: &[FormatRule]) -> (Vec<St
             .map(|p| p.to_string_lossy().to_string()));
     }
     files.sort();
-    (files, error)
+    (files, error, walked_subfolder)
 }
 
 /// Systems whose game folders hold whole installs or companion data, full of files with

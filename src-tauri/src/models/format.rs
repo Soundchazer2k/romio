@@ -51,8 +51,10 @@ pub struct SystemFolder {
     /// Romio system ID for this folder name, e.g. `psx` is `ps1`
     pub system: String,
     pub files: Vec<String>,
-    /// Set when the folder couldn't be listed; `files` is then empty
+    /// Set when any of the folder couldn't be read; `files` holds what could be
     pub error: Option<String>,
+    /// An installed-tree system with game folders, where only rule-named formats are listed
+    pub unchecked_subfolders: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
