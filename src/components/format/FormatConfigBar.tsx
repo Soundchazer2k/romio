@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { open } from "@tauri-apps/plugin-dialog";
 import { FolderOpen, ChevronDown } from "lucide-react";
 import type { EmulatorMatrixEntry } from "@/types";
@@ -16,15 +17,23 @@ interface Props {
   onFrontendChange: (v: string) => void;
   onEmulatorChange: (v: string) => void;
   onScan:           () => void;
+  onStop:           () => void;
 }
 
 export function FormatConfigBar({
   path, frontend, emulator, emulatorMatrix,
-  isScanning, ready, onPathChange, onFrontendChange, onEmulatorChange, onScan,
+  isScanning, ready, onPathChange, onFrontendChange, onEmulatorChange, onScan, onStop,
 }: Props) {
   const { activeProject } = useAppStore();
 
   const [browsing, setBrowsing] = useState(false);
+  const scanButton = useRef<HTMLButtonElement>(null);
+
+  // Stop disappears when clicked, so hand focus to Scan rather than lose it
+  function stop() {
+    flushSync(onStop);
+    scanButton.current?.focus();
+  }
 
   async function browse() {
     setBrowsing(true);
@@ -107,6 +116,7 @@ export function FormatConfigBar({
 
       {/* Scan button */}
       <button
+        ref={scanButton}
         onClick={onScan}
         disabled={!path || isScanning || !ready}
         className="px-4 py-2 rounded-lg bg-romio-green-fill text-white text-sm font-semibold
@@ -119,6 +129,16 @@ export function FormatConfigBar({
           : "Scan ▶"
         }
       </button>
+
+      {isScanning && (
+        <button
+          onClick={stop}
+          className="px-4 py-2 rounded-lg bg-background-surface border border-white/10
+                     text-sm text-romio-cream hover:bg-white/5 transition-colors"
+        >
+          Stop
+        </button>
+      )}
     </div>
   );
 }

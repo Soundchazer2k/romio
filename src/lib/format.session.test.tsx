@@ -4,6 +4,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { act, cleanup, render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { FormatScreen } from "@/components/format/FormatScreen";
+import { runFormatScan } from "@/lib/format-scan";
 import { useAppStore, useFormatStore } from "@/stores";
 import type { EmulatorMatrixEntry, FormatCheckResult, Project } from "@/types";
 
@@ -54,7 +55,9 @@ async function openScreen() {
 
 const rootInput = () => screen.getByPlaceholderText("/path/to/roms") as HTMLInputElement;
 const scanButton = () => screen.getByRole("button", { name: /Scan/ }) as HTMLButtonElement;
+const stopButton = () => screen.getByRole("button", { name: "Stop" }) as HTMLButtonElement;
 const flush = () => act(async () => { await new Promise((r) => setTimeout(r)); });
+const STOPPED = /You stopped the scan/;
 
 describe("FormatScreen across navigation", () => {
   beforeEach(() => {
@@ -232,6 +235,167 @@ describe("FormatScreen across navigation", () => {
     await openScreen();
 
     expect(screen.getByRole("alert").textContent).toContain("Couldn't read it");
+    expect(scanButton().disabled).toBe(false);
+  });
+
+  it("keeps staged fixes after leaving, and a new scan clears them", async () => {
+    mocks.checkFormatBatch.mockImplementationOnce((paths: string[], system: string, emulator: string) =>
+      Promise.resolve(paths.map((path) => ({
+        ...pass(path, system, emulator),
+        state:     "FormatIncompatible",
+        fixAction: { actionType: "rename", description: "Rename it", safe: true },
+      }))));
+
+    const view = await openScreen();
+    fireEvent.click(scanButton());
+    fireEvent.click(await screen.findByText("nes"));
+    fireEvent.click(await screen.findByRole("button", { name: "Stage fix" }));
+    expect(screen.getByText(/1 fix staged/)).toBeTruthy();
+    view.unmount();
+
+    await openScreen();
+
+    expect(screen.getByText(/1 fix staged/)).toBeTruthy();
+
+    fireEvent.click(scanButton());
+
+    await screen.findByText("nes");
+    await waitFor(() => expect(screen.queryByText(/fix staged/)).toBeNull());
+  });
+
+  it("starts nothing when called while that project's scan is running", async () => {
+    const finish = holdNextCheck();
+
+    const first = runFormatScan(A, []);
+    await waitFor(() => expect(mocks.checkFormatBatch).toHaveBeenCalled());
+    await runFormatScan(A, []);
+
+    expect(mocks.listLibraryFolders).toHaveBeenCalledTimes(1);
+    expect(mocks.checkFormatBatch).toHaveBeenCalledTimes(1);
+
+    finish();
+    await first;
+  });
+
+  it("keeps overlapping scans of two projects apart, with the later one finishing first", async () => {
+    const finishA = holdNextCheck();
+    const view = await openScreen();
+    fireEvent.click(scanButton());
+    await waitFor(() => expect(mocks.checkFormatBatch).toHaveBeenCalledTimes(1));
+    view.unmount();
+
+    const finishB = holdNextCheck();
+    useAppStore.setState({ activeProject: B });
+    const viewB = await openScreen();
+    fireEvent.click(scanButton());
+    await waitFor(() => expect(mocks.checkFormatBatch).toHaveBeenCalledTimes(2));
+
+    act(finishB);
+    await screen.findByText("snes");
+    expect(scanButton().disabled).toBe(false);
+
+    act(finishA);
+    await flush();
+    expect(screen.getByText("snes")).toBeTruthy();
+    expect(screen.queryByText("nes")).toBeNull();
+    viewB.unmount();
+
+    useAppStore.setState({ activeProject: A });
+    await openScreen();
+
+    expect(screen.getByText("nes")).toBeTruthy();
+    expect(screen.queryByText("snes")).toBeNull();
+    expect(scanButton().disabled).toBe(false);
+  });
+
+  it("stops a scan that never returns after leaving and coming back, and can scan again", async () => {
+    mocks.checkFormatBatch.mockImplementationOnce(() => new Promise(() => {}));
+
+    const view = await openScreen();
+    fireEvent.click(scanButton());
+    await screen.findByText("Checked 0 of 1 file");
+    view.unmount();
+
+    await openScreen();
+    expect(scanButton().disabled).toBe(true);
+
+    fireEvent.click(stopButton());
+
+    expect(screen.getByText(STOPPED)).toBeTruthy();
+    expect(screen.queryByText(/^Checked /)).toBeNull();
+    expect(screen.queryByText("Run a scan to check your library")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Stop" })).toBeNull();
+    expect(scanButton().disabled).toBe(false);
+    expect(document.activeElement).toBe(scanButton());
+
+    fireEvent.click(scanButton());
+
+    expect(screen.queryByText(STOPPED)).toBeNull();
+    await screen.findByText("nes");
+    expect(screen.queryByText(STOPPED)).toBeNull();
+    expect(scanButton().disabled).toBe(false);
+  });
+
+  it("a stopped run settling late sends no more chunks and doesn't touch the new scan", async () => {
+    const files = Array.from({ length: 450 }, (_, i) => `/a/nes/old-${i}.bin`);
+    mocks.listLibraryFolders.mockResolvedValueOnce([{ name: "nes", path: "/a/nes", system: "nes", files }]);
+    const finishOld = holdNextCheck();
+
+    await openScreen();
+    fireEvent.click(scanButton());
+    await screen.findByText("Checked 0 of 450 files");
+    fireEvent.click(stopButton());
+
+    const finishNew = holdNextCheck();
+    fireEvent.click(scanButton());
+    await screen.findByText("Checked 0 of 1 file");
+
+    act(finishOld);
+    await flush();
+
+    // Neither its count, its finally nor a next chunk got through
+    expect(screen.getByText("Checked 0 of 1 file")).toBeTruthy();
+    expect(scanButton().disabled).toBe(true);
+    expect(mocks.checkFormatBatch).toHaveBeenCalledTimes(2);
+
+    act(finishNew);
+    fireEvent.click(await screen.findByText("nes"));
+
+    await screen.findByText("1.bin");
+    expect(screen.queryByText(/old-/)).toBeNull();
+    expect(scanButton().disabled).toBe(false);
+  });
+
+  it("a stopped run's late answer leaves the stopped state alone", async () => {
+    const finishChecks = holdNextCheck();
+    await openScreen();
+    fireEvent.click(scanButton());
+    await screen.findByText("Checked 0 of 1 file");
+    fireEvent.click(stopButton());
+
+    act(finishChecks);
+    await flush();
+
+    expect(screen.getByText(STOPPED)).toBeTruthy();
+    expect(screen.queryByText("nes")).toBeNull();
+    expect(screen.queryByText(/No game files found/)).toBeNull();
+  });
+
+  it("a run stopped while listing ignores a late failure", async () => {
+    let fail = () => {};
+    mocks.listLibraryFolders.mockImplementationOnce(() =>
+      new Promise((_, reject) => { fail = () => reject(new Error("Couldn't read it")); }));
+
+    await openScreen();
+    fireEvent.click(scanButton());
+    fireEvent.click(stopButton());
+
+    act(fail);
+    await flush();
+
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.getByText(STOPPED)).toBeTruthy();
+    expect(scanButton().disabled).toBe(false);
   });
 
   it("doesn't carry results or inputs over to another project, and keeps them for the first", async () => {

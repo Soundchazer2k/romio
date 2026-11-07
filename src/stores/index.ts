@@ -133,6 +133,8 @@ export interface FormatSession {
   frontend:         string;
   emulatorOverride: string;
   isScanning:       boolean;
+  scanRun:          number | null;   // Which run may still write here. Stopping clears it
+  stopped:          boolean;
   progress:         { checked: number; total: number } | null;
   scanError:        string | null;
   scanned:          boolean;
@@ -155,6 +157,8 @@ function newFormatSession(project: Project | null): FormatSession {
     frontend:         project?.targetFrontends[0] ?? "esde",
     emulatorOverride: "auto",
     isScanning:       false,
+    scanRun:          null,
+    stopped:          false,
     progress:         null,
     scanError:        null,
     scanned:          false,

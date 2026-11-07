@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { FileSearch, HelpCircle } from "lucide-react";
 import { formatSessionOf, useAppStore, useFormatStore } from "@/stores";
 import { ipc } from "@/lib/ipc";
-import { runFormatScan } from "@/lib/format-scan";
+import { runFormatScan, stopFormatScan } from "@/lib/format-scan";
 import type { FormatRule, StagedFix, EmulatorMatrixEntry } from "@/types";
 import { FormatConfigBar }       from "./FormatConfigBar";
 import { FormatSystemRow }       from "./FormatSystemRow";
@@ -20,7 +20,7 @@ export function FormatScreen() {
   const session = useFormatStore((s) => s.sessions[activeProject?.id ?? ""]) ?? formatSessionOf(activeProject);
   const updateSession = useFormatStore((s) => s.updateSession);
   const {
-    libraryPath, frontend, emulatorOverride, isScanning, progress, scanError, scanned,
+    libraryPath, frontend, emulatorOverride, isScanning, stopped, progress, scanError, scanned,
     scannedWith, groups, partialSystems, limitedFolders, stagedFixes,
   } = session;
 
@@ -105,6 +105,7 @@ export function FormatScreen() {
         onFrontendChange={(frontend) => updateSession(activeProject, { frontend })}
         onEmulatorChange={(emulatorOverride) => updateSession(activeProject, { emulatorOverride })}
         onScan={() => { if (ready) void runFormatScan(activeProject, emulatorMatrix); }}
+        onStop={() => stopFormatScan(activeProject)}
       />
 
       {/* Scan progress */}
@@ -113,6 +114,17 @@ export function FormatScreen() {
           {progress
             ? `Checked ${progress.checked.toLocaleString()} of ${progress.total.toLocaleString()} ${progress.total === 1 ? "file" : "files"}`
             : "Finding game files…"}
+        </p>
+      )}
+
+      {/* Not a failure, and nothing from the stopped run is shown */}
+      {stopped && (
+        <p
+          role="status"
+          className="px-4 py-3 rounded-xl bg-background-surface border border-border
+                     text-sm text-romio-gray"
+        >
+          You stopped the scan, so there are no results. Romio may finish reading the current files in the background, but it ignores them. Scan again when you're ready.
         </p>
       )}
 
@@ -187,7 +199,7 @@ export function FormatScreen() {
       )}
 
       {/* Empty state */}
-      {!hasResults && !isScanning && !bannerError && limitedFolders.length === 0 && (
+      {!hasResults && !isScanning && !stopped && !bannerError && limitedFolders.length === 0 && (
         <div className="text-center py-16 text-romio-gray space-y-2">
           <FileSearch className="w-10 h-10 mx-auto opacity-30" />
           <p>{scanned

@@ -1,24 +1,35 @@
 // SPDX-License-Identifier: GPL-3.0
 import { ipc } from "@/lib/ipc";
 import { emulatorForSystem, groupResultsBySystem } from "@/lib/utils";
-import { formatSessionOf, useFormatStore } from "@/stores";
+import { formatSessionOf, useFormatStore, type FormatSession } from "@/stores";
 import type { EmulatorMatrixEntry, FormatCheckResult, Project } from "@/types";
 
 // Small enough that the count keeps moving inside one big folder
 const CHECK_CHUNK_SIZE = 200;
 
+let lastRun = 0;
+
 /**
  * Lives outside FormatScreen so a scan keeps running after the screen unmounts.
  * Results go to the session of the project the scan started in, whatever is
- * active by the time it ends. One scan per project at a time.
+ * active by the time it ends. One scan per project at a time. Once stopped, a
+ * run sends no more chunks and its updates are dropped.
  */
 export async function runFormatScan(project: Project | null, emulatorMatrix: EmulatorMatrixEntry[]) {
   const { libraryPath, frontend, emulatorOverride, isScanning } = formatSessionOf(project);
   if (!libraryPath || isScanning) return;
 
-  const update = useFormatStore.getState().updateSession;
-  update(project, {
+  const run = ++lastRun;
+  const isCurrent = () => formatSessionOf(project).scanRun === run;
+  const updateSession = useFormatStore.getState().updateSession;
+  const update = (patch: Partial<FormatSession>) => {
+    if (isCurrent()) updateSession(project, patch);
+  };
+
+  updateSession(project, {
     isScanning:     true,
+    scanRun:        run,
+    stopped:        false,
     progress:       null,
     scanError:      null,
     groups:         [],
@@ -38,7 +49,7 @@ export async function runFormatScan(project: Project | null, emulatorMatrix: Emu
 
     const total = folders.reduce((sum, f) => sum + f.files.length, 0);
     let checked = 0;
-    update(project, { progress: { checked, total } });
+    update({ progress: { checked, total } });
 
     for (const folder of folders) {
       const systemId = folder.system;
@@ -46,6 +57,7 @@ export async function runFormatScan(project: Project | null, emulatorMatrix: Emu
       const emu = emulatorForSystem(systemId, emulatorOverride, emulatorMatrix);
 
       for (let i = 0; i < folder.files.length; i += CHECK_CHUNK_SIZE) {
+        if (!isCurrent()) return;
         const chunk = folder.files.slice(i, i + CHECK_CHUNK_SIZE);
         try {
           allResults.push(...await ipc.checkFormatBatch(chunk, systemId, emu, frontend));
@@ -68,11 +80,11 @@ export async function runFormatScan(project: Project | null, emulatorMatrix: Emu
           }
         }
         checked += chunk.length;
-        update(project, { progress: { checked, total } });
+        update({ progress: { checked, total } });
       }
     }
 
-    update(project, {
+    update({
       groups:         groupResultsBySystem(allResults),
       partialSystems: folders.filter((f) => f.error || f.uncheckedSubfolders).map((f) => f.system),
       limitedFolders: folders.filter((f) => f.uncheckedSubfolders).map((f) => f.name),
@@ -82,8 +94,21 @@ export async function runFormatScan(project: Project | null, emulatorMatrix: Emu
         : null,
     });
   } catch (err) {
-    update(project, { scanError: err instanceof Error ? err.message : String(err) });
+    update({ scanError: err instanceof Error ? err.message : String(err) });
   } finally {
-    update(project, { isScanning: false });
+    update({ isScanning: false, scanRun: null });
   }
+}
+
+/**
+ * Lets go of the running scan so a new one can start. A backend call already in
+ * flight can't be cancelled: it carries on and its answer is ignored.
+ */
+export function stopFormatScan(project: Project | null) {
+  useFormatStore.getState().updateSession(project, {
+    isScanning: false,
+    scanRun:    null,
+    stopped:    true,
+    progress:   null,
+  });
 }
