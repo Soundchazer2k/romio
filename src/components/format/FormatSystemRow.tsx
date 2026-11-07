@@ -62,7 +62,7 @@ export function FormatSystemRow({
               {group.system}
             </span>
             <span className="ml-2 text-xs text-romio-gray">
-              {group.results.length} {group.results.length === 1 ? "file" : "files"}
+              {group.results.length.toLocaleString()} {group.results.length === 1 ? "file" : "files"}
             </span>
             {emulator && emulator !== "unknown" && (
               <span className="ml-2 font-mono text-xs text-romio-gray">{emulator}</span>
