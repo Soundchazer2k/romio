@@ -4,6 +4,7 @@ import { persist } from "zustand/middleware";
 import type {
   Project, RomioState, ScanProgress,
   HostEnvironmentReport, BiosSystemResult,
+  FormatSystemGroup, StagedFix,
 } from "@/types";
 import type { Scenario } from "@/lib/scenario";
 
@@ -124,3 +125,55 @@ export const useBiosStore = create<BiosStore>((set) => ({
   results:    [],
   setResults: (results) => set({ results }),
 }));
+
+// ── Format store ──────────────────────────────────────────────────────────────
+
+export interface FormatSession {
+  libraryPath:      string;
+  frontend:         string;
+  emulatorOverride: string;
+  isScanning:       boolean;
+  scanError:        string | null;
+  scanned:          boolean;
+  scannedWith:      { path: string; frontend: string; emulator: string };
+  groups:           FormatSystemGroup[];
+  partialSystems:   string[];
+  limitedFolders:   string[];
+  stagedFixes:      StagedFix[];
+}
+
+interface FormatStore {
+  // Per project, so results can't show under another one; lasts until the app closes
+  sessions:      Record<string, FormatSession>;
+  updateSession: (project: Project | null, patch: Partial<FormatSession>) => void;
+}
+
+function newFormatSession(project: Project | null): FormatSession {
+  return {
+    libraryPath:      project?.libraryRoots[0] ?? "",
+    frontend:         project?.targetFrontends[0] ?? "esde",
+    emulatorOverride: "auto",
+    isScanning:       false,
+    scanError:        null,
+    scanned:          false,
+    scannedWith:      { path: "", frontend: "", emulator: "" },
+    groups:           [],
+    partialSystems:   [],
+    limitedFolders:   [],
+    stagedFixes:      [],
+  };
+}
+
+export const useFormatStore = create<FormatStore>((set) => ({
+  sessions: {},
+  updateSession: (project, patch) =>
+    set((s) => {
+      const id = project?.id ?? "";
+      return { sessions: { ...s.sessions, [id]: { ...(s.sessions[id] ?? newFormatSession(project)), ...patch } } };
+    }),
+}));
+
+/** A project's session, or the blank one it starts from before anything is changed. */
+export function formatSessionOf(project: Project | null): FormatSession {
+  return useFormatStore.getState().sessions[project?.id ?? ""] ?? newFormatSession(project);
+}
