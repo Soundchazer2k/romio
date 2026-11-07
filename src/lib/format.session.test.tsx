@@ -8,7 +8,7 @@ import { useAppStore, useFormatStore } from "@/stores";
 import type { EmulatorMatrixEntry, FormatCheckResult, Project } from "@/types";
 
 const mocks = vi.hoisted(() => ({
-  checkFormat: vi.fn(),
+  checkFormatBatch: vi.fn(),
   listLibraryFolders: vi.fn(),
 }));
 
@@ -21,7 +21,7 @@ vi.mock("@/lib/ipc", () => ({
       { system: "nes", recommended: "mesen2", alternatives: ["lr-nestopia"] },
     ] as EmulatorMatrixEntry[]),
     listLibraryFolders: (root: string) => mocks.listLibraryFolders(root),
-    checkFormat: (...args: unknown[]) => mocks.checkFormat(...args),
+    checkFormatBatch: (...args: unknown[]) => mocks.checkFormatBatch(...args),
   },
 }));
 
@@ -33,11 +33,14 @@ const B = project("b", "/b");
 const pass = (path: string, system: string, emulator: string): FormatCheckResult =>
   ({ path, extension: "x", system, emulator, state: "Compatible" });
 
-/** Holds the next file check open until the returned function is called. */
+const passAll = (paths: string[], system: string, emulator: string) =>
+  paths.map((path) => pass(path, system, emulator));
+
+/** Holds the next batch check open until the returned function is called. */
 function holdNextCheck() {
   let finish = () => {};
-  mocks.checkFormat.mockImplementationOnce((path: string, system: string, emulator: string) =>
-    new Promise((resolve) => { finish = () => resolve(pass(path, system, emulator)); }));
+  mocks.checkFormatBatch.mockImplementationOnce((paths: string[], system: string, emulator: string) =>
+    new Promise((resolve) => { finish = () => resolve(passAll(paths, system, emulator)); }));
   return () => finish();
 }
 
@@ -63,9 +66,9 @@ describe("FormatScreen across navigation", () => {
       const system = root === "/b" ? "snes" : "nes";
       return Promise.resolve([{ name: system, path: `${root}/${system}`, system, files: [`${root}/${system}/1.bin`] }]);
     });
-    mocks.checkFormat.mockReset();
-    mocks.checkFormat.mockImplementation((path: string, system: string, emulator: string) =>
-      Promise.resolve(pass(path, system, emulator)));
+    mocks.checkFormatBatch.mockReset();
+    mocks.checkFormatBatch.mockImplementation((paths: string[], system: string, emulator: string) =>
+      Promise.resolve(passAll(paths, system, emulator)));
   });
   afterEach(cleanup);
 
@@ -117,7 +120,7 @@ describe("FormatScreen across navigation", () => {
 
     const view = await openScreen();
     fireEvent.click(scanButton());
-    await waitFor(() => expect(mocks.checkFormat).toHaveBeenCalled());
+    await waitFor(() => expect(mocks.checkFormatBatch).toHaveBeenCalled());
     view.unmount();
 
     await openScreen();
@@ -133,12 +136,78 @@ describe("FormatScreen across navigation", () => {
     expect(scanButton().disabled).toBe(false);
   });
 
+  it("returning mid-run shows the count the scan has reached, and it keeps moving", async () => {
+    const files = Array.from({ length: 450 }, (_, i) => `/a/nes/${i}.bin`);
+    mocks.listLibraryFolders.mockResolvedValueOnce([{ name: "nes", path: "/a/nes", system: "nes", files }]);
+    mocks.checkFormatBatch.mockImplementationOnce((paths: string[], system: string, emulator: string) =>
+      Promise.resolve(passAll(paths, system, emulator)));
+    const finishSecond = holdNextCheck();
+
+    const view = await openScreen();
+    fireEvent.click(scanButton());
+    await screen.findByText("Checked 200 of 450 files");
+    view.unmount();
+
+    // The count moves on while nobody is watching
+    finishSecond();
+    const finishThird = holdNextCheck();
+    await flush();
+
+    await openScreen();
+
+    expect(screen.getByText("Checked 400 of 450 files")).toBeTruthy();
+    expect(mocks.listLibraryFolders).toHaveBeenCalledTimes(1);
+
+    act(finishThird);
+
+    await screen.findByText("nes");
+    expect(screen.queryByText(/^Checked /)).toBeNull();
+  });
+
+  it("shows no count from another project's scan", async () => {
+    const finish = holdNextCheck();
+
+    const view = await openScreen();
+    fireEvent.click(scanButton());
+    await screen.findByText("Checked 0 of 1 file");
+    view.unmount();
+
+    useAppStore.setState({ activeProject: B });
+    const viewB = await openScreen();
+
+    expect(screen.queryByText(/^Checked /)).toBeNull();
+    viewB.unmount();
+
+    useAppStore.setState({ activeProject: A });
+    await openScreen();
+
+    expect(screen.getByText("Checked 0 of 1 file")).toBeTruthy();
+    act(finish);
+    await screen.findByText("nes");
+  });
+
+  it("starts a new scan's count from nothing, not from the last scan's total", async () => {
+    await openScreen();
+    fireEvent.click(scanButton());
+    await screen.findByText("nes");
+
+    let list = () => {};
+    mocks.listLibraryFolders.mockImplementationOnce(() =>
+      new Promise((resolve) => { list = () => resolve([]); }));
+    fireEvent.click(scanButton());
+
+    expect(screen.getByText("Finding game files…")).toBeTruthy();
+    expect(screen.queryByText(/^Checked /)).toBeNull();
+    act(list);
+    await flush();
+  });
+
   it("shows results of a scan that finished while away", async () => {
     const finish = holdNextCheck();
 
     const view = await openScreen();
     fireEvent.click(scanButton());
-    await waitFor(() => expect(mocks.checkFormat).toHaveBeenCalled());
+    await waitFor(() => expect(mocks.checkFormatBatch).toHaveBeenCalled());
     view.unmount();
     finish();
     await flush();
@@ -193,7 +262,7 @@ describe("FormatScreen across navigation", () => {
 
     const view = await openScreen();
     fireEvent.click(scanButton());
-    await waitFor(() => expect(mocks.checkFormat).toHaveBeenCalled());
+    await waitFor(() => expect(mocks.checkFormatBatch).toHaveBeenCalled());
     view.unmount();
 
     useAppStore.setState({ activeProject: B });

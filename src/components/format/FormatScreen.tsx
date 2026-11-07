@@ -20,7 +20,7 @@ export function FormatScreen() {
   const session = useFormatStore((s) => s.sessions[activeProject?.id ?? ""]) ?? formatSessionOf(activeProject);
   const updateSession = useFormatStore((s) => s.updateSession);
   const {
-    libraryPath, frontend, emulatorOverride, isScanning, scanError, scanned,
+    libraryPath, frontend, emulatorOverride, isScanning, progress, scanError, scanned,
     scannedWith, groups, partialSystems, limitedFolders, stagedFixes,
   } = session;
 
@@ -106,6 +106,15 @@ export function FormatScreen() {
         onEmulatorChange={(emulatorOverride) => updateSession(activeProject, { emulatorOverride })}
         onScan={() => { if (ready) void runFormatScan(activeProject, emulatorMatrix); }}
       />
+
+      {/* Scan progress */}
+      {isScanning && (
+        <p role="status" className="font-mono text-sm text-romio-gray">
+          {progress
+            ? `Checked ${progress.checked.toLocaleString()} of ${progress.total.toLocaleString()} ${progress.total === 1 ? "file" : "files"}`
+            : "Finding game files…"}
+        </p>
+      )}
 
       {/* Scan error banner */}
       {bannerError && (

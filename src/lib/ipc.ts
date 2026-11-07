@@ -42,8 +42,8 @@ export const ipc = {
                   invoke<void>("set_bios_root", { projectId, biosRoot }),
 
   // Format
-  checkFormat:       (path: string, system: string, emulator: string, frontend: string) =>
-                       invoke<FormatCheckResult>("check_format_compatibility", { path, system, emulator, frontend }),
+  checkFormatBatch:  (paths: string[], system: string, emulator: string, frontend: string) =>
+                       invoke<FormatCheckResult[]>("check_format_batch", { paths, system, emulator, frontend }),
   getFormatMatrix:   ()                                => invoke<FormatRule[]>("get_format_matrix"),
   listLibraryFolders: (root: string)                   => invoke<SystemFolder[]>("list_library_folders", { root }),
   getEmulatorMatrix: ()                                => invoke<EmulatorMatrixEntry[]>("get_emulator_matrix"),

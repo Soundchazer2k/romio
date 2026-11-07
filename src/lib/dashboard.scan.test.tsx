@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
+import { act, render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { DashboardScreen } from "@/components/dashboard/DashboardScreen";
 import { useAppStore, useScanStore } from "@/stores";
 import type { Project } from "@/types";
 
 const PROJECT = { id: "p", name: "Test", libraryRoots: ["/roms"], targetFrontends: [], emulatorPrefs: {}, createdAt: "" } as Project;
+
+const SAVING = { filesScanned: 3, currentPath: "", phase: "saving" } as const;
 
 const mocks = vi.hoisted(() => ({ scanLibrary: vi.fn(), getProject: vi.fn() }));
 vi.mock("@/lib/ipc", () => ({ ipc: mocks }));
@@ -149,6 +151,79 @@ describe("Dashboard scan and the companion", () => {
     useAppStore.setState({ activeProject: { ...PROJECT, id: "other" } });
     renderDashboard();
     expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("keeps the panel up from the walk's end until the command returns", async () => {
+    const { finish } = startScan();
+    await waitFor(() => expect(useScanStore.getState().isScanning).toBe(true));
+
+    act(() => useScanStore.setState({ progress: { filesScanned: 5, filesTotal: 5, currentPath: "", phase: "complete" } }));
+    expect(screen.getByText("5 files")).toBeTruthy();
+
+    act(() => useScanStore.setState({ progress: SAVING }));
+    expect(screen.getByText("Finishing scan…")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Finishing…" })).toBeTruthy();
+    expect(screen.queryByText(/d files/)).toBeNull();
+
+    finish();
+    await waitFor(() => expect(screen.queryByText("Finishing scan…")).toBeNull());
+    expect(useScanStore.getState().isScanning).toBe(false);
+    expect(useScanStore.getState().progress).toBeNull();
+  });
+
+  it("pulses the bar only while finishing, so a long wait doesn't look hung", async () => {
+    const { view, finish } = startScan();
+    await waitFor(() => expect(useScanStore.getState().isScanning).toBe(true));
+    const pulsingBar = () => view.container.querySelector(".animate-pulse");
+
+    act(() => useScanStore.setState({ progress: { filesScanned: 3, currentPath: "/roms/a", phase: "classifying" } }));
+    expect(pulsingBar()).toBeNull();
+
+    act(() => useScanStore.setState({ progress: { filesScanned: 5, filesTotal: 5, currentPath: "", phase: "complete" } }));
+    expect(pulsingBar()).toBeNull();
+
+    act(() => useScanStore.setState({ progress: SAVING }));
+    expect(pulsingBar()).not.toBeNull();
+
+    finish();
+    await waitFor(() => expect(pulsingBar()).toBeNull());
+  });
+
+  it("drops the finishing state and shows no results when saving fails", async () => {
+    const { fail } = startScan();
+    await waitFor(() => expect(useScanStore.getState().isScanning).toBe(true));
+    act(() => useScanStore.setState({ progress: SAVING }));
+
+    fail(new Error("Failed to persist artifacts"));
+
+    expect((await screen.findByRole("alert")).textContent).toContain("Failed to persist artifacts");
+    expect(screen.queryByText("Finishing scan…")).toBeNull();
+    expect(useScanStore.getState().progress).toBeNull();
+    expect(mocks.getProject).not.toHaveBeenCalled();
+  });
+
+  it("clears a cancelled scan's panel when the command returns: no saving event arrives", async () => {
+    const { finish } = startScan();
+    await waitFor(() => expect(useScanStore.getState().isScanning).toBe(true));
+    act(() => useScanStore.setState({ progress: { filesScanned: 3, currentPath: "/roms/a", phase: "classifying" } }));
+
+    // The walk stops, sends "complete", and the command returns without saving.
+    act(() => useScanStore.setState({ progress: { filesScanned: 3, filesTotal: 3, currentPath: "", phase: "complete" } }));
+    expect(screen.queryByText("Finishing scan…")).toBeNull();
+
+    finish();
+    await waitFor(() => expect(useScanStore.getState().isScanning).toBe(false));
+    expect(useScanStore.getState().progress).toBeNull();
+    expect(screen.queryByText("3 files")).toBeNull();
+  });
+
+  it("doesn't start a new scan showing a saving event that arrived late", async () => {
+    useScanStore.setState({ progress: SAVING });
+    const { finish } = startScan();
+
+    await waitFor(() => expect(useScanStore.getState().isScanning).toBe(true));
+    expect(screen.queryByText("Finishing scan…")).toBeNull();
+    finish();
   });
 
   it("shows processing again when you come back mid-scan", () => {

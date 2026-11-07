@@ -52,9 +52,8 @@ export default function App() {
   // Listen for scan progress events from the Rust backend
   useEffect(() => {
     const unlisten = listen<ScanProgress>("scan_progress", (event) => {
+      // "complete" only ends the walk. The Dashboard clears this once saving and the BIOS sweep finish.
       setProgress(event.payload);
-      // "complete" only ends the walk. The Dashboard ends the scan once saving and the BIOS sweep finish.
-      if (event.payload.phase === "complete") setProgress(null);
     });
     return () => { unlisten.then((fn) => fn()); };
   }, [setProgress]);

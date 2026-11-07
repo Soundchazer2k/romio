@@ -4,6 +4,9 @@ import { emulatorForSystem, groupResultsBySystem } from "@/lib/utils";
 import { formatSessionOf, useFormatStore } from "@/stores";
 import type { EmulatorMatrixEntry, FormatCheckResult, Project } from "@/types";
 
+// Small enough that the count keeps moving inside one big folder
+const CHECK_CHUNK_SIZE = 200;
+
 /**
  * Lives outside FormatScreen so a scan keeps running after the screen unmounts.
  * Results go to the session of the project the scan started in, whatever is
@@ -16,6 +19,7 @@ export async function runFormatScan(project: Project | null, emulatorMatrix: Emu
   const update = useFormatStore.getState().updateSession;
   update(project, {
     isScanning:     true,
+    progress:       null,
     scanError:      null,
     groups:         [],
     scanned:        false,
@@ -32,30 +36,39 @@ export async function runFormatScan(project: Project | null, emulatorMatrix: Emu
     const folders = await ipc.listLibraryFolders(libraryPath);
     const unreadable = folders.filter((f) => f.error).map((f) => f.name);
 
+    const total = folders.reduce((sum, f) => sum + f.files.length, 0);
+    let checked = 0;
+    update(project, { progress: { checked, total } });
+
     for (const folder of folders) {
       const systemId = folder.system;
 
       const emu = emulatorForSystem(systemId, emulatorOverride, emulatorMatrix);
 
-      for (const filePath of folder.files) {
-        const name = filePath.split(/[\/]/).pop() ?? filePath;
+      for (let i = 0; i < folder.files.length; i += CHECK_CHUNK_SIZE) {
+        const chunk = folder.files.slice(i, i + CHECK_CHUNK_SIZE);
         try {
-          const result = await ipc.checkFormat(filePath, systemId, emu, frontend);
-          allResults.push(result);
-        } catch {
-          // Per-file error: push Unknown result
-          const ext = name.includes(".")
-            ? name.split(".").pop() ?? ""
-            : "";
-          allResults.push({
-            path:      filePath,
-            extension: ext,
-            system:    systemId,
-            emulator:  emu,
-            state:     "Unknown",
-            notes:     "Check failed — file may be unreadable",
-          });
+          allResults.push(...await ipc.checkFormatBatch(chunk, systemId, emu, frontend));
+        } catch (err) {
+          // Failed call: its files become Unknown results, and the scan goes on
+          const reason = err instanceof Error ? err.message : String(err);
+          for (const filePath of chunk) {
+            const name = filePath.split(/[\\/]/).pop() ?? filePath;
+            const ext = name.includes(".")
+              ? name.split(".").pop() ?? ""
+              : "";
+            allResults.push({
+              path:      filePath,
+              extension: ext,
+              system:    systemId,
+              emulator:  emu,
+              state:     "Unknown",
+              notes:     `Check failed: ${reason}`,
+            });
+          }
         }
+        checked += chunk.length;
+        update(project, { progress: { checked, total } });
       }
     }
 
