@@ -91,7 +91,7 @@ export function FormatFixPlanModal({ fixes, onClose }: Props) {
         {/* Not-yet-implemented notice */}
         {executed && (
           <div className="px-3 py-2.5 rounded-lg bg-black/20 border border-border text-xs text-romio-gray">
-            Fix execution is not yet implemented. Your staged plan has been logged.
+            Applying fixes isn't built yet, so nothing was changed.
           </div>
         )}
 
