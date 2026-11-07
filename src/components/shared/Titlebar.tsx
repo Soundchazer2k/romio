@@ -39,7 +39,9 @@ export function Titlebar() {
         <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-romio-green animate-pulse" />
           <span className="text-xs text-romio-gray">
-            Scanning… {progress.filesScanned.toLocaleString()} files
+            {progress.phase === "saving"
+              ? "Finishing scan…"
+              : `Scanning… ${progress.filesScanned.toLocaleString()} files`}
           </span>
         </div>
       )}

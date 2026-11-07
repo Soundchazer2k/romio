@@ -227,7 +227,7 @@ export interface OperationLogEntry {
 
 // ── Scan ──────────────────────────────────────────────────────────────────────
 
-export type ScanPhase = "enumerating" | "hashing" | "classifying" | "complete";
+export type ScanPhase = "enumerating" | "hashing" | "classifying" | "complete" | "saving";
 
 export interface ScanProgress {
   filesScanned: number;
