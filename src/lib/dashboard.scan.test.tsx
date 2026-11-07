@@ -171,6 +171,24 @@ describe("Dashboard scan and the companion", () => {
     expect(useScanStore.getState().progress).toBeNull();
   });
 
+  it("pulses the bar only while finishing, so a long wait doesn't look hung", async () => {
+    const { view, finish } = startScan();
+    await waitFor(() => expect(useScanStore.getState().isScanning).toBe(true));
+    const pulsingBar = () => view.container.querySelector(".animate-pulse");
+
+    act(() => useScanStore.setState({ progress: { filesScanned: 3, currentPath: "/roms/a", phase: "classifying" } }));
+    expect(pulsingBar()).toBeNull();
+
+    act(() => useScanStore.setState({ progress: { filesScanned: 5, filesTotal: 5, currentPath: "", phase: "complete" } }));
+    expect(pulsingBar()).toBeNull();
+
+    act(() => useScanStore.setState({ progress: SAVING }));
+    expect(pulsingBar()).not.toBeNull();
+
+    finish();
+    await waitFor(() => expect(pulsingBar()).toBeNull());
+  });
+
   it("drops the finishing state and shows no results when saving fails", async () => {
     const { fail } = startScan();
     await waitFor(() => expect(useScanStore.getState().isScanning).toBe(true));

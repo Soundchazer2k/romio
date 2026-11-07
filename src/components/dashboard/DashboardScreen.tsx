@@ -150,7 +150,8 @@ export function DashboardScreen() {
           </div>
           <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
             <motion.div
-              className="h-full bg-romio-green rounded-full"
+              className={cn("h-full bg-romio-green rounded-full", finishing && "animate-pulse")}
+              initial={{ width: 0 }}
               animate={{ width: finishing ? "100%" : progress.filesTotal
                 ? `${Math.min(100, (progress.filesScanned / progress.filesTotal) * 100)}%`
                 : "60%" }}
