@@ -22,7 +22,7 @@ const TWO_FOLDERS = [
 ];
 
 const mocks = vi.hoisted(() => ({
-  checkFormat: vi.fn(),
+  checkFormatBatch: vi.fn(),
   listLibraryFolders: vi.fn(),
   getFormatMatrix: vi.fn(),
   getEmulatorMatrix: vi.fn(),
@@ -41,9 +41,12 @@ vi.mock("@/lib/ipc", () => ({
     getFormatMatrix:    () => mocks.getFormatMatrix(),
     getEmulatorMatrix:  () => mocks.getEmulatorMatrix(),
     listLibraryFolders: () => mocks.listLibraryFolders(),
-    checkFormat: (...args: unknown[]) => mocks.checkFormat(...args),
+    checkFormatBatch: (...args: unknown[]) => mocks.checkFormatBatch(...args),
   },
 }));
+
+const compatible = (paths: string[], system: string, emulator: string) =>
+  Promise.resolve(paths.map((path) => ({ path, extension: "x", system, emulator, state: "Compatible" })));
 
 function result(state: FormatCompatibilityState, extra: Partial<FormatCheckResult> = {}): FormatCheckResult {
   return { path: `/roms/x/${Math.random()}.iso`, extension: "iso", system: "xbox", emulator: "xemu", state, ...extra };
@@ -82,9 +85,8 @@ describe("FormatScreen", () => {
     mocks.getFormatMatrix.mockResolvedValue([]);
     mocks.getEmulatorMatrix.mockReset();
     mocks.getEmulatorMatrix.mockResolvedValue(MATRIX);
-    mocks.checkFormat.mockReset();
-    mocks.checkFormat.mockImplementation((path: string, system: string, emulator: string) =>
-      Promise.resolve({ path, extension: "x", system, emulator, state: "Compatible" }));
+    mocks.checkFormatBatch.mockReset();
+    mocks.checkFormatBatch.mockImplementation(compatible);
   });
 
   async function setUp() {
@@ -104,8 +106,8 @@ describe("FormatScreen", () => {
     fireEvent.change(screen.getByDisplayValue("auto"), { target: { value: "lr-nestopia" } });
     await scan();
 
-    expect(mocks.checkFormat).toHaveBeenCalledWith("/roms/nes/b.nes", "nes", "lr-nestopia", "esde");
-    expect(mocks.checkFormat).toHaveBeenCalledWith("/roms/psx/a.chd", "ps1", "duckstation", "esde");
+    expect(mocks.checkFormatBatch).toHaveBeenCalledWith(["/roms/nes/b.nes"], "nes", "lr-nestopia", "esde");
+    expect(mocks.checkFormatBatch).toHaveBeenCalledWith(["/roms/psx/a.chd"], "ps1", "duckstation", "esde");
     expect(screen.getByText("lr-nestopia", { selector: "span" })).toBeTruthy();
     expect(screen.getByText("duckstation", { selector: "span" })).toBeTruthy();
   });
@@ -202,6 +204,68 @@ describe("FormatScreen", () => {
     close("/picked");
     await waitFor(() => expect(browse.disabled).toBe(false));
     expect(screen.getByDisplayValue("/picked")).toBeTruthy();
+  });
+
+  it("shows a file count while it runs, then clears it", async () => {
+    const pending: (() => void)[] = [];
+    mocks.checkFormatBatch.mockImplementation((paths: string[], system: string, emulator: string) =>
+      new Promise((resolve) => pending.push(() => resolve(compatible(paths, system, emulator)))));
+    let listed: (folders: typeof TWO_FOLDERS) => void = () => undefined;
+    mocks.listLibraryFolders.mockReturnValue(new Promise((resolve) => { listed = resolve; }));
+    await setUp();
+    fireEvent.click(screen.getByRole("button", { name: /Scan/ }));
+
+    expect(screen.getByRole("status").textContent).toBe("Finding game files…");
+
+    listed(TWO_FOLDERS);
+    await waitFor(() => expect(screen.getByRole("status").textContent).toBe("Checked 0 of 2 files"));
+    await waitFor(() => expect(pending).toHaveLength(1));
+    pending[0]();
+    await waitFor(() => expect(screen.getByRole("status").textContent).toBe("Checked 1 of 2 files"));
+    await waitFor(() => expect(pending).toHaveLength(2));
+    pending[1]();
+
+    await screen.findByText("nes");
+    expect(screen.queryByRole("status")).toBeNull();
+  });
+
+  it("splits a big folder into chunks and keeps every file, in order", async () => {
+    const files = Array.from({ length: 450 }, (_, i) => `/roms/nes/${i}.nes`);
+    mocks.listLibraryFolders.mockResolvedValue([{ name: "nes", path: "/roms/nes", system: "nes", files }]);
+    await setUp();
+    await scan();
+
+    const chunks = mocks.checkFormatBatch.mock.calls.map(([paths]) => paths as string[]);
+    expect(chunks.map((c) => c.length)).toEqual([200, 200, 50]);
+    expect(chunks.flat()).toEqual(files);
+  });
+
+  it("turns a failed check into Unknown rows and still checks the other folders", async () => {
+    mocks.checkFormatBatch.mockImplementation((paths: string[], system: string, emulator: string) =>
+      system === "ps1" ? Promise.reject(new Error("no")) : compatible(paths, system, emulator));
+    await setUp();
+    await scan();
+
+    expect(screen.getByText("All OK")).toBeTruthy();
+    fireEvent.click(screen.getByText("ps1"));
+    expect(await screen.findByText("Check failed: no")).toBeTruthy();
+    expect(screen.getByText("a.chd")).toBeTruthy();
+  });
+
+  it("gives every file in a failed call the real reason, with no claim about the file", async () => {
+    mocks.listLibraryFolders.mockResolvedValue([
+      { name: "psx", path: "/roms/psx", system: "ps1", files: ["/roms/psx/a.chd", "/roms/psx/b.chd"] },
+    ]);
+    // Tauri rejects with the command's error string, not an Error
+    mocks.checkFormatBatch.mockRejectedValue("rules failed to load");
+    await setUp();
+    fireEvent.click(screen.getByRole("button", { name: /Scan/ }));
+    fireEvent.click(await screen.findByText("ps1"));
+
+    expect(await screen.findAllByText("Check failed: rules failed to load")).toHaveLength(2);
+    expect(screen.getByText("a.chd")).toBeTruthy();
+    expect(screen.getByText("b.chd")).toBeTruthy();
+    expect(screen.queryByText(/unreadable/)).toBeNull();
   });
 
   it("flags results as out of date when the emulator or frontend changes, until a new scan", async () => {
@@ -343,15 +407,13 @@ describe("FormatImpactTable", () => {
 
 describe("FormatScreen on folders it didn't fully check", () => {
   beforeEach(() => {
-    mocks.checkFormat.mockReset();
+    mocks.checkFormatBatch.mockReset();
     mocks.listLibraryFolders.mockReset();
     mocks.getFormatMatrix.mockReset();
     mocks.getEmulatorMatrix.mockReset();
     mocks.getFormatMatrix.mockResolvedValue([]);
     mocks.getEmulatorMatrix.mockResolvedValue(MATRIX);
-    mocks.checkFormat.mockImplementation(async (path: string, system: string, emulator: string) => ({
-      path, extension: "x", system, emulator, state: "Compatible",
-    }));
+    mocks.checkFormatBatch.mockImplementation(compatible);
   });
 
   async function scan() {

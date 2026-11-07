@@ -233,14 +233,14 @@ export const ipc = {
     undefined,
 
   // Format
-  checkFormat: async (
-    path: string, _system: string, _emulator: string, _frontend: string
-  ): Promise<FormatCheckResult> =>
+  checkFormatBatch: async (
+    paths: string[], _system: string, _emulator: string, _frontend: string
+  ): Promise<FormatCheckResult[]> =>
     // .bin files come back deprecated with a rename fix so the fix tray can be exercised
-    path.endsWith(".bin")
+    paths.map((path) => path.endsWith(".bin")
       ? { ...FIXTURE_FORMAT_RESULT, path, state: "FormatDeprecated",
           fixAction: { actionType: "rename", description: "Rename to .cue/.bin pair", safe: true } }
-      : { ...FIXTURE_FORMAT_RESULT, path, extension: path.split(".").pop() ?? "" },
+      : { ...FIXTURE_FORMAT_RESULT, path, extension: path.split(".").pop() ?? "" }),
   getFormatMatrix: async (): Promise<FormatRule[]> => [],
   listLibraryFolders: async (root: string): Promise<SystemFolder[]> =>
     [["psx", "ps1"], ["gba", "gba"]].map(([name, system]) => ({
