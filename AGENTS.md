@@ -7,6 +7,7 @@ pnpm tauri dev       # Start dev (Vite on :1444 + Rust backend)
 pnpm tauri build     # Production build
 pnpm test            # Vitest unit tests
 cargo check          # Rust-only type check (fast)
+cargo test --test scenarios  # Engine vs fake RetroBat/Batocera/ES-DE libraries (src-tauri/tests/, never bundled)
 cargo fix --lib -p romio  # Auto-fix unused import warnings
 ```
 
@@ -22,6 +23,13 @@ src-tauri/src/engine/   ← Pure Rust business logic (no Tauri deps, unit-testab
 src-tauri/src/commands/ ← Thin IPC handlers — call engine, return serializable results
 src-tauri/data/*.json   ← Community-editable rules databases (BIOS, format, emulator matrix)
 ```
+
+## Design
+
+UI work follows `DESIGN.md` (brief, tokens, voice, do's and don'ts). Colors live in
+the `@theme` block in `src/styles/globals.css` (Tailwind 4); `src/lib/design-tokens.test.ts` fails if DESIGN.md drifts from it.
+Lint it with `pnpm design:lint`. On Windows use the `designmd` bin, never `design.md`:
+that name resolves to the DESIGN.md file and opens it instead of running the CLI.
 
 ## Known Gotchas
 
@@ -42,7 +50,9 @@ root-level `tauri.conf.json`; the CLI finds it first and fails with "No package 
 ## Screens & Status
 
 Implemented: `welcome`, `projects`, `dashboard`, `preflight`, `bios`, `format`, `saves`
-Placeholder (backend stubs exist, UI TODO): `multidisc`, `scummvm`, `installed`, `export`, `preview`, `rollback`
+Placeholder (backend stubs exist, UI TODO): `multidisc`, `scummvm`, `installed`, `export`, `preview`, `rollback`.
+`smoketest` is also a placeholder, but has only a model (`SmokeTestResult`) and no commands yet.
+These are hidden from the sidebar until built; add each back to `NAV` in `Sidebar.tsx` when it ships.
 
 ## Type Sync
 
