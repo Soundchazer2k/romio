@@ -23,7 +23,7 @@ A secondary **Format Rules Reference** drawer is available via a `?` button in t
 5. For a file with an issue, user expands the **Impact** section to see cross-emulator compatibility
 6. User clicks **Stage fix** — fix is added to the plan, `FormatFixTray` animates in
 7. User clicks **Review plan →** — modal shows all staged fixes with impact warnings
-8. User confirms — execution stub returns "not yet implemented" (consistent with saves screen)
+8. The modal says applying fixes isn't built yet and offers only Close, so it asks for no consent to a write that can't happen
 
 ---
 
@@ -68,7 +68,6 @@ Fix staged
 
 "Review plan →" clicked
   └─ FormatFixPlanModal — shows staged fixes + impact warnings
-  └─ Confirm → IPC execution stub (not yet implemented)
 ```
 
 ---
@@ -190,6 +189,6 @@ getFormatMatrix: () => invoke<FormatRule[]>(...)
 
 ## Out of Scope (this iteration)
 
-- Fix execution (apply renames/converts) — stub returns "not yet implemented"
+- Fix execution (apply renames/converts) — no button until it exists
 - Batch scan progress indicator (simple spinner is sufficient for now)
 - Persisting scan results across sessions

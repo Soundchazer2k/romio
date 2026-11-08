@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: GPL-3.0
-import { useState } from "react";
 import { AlertTriangle, FileEdit, X } from "lucide-react";
 import { Modal, Dialog } from "@/components/shared/Modal";
 import type { StagedFix } from "@/types";
@@ -11,16 +10,8 @@ interface Props {
 }
 
 export function FormatFixPlanModal({ fixes, onClose }: Props) {
-  const [confirmed, setConfirmed] = useState(false);
-  const [executed,  setExecuted]  = useState(false);
-
   const unsafeFixes = fixes.filter((f) => !f.fix.safe);
   const hasUnsafe   = unsafeFixes.length > 0;
-
-  function handleExecute() {
-    // Stub — execution not yet implemented
-    setExecuted(true);
-  }
 
   return (
     <Modal
@@ -36,7 +27,7 @@ export function FormatFixPlanModal({ fixes, onClose }: Props) {
               <p className="text-xs font-semibold text-romio-green">Step 2 of 2: review plan</p>
               <Dialog.Title className="font-bold text-romio-cream">Fix Plan</Dialog.Title>
               <Dialog.Description className="text-xs text-romio-gray mt-0.5">
-                Review all changes before applying. Nothing will be written without your confirmation.
+                Review what each fix would do. Applying fixes isn't built yet, so nothing will change.
               </Dialog.Description>
             </div>
           </div>
@@ -83,53 +74,17 @@ export function FormatFixPlanModal({ fixes, onClose }: Props) {
             <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
             <span>
               {unsafeFixes.length} {unsafeFixes.length === 1 ? "fix requires" : "fixes require"} re-dumping
-              or conversion — these cannot be automatically applied.
+              or conversion, which Romio can't do for you.
             </span>
           </div>
-        )}
-
-        {/* Not-yet-implemented notice */}
-        {executed && (
-          <div className="px-3 py-2.5 rounded-lg bg-black/20 border border-border text-xs text-romio-gray">
-            Applying fixes isn't built yet, so nothing was changed.
-          </div>
-        )}
-
-        {/* Confirmation checkbox */}
-        {!executed && (
-          <label className="flex items-start gap-3 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={confirmed}
-              onChange={(e) => setConfirmed(e.target.checked)}
-              className="mt-0.5 accent-romio-green"
-            />
-            <span className="text-sm text-romio-cream">
-              I have reviewed all changes. I understand rename operations will modify filenames
-              in my library.
-            </span>
-          </label>
         )}
 
         {/* Actions */}
-        <div className="flex gap-3">
-          <button onClick={onClose}
-            className="flex-1 px-4 py-2 rounded-lg text-sm text-romio-gray
-                       border border-border hover:bg-white/5 transition-colors">
-            {executed ? "Close" : "Cancel"}
-          </button>
-          {!executed && (
-            <button
-              onClick={handleExecute}
-              disabled={!confirmed}
-              className="flex-1 px-4 py-2 rounded-lg text-sm font-semibold
-                         bg-romio-green-fill text-white hover:bg-romio-green-fill/90
-                         disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-            >
-              Apply Fixes
-            </button>
-          )}
-        </div>
+        <button onClick={onClose}
+          className="w-full px-4 py-2 rounded-lg text-sm text-romio-gray
+                     border border-border hover:bg-white/5 transition-colors">
+          Close
+        </button>
     </Modal>
   );
 }

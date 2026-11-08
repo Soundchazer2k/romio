@@ -4,9 +4,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { act, cleanup, render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { FormatScreen } from "@/components/format/FormatScreen";
+import { FormatFixPlanModal } from "@/components/format/FormatFixPlanModal";
 import { runFormatScan } from "@/lib/format-scan";
 import { useAppStore, useFormatStore } from "@/stores";
-import type { EmulatorMatrixEntry, FormatCheckResult, Project } from "@/types";
+import type { EmulatorMatrixEntry, FormatCheckResult, Project, StagedFix } from "@/types";
 
 const mocks = vi.hoisted(() => ({
   checkFormatBatch: vi.fn(),
@@ -324,7 +325,7 @@ describe("FormatScreen across navigation", () => {
     expect(screen.getByText(STOPPED)).toBeTruthy();
     expect(screen.queryByText(/^Checked /)).toBeNull();
     expect(screen.queryByText("Run a scan to check your library")).toBeNull();
-    expect(screen.queryByRole("button", { name: "Stop" })).toBeNull();
+    expect(stopButton().disabled).toBe(true);
     expect(scanButton().disabled).toBe(false);
     expect(document.activeElement).toBe(scanButton());
 
@@ -334,6 +335,43 @@ describe("FormatScreen across navigation", () => {
     await screen.findByText("nes");
     expect(screen.queryByText(STOPPED)).toBeNull();
     expect(scanButton().disabled).toBe(false);
+  });
+
+  it("keeps one live region from scanning through to the stopped notice", async () => {
+    mocks.checkFormatBatch.mockImplementationOnce(() => new Promise(() => {}));
+    await openScreen();
+    const region = document.querySelector("[aria-live]")!;
+    expect(region.textContent).toBe("");
+    expect(stopButton().disabled).toBe(true);
+
+    fireEvent.click(scanButton());
+    await screen.findByText("Checked 0 of 1 file");
+    expect(document.querySelector("[aria-live]")).toBe(region);
+    expect(region.textContent).toBe("Checked 0 of 1 file");
+    expect(stopButton().disabled).toBe(false);
+
+    fireEvent.click(stopButton());
+    expect(document.querySelector("[aria-live]")).toBe(region);
+    expect(region.textContent).toMatch(STOPPED);
+  });
+
+  it("says the fix plan changes nothing and asks for no consent to apply it", () => {
+    const result = pass("/a/nes/1.bin", "nes", "mesen2");
+    render(<FormatFixPlanModal
+      fixes={[{ result, fix: { actionType: "rename", description: "Rename it", safe: true } as StagedFix["fix"] }]}
+      onClose={() => {}}
+    />);
+
+    expect(screen.getByText(/Applying fixes isn't built yet, so nothing will change/)).toBeTruthy();
+    expect(screen.queryByRole("checkbox")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Apply Fixes" })).toBeNull();
+  });
+
+  it("names the config fields through their labels", async () => {
+    await openScreen();
+    expect(screen.getByLabelText("Library root")).toBe(rootInput());
+    expect((screen.getByLabelText("Frontend") as HTMLSelectElement).value).toBe("esde");
+    expect((screen.getByLabelText("Emulator") as HTMLSelectElement).value).toBe("auto");
   });
 
   it("a stopped run settling late sends no more chunks and doesn't touch the new scan", async () => {

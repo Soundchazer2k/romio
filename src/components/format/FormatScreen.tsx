@@ -108,25 +108,26 @@ export function FormatScreen() {
         onStop={() => stopFormatScan(activeProject)}
       />
 
-      {/* Scan progress */}
-      {isScanning && (
-        <p role="status" className="font-mono text-sm text-romio-gray">
-          {progress
-            ? `Checked ${progress.checked.toLocaleString()} of ${progress.total.toLocaleString()} ${progress.total === 1 ? "file" : "files"}`
-            : "Finding game files…"}
-        </p>
-      )}
+      {/* Always mounted: screen readers announce changes inside a live region more reliably than a new one */}
+      <div aria-live="polite" aria-atomic="true" className="empty:absolute">
+        {isScanning && (
+          <p className="font-mono text-sm text-romio-gray">
+            {progress
+              ? `Checked ${progress.checked.toLocaleString()} of ${progress.total.toLocaleString()} ${progress.total === 1 ? "file" : "files"}`
+              : "Finding game files…"}
+          </p>
+        )}
 
-      {/* Not a failure, and nothing from the stopped run is shown */}
-      {stopped && (
-        <p
-          role="status"
-          className="px-4 py-3 rounded-xl bg-background-surface border border-border
-                     text-sm text-romio-gray"
-        >
-          You stopped the scan, so there are no results. Romio may finish reading the current files in the background, but it ignores them. Scan again when you're ready.
-        </p>
-      )}
+        {/* Not a failure, and nothing from the stopped run is shown */}
+        {stopped && (
+          <p
+            className="px-4 py-3 rounded-xl bg-background-surface border border-border
+                       text-sm text-romio-gray"
+          >
+            You stopped the scan, so there are no results. Romio may finish reading the current files in the background, but it ignores them. Scan again when you're ready.
+          </p>
+        )}
+      </div>
 
       {/* Scan error banner */}
       {bannerError && (
