@@ -329,3 +329,65 @@ export interface EmulatorMatrixEntry {
   biosRequired: boolean;
   notes?:       string | null;
 }
+
+// ── Multi-disc (mirrors src-tauri/src/engine/multidisc.rs) ────────────────────
+
+export interface DiscFile {
+  path: string;
+  disc: string;
+  missingTracks: string[];
+}
+
+export type M3uState = "missing" | "complete" | "incomplete";
+
+export interface MultiDiscSet {
+  name:   string;
+  folder: string;
+  system: string;
+  discs:  DiscFile[];
+  m3uPath?: string | null;
+  m3uState: M3uState;
+  m3uProblems: string[];
+}
+
+// ── ScummVM (mirrors src-tauri/src/engine/scummvm.rs) ─────────────────────────
+
+export interface ScummVmGame {
+  path: string;
+  name: string;
+  engine?: string | null;
+  pointerPath?: string | null;
+  pointerId?: string | null;
+}
+
+export interface ScummVmReport {
+  folder?: string | null;
+  games:  ScummVmGame[];
+}
+
+// ── Installed titles (mirrors engine/installed_titles.rs and shortcut_validator.rs) ──
+
+export type TitleKind = "game" | "update" | "data";
+
+export interface TitleCheck {
+  path:   string;
+  folder: string;
+  titleId?: string | null;
+  kind:   TitleKind;
+  issues: string[];
+}
+
+export interface ShortcutIssue {
+  issueType:
+    | "unexpanded_variable" | "executable_not_found" | "target_path_not_found"
+    | "unquoted_space_path" | "separator_mismatch";
+  description: string;
+  value?: string | null;
+  fix?:   string | null;
+}
+
+export interface ShortcutValidationResult {
+  shortcutPath: string;
+  isValid:      boolean;
+  issues:       ShortcutIssue[];
+}

@@ -1279,3 +1279,124 @@ fn a_hypseus_folder_is_one_game_and_judged_by_frontend() {
     // Only RetroBat's es_systems.cfg lists .hypseus for this system
     assert_eq!(state("esde"), romio_lib::models::artifact::FormatCompatibilityState::Unknown);
 }
+
+// ── Multi-disc, ScummVM and installed titles (read-only detection) ───────────
+
+#[test]
+fn multidisc_sets_are_found_with_the_state_of_their_playlist() {
+    use romio_lib::engine::multidisc::{detect_sets, M3uState};
+    let lib = Library::new();
+    let sheet = |bin: &str| format!("FILE \"{bin}\" BINARY\n  TRACK 01 MODE2/2352\n");
+
+    // No playlist; disc 2's sheet names a track that isn't there
+    lib.file("roms/psx/Alpha (Disc 1).cue", sheet("Alpha (Disc 1).bin").as_bytes());
+    lib.game("roms/psx/Alpha (Disc 1).bin");
+    lib.file("roms/psx/Alpha (Disc 2).cue", sheet("Alpha (Disc 2).bin").as_bytes());
+    // Complete playlist, written with a Windows separator
+    lib.game("roms/psx/Beta/Beta (Disc 1).chd");
+    lib.game("roms/psx/Beta/Beta (Disc 2).chd");
+    lib.file("roms/psx/Beta.m3u", b"# two discs\nBeta\\Beta (Disc 1).chd\nBeta/Beta (Disc 2).chd\n");
+    // Playlist that leaves out a disc and lists a file that doesn't exist
+    for n in 1..=3 { lib.game(&format!("roms/saturn/Gamma (Disc {n}).chd")); }
+    lib.file("roms/saturn/Gamma.m3u", b"Gamma (Disc 1).chd\nGamma (Disc 2).chd\nGamma (Disc 4).chd\n");
+    // Not sets: one disc, and an untagged game
+    lib.game("roms/psx/Delta (Disc 1).chd");
+    lib.game("roms/psx/Epsilon.chd");
+
+    let sets = detect_sets(lib.root()).unwrap();
+    let names: Vec<&str> = sets.iter().map(|s| s.name.as_str()).collect();
+    assert_eq!(names, ["Alpha", "Beta", "Gamma"], "{sets:#?}");
+
+    let alpha = &sets[0];
+    assert_eq!((alpha.system.as_str(), alpha.m3u_state), ("ps1", M3uState::Missing));
+    // The sheets stand for the discs, so the .bin isn't a third disc
+    assert_eq!(alpha.discs.iter().map(|d| d.disc.as_str()).collect::<Vec<_>>(), ["1", "2"]);
+    assert!(alpha.discs[0].missing_tracks.is_empty());
+    assert_eq!(alpha.discs[1].missing_tracks, ["alpha (disc 2).bin"]);
+
+    let beta = &sets[1];
+    assert_eq!(beta.m3u_state, M3uState::Complete, "{beta:#?}");
+    assert!(beta.m3u_path.as_deref().unwrap().ends_with("Beta.m3u"));
+
+    let gamma = &sets[2];
+    assert_eq!((gamma.system.as_str(), gamma.m3u_state), ("saturn", M3uState::Incomplete));
+    assert_eq!(gamma.m3u_problems, [
+        "It lists Gamma (Disc 4).chd, which doesn't exist.",
+        "Disc 3 isn't listed.",
+    ]);
+
+    assert!(detect_sets(&lib.path("missing")).is_err(), "an unreadable root is an error, not an empty library");
+}
+
+#[test]
+fn scummvm_games_are_recognised_by_content_and_matched_to_their_pointer() {
+    use romio_lib::engine::scummvm::detect_games;
+    let lib = Library::new();
+    lib.game("roms/scummvm/First/00.lfl");
+    lib.file("roms/scummvm/First/first.scummvm", b"engine:first\n");
+    lib.game("roms/scummvm/Second/resource.map");
+    lib.game("roms/scummvm/Third/notes.txt");
+    lib.file("roms/scummvm/Third/third.scummvm", b"");
+    lib.game("roms/scummvm/loose.scummvm");
+
+    let report = detect_games(lib.root()).unwrap();
+    assert!(report.folder.as_deref().unwrap().ends_with("scummvm"));
+    let rows: Vec<_> = report.games.iter()
+        .map(|g| (g.name.as_str(), g.engine.as_deref(), g.pointer_id.as_deref()))
+        .collect();
+    assert_eq!(rows, [
+        ("First",  Some("SCUMM"), Some("engine:first")),
+        ("Second", Some("SCI"),   None),
+        ("Third",  None,          Some("")),
+    ]);
+
+    // Pointed straight at the scummvm folder
+    assert_eq!(detect_games(&lib.path("roms/scummvm")).unwrap().games.len(), 3);
+
+    // A library with no scummvm folder isn't an error
+    let other = Library::new();
+    other.game("roms/psx/Game.chd");
+    let report = detect_games(other.root()).unwrap();
+    assert_eq!((report.folder, report.games.len()), (None, 0));
+}
+
+#[test]
+fn installed_titles_are_checked_by_folder_name_and_required_files() {
+    use romio_lib::engine::installed_titles::{check_titles, TitleKind};
+    let lib = Library::new();
+
+    lib.game("game/BLUS30443/PARAM.SFO");
+    lib.game("game/BLUS30443/USRDIR/EBOOT.BIN");
+    lib.game("game/NPEB00001/param.sfo"); // add-on data: no boot file, other case
+    lib.game("game/My Game/USRDIR/EBOOT.BIN");
+    let titles = check_titles(&lib.path("game"), "rpcs3").unwrap();
+    let rows: Vec<_> = titles.iter().map(|t| (t.folder.as_str(), t.kind, t.issues.len())).collect();
+    assert_eq!(rows, [
+        ("BLUS30443", TitleKind::Game, 0),
+        ("My Game",   TitleKind::Game, 2), // not a title ID, and no PARAM.SFO
+        ("NPEB00001", TitleKind::Data, 0),
+    ], "{titles:#?}");
+    assert_eq!(titles[0].title_id.as_deref(), Some("BLUS30443"));
+    assert_eq!(titles[1].title_id, None);
+
+    lib.game("ps4/CUSA00419/eboot.bin");
+    lib.game("ps4/CUSA00419/sce_sys/param.sfo");
+    lib.game("ps4/CUSA00419-UPDATE/eboot.bin");
+    lib.game("ps4/CUSA00419-UPDATE/sce_sys/param.sfo");
+    let titles = check_titles(&lib.path("ps4"), "shadps4").unwrap();
+    let rows: Vec<_> = titles.iter().map(|t| (t.title_id.as_deref(), t.kind, t.issues.len())).collect();
+    assert_eq!(rows, [
+        (Some("CUSA00419"), TitleKind::Game, 0),
+        (Some("CUSA00419"), TitleKind::Update, 0),
+    ], "{titles:#?}");
+
+    lib.game("wiiu/Some Title/code/app.rpx");
+    lib.game("wiiu/Some Title/meta/meta.xml");
+    lib.game("wiiu/Broken/code/app.rpx");
+    let titles = check_titles(&lib.path("wiiu"), "cemu").unwrap();
+    let rows: Vec<_> = titles.iter().map(|t| (t.folder.as_str(), t.kind, t.issues.len())).collect();
+    assert_eq!(rows, [("Broken", TitleKind::Game, 1), ("Some Title", TitleKind::Game, 0)], "{titles:#?}");
+
+    assert!(check_titles(&lib.path("game"), "xenia").is_err());
+    assert!(check_titles(&lib.path("missing"), "rpcs3").is_err());
+}

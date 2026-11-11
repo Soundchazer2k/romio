@@ -94,34 +94,41 @@ pub fn validate_launch_command(
     issues
 }
 
-/// Validate title ID format for installed-title emulators.
-pub fn validate_title_id(title_id: &str, emulator: &str) -> Option<ShortcutIssue> {
-    let valid = match emulator {
-        "rpcs3"  => title_id.starts_with("BLES") || title_id.starts_with("BLUS")
-                 || title_id.starts_with("BCUS") || title_id.starts_with("NPUB")
-                 || title_id.starts_with("NPEB"),
-        "shadps4" => title_id.starts_with("CUSA-") && title_id.len() == 10,
-        "vita3k"  => title_id.starts_with("PCSG") || title_id.starts_with("PCSB")
-                  || title_id.starts_with("PCSA") || title_id.starts_with("PCSD"),
-        _        => true, // Unknown emulator — skip validation
-    };
+/// Title ID prefixes per emulator: disc and download releases for each region.
+/// Not a full list, so a miss is worded as "doesn't look like", not "is wrong".
+const RPCS3_PREFIXES: &[&str] = &[
+    "BLES", "BLUS", "BLJM", "BLJS", "BLAS", "BLKS", "BCES", "BCUS", "BCJS", "BCAS", "BCKS",
+    "NPEB", "NPUB", "NPJB", "NPHB", "NPKB", "NPEA", "NPUA", "NPJA", "NPHA", "NPKA",
+];
+const SHADPS4_PREFIXES: &[&str] = &["CUSA", "PLAS", "PCAS", "PCJS", "PCKS"];
+const VITA3K_PREFIXES: &[&str] = &["PCSA", "PCSB", "PCSC", "PCSD", "PCSE", "PCSF", "PCSG", "PCSH"];
 
-    if !valid {
-        Some(ShortcutIssue {
-            issue_type: ShortcutIssueType::TargetPathNotFound,
-            description: format!(
-                "Title ID '{}' does not match expected format for {}. The emulator may not recognize this title.",
-                title_id, emulator
-            ),
-            value: Some(title_id.to_string()),
-            fix: Some(format!(
-                "Verify the title ID matches the emulator's naming convention. See Romio documentation for {} title ID formats.",
-                emulator
-            )),
-        })
-    } else {
-        None
-    }
+/// Validate title ID format for installed-title emulators: a known four-letter prefix and
+/// five digits. shadPS4 folders are written both as CUSA00419 and CUSA-00419.
+pub fn validate_title_id(title_id: &str, emulator: &str) -> Option<ShortcutIssue> {
+    let (prefixes, example) = match emulator {
+        "rpcs3"   => (RPCS3_PREFIXES, "BLUS30443"),
+        "shadps4" => (SHADPS4_PREFIXES, "CUSA00419"),
+        "vita3k"  => (VITA3K_PREFIXES, "PCSG00004"),
+        _         => return None, // Unknown emulator — skip validation
+    };
+    let (prefix, digits) = title_id.split_at_checked(4).unwrap_or((title_id, ""));
+    let digits = if emulator == "shadps4" { digits.strip_prefix('-').unwrap_or(digits) } else { digits };
+    let valid = prefixes.contains(&prefix)
+        && digits.len() == 5
+        && digits.chars().all(|c| c.is_ascii_digit());
+    if valid { return None; }
+
+    Some(ShortcutIssue {
+        issue_type: ShortcutIssueType::TargetPathNotFound,
+        description: format!(
+            "{title_id} doesn't look like a title ID {emulator} uses, so {emulator} may not see this title."
+        ),
+        value: Some(title_id.to_string()),
+        fix: Some(format!(
+            "A title ID looks like {example}. If the folder was renamed, give it back its title ID."
+        )),
+    })
 }
 
 fn extract_executable(command: &str) -> Option<String> {
@@ -185,7 +192,21 @@ mod tests {
 
     #[test]
     fn test_valid_shadps4_title_id() {
-        let result = validate_title_id("CUSA-00419", "shadps4");
-        assert!(result.is_none());
+        assert!(validate_title_id("CUSA-00419", "shadps4").is_none());
+        assert!(validate_title_id("CUSA00419", "shadps4").is_none());
+    }
+
+    #[test]
+    fn title_ids_need_a_known_prefix_and_five_digits() {
+        assert!(validate_title_id("PCSE00120", "vita3k").is_none());
+        assert!(validate_title_id("NPEA00123", "rpcs3").is_none());
+        assert!(validate_title_id("BLUS3044", "rpcs3").is_some());
+        assert!(validate_title_id("BLUS30443 copy", "rpcs3").is_some());
+        assert!(validate_title_id("BLUS-30443", "rpcs3").is_some());
+        assert!(validate_title_id("CUSA", "shadps4").is_some());
+        assert!(validate_title_id("", "vita3k").is_some());
+        // Not ASCII: must not panic on a split inside a character
+        assert!(validate_title_id("ゲーム", "rpcs3").is_some());
+        assert!(validate_title_id("anything", "xenia").is_none());
     }
 }

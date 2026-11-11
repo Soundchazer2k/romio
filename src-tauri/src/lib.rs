@@ -68,7 +68,7 @@ pub fn run() {
             commands::scummvm::generate_pointer_files,
 
             // Installed titles
-            commands::installed::validate_installed_titles,
+            commands::installed::check_installed_titles,
             commands::installed::validate_shortcut_content,
             commands::installed::generate_shortcuts,
 

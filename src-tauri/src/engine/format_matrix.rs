@@ -172,7 +172,7 @@ fn disc_companions(files: &[PathBuf]) -> HashSet<String> {
 }
 
 /// Files in a .cue that hold a track: `FILE "a.bin" BINARY` followed by `TRACK 01 ...`.
-fn cue_files(text: &str) -> Vec<String> {
+pub(crate) fn cue_files(text: &str) -> Vec<String> {
     let mut files = Vec::new();
     let mut pending = None;
     for line in text.lines() {
@@ -189,7 +189,7 @@ fn cue_files(text: &str) -> Vec<String> {
 
 /// Files in a .gdi: a track count, then that many `1 0 4 2352 a.bin 0` records. Anything else
 /// isn't a sheet Flycast would load, so it names nothing.
-fn gdi_files(text: &str) -> Vec<String> {
+pub(crate) fn gdi_files(text: &str) -> Vec<String> {
     let mut lines = text.lines().filter(|l| !l.trim().is_empty());
     let Some(count) = lines.next().and_then(|l| l.trim().parse::<usize>().ok()) else { return vec![] };
     let files: Option<Vec<String>> = lines.take(count).map(|line| {
