@@ -59,7 +59,8 @@ export function useTool<T>(tool: string, defaults: Record<string, string>) {
   const key = `${projectId}:${tool}`;
   const session = useToolStore((s) => s.sessions[key] ?? EMPTY) as ToolSession<T>;
   const inputs = { ...defaults, ...session.inputs };
-  const stale = !session.running && session.scanned !== null
+  // Only results can be out of date: a stopped or failed scan left none
+  const stale = !session.running && session.scanned !== null && session.result !== null
     && Object.keys(inputs).some((k) => inputs[k] !== session.scanned?.[k]);
 
   return {

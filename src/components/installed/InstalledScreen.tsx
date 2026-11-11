@@ -12,7 +12,7 @@ const EMULATORS: Record<string, { name: string; folder: string }> = {
   rpcs3:   { name: "RPCS3",   folder: "dev_hdd0/game inside the RPCS3 folder" },
   shadps4: { name: "shadPS4", folder: "the games folder set in shadPS4" },
   vita3k:  { name: "Vita3K",  folder: "ux0/app inside the Vita3K data folder" },
-  cemu:    { name: "Cemu",    folder: "the game folder set in Cemu" },
+  cemu:    { name: "Cemu",    folder: "mlc01/usr/title/00050000 inside the Cemu folder (updates are in 0005000e)" },
 };
 
 const KIND_LABEL: Record<TitleKind, string> = {

@@ -58,8 +58,9 @@ export function ScummVmScreen() {
                             text-sm text-romio-gray space-y-1">
             <p className="font-semibold text-romio-cream">From the manual</p>
             <p>
-              ES-DE, RetroBat and Batocera launch a ScummVM game through a <span className="font-mono">.scummvm</span> file
-              in its folder, holding the game's ID. Some games that run in standalone ScummVM show a black screen
+              ES-DE, RetroBat and Batocera launch a ScummVM game through a <span className="font-mono">.scummvm</span> file.
+              The libretro core reads the game's ID from inside the file. ES-DE with standalone ScummVM uses the
+              file's name as the ID and ignores what's inside, so name the file after the ID to work in both. Some games that run in standalone ScummVM show a black screen
               or lose audio in the libretro core, so a pointer file alone doesn't prove a game will start.
             </p>
           </aside>
@@ -80,7 +81,7 @@ export function ScummVmScreen() {
 
 function GameRow({ game }: { game: ScummVmGame }) {
   const emptyPointer = game.pointerPath && !game.pointerId;
-  const ok = game.pointerPath && !emptyPointer;
+  const ok = !!game.pointerPath;
   return (
     <div className={cn(
       "px-4 py-3 rounded-xl border space-y-1",
@@ -96,7 +97,7 @@ function GameRow({ game }: { game: ScummVmGame }) {
             "px-2 py-0.5 rounded-full text-xs bg-background-surface",
             ok ? "text-romio-green" : "text-amber-400"
           )}>
-            {!game.pointerPath ? "No pointer file" : emptyPointer ? "Pointer is empty" : "Pointer file found"}
+            {game.pointerPath ? "Pointer file found" : "No pointer file"}
           </span>
         </span>
       </div>
@@ -107,8 +108,9 @@ function GameRow({ game }: { game: ScummVmGame }) {
         </p>
       )}
       {emptyPointer && (
-        <p className="text-xs text-amber-400">
-          With no game ID in the file, ScummVM detects the game by itself and can pick the wrong language or version.
+        <p className="text-xs text-romio-gray">
+          The file is empty, so the game ID is the file's name. If the name isn't a ScummVM game ID, ScummVM
+          detects the game by itself and can pick the wrong language or version.
         </p>
       )}
       {!game.engine && (

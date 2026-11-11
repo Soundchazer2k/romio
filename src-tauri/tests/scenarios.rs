@@ -1302,10 +1302,19 @@ fn multidisc_sets_are_found_with_the_state_of_their_playlist() {
     // Not sets: one disc, and an untagged game
     lib.game("roms/psx/Delta (Disc 1).chd");
     lib.game("roms/psx/Epsilon.chd");
+    // Mixed formats: disc 1 is a sheet, disc 2 a .chd. Track files aren't discs.
+    lib.file("roms/psx/Zeta (Disc 1).cue", sheet("Zeta (Disc 1) (Track 1).bin").as_bytes());
+    lib.game("roms/psx/Zeta (Disc 1) (Track 1).bin");
+    lib.game("roms/psx/Zeta (Disc 2).chd");
+    lib.game("roms/psx/Zeta (Disc 2) (Track 1).bin");
+    // A playlist named after its set is that set's, even when nothing it lists exists
+    lib.game("roms/saturn/Eta (Disc 1).chd");
+    lib.game("roms/saturn/Eta (Disc 2).chd");
+    lib.file("roms/saturn/Eta.m3u", b"Wrong (Disc 1).chd\n");
 
     let sets = detect_sets(lib.root()).unwrap();
     let names: Vec<&str> = sets.iter().map(|s| s.name.as_str()).collect();
-    assert_eq!(names, ["Alpha", "Beta", "Gamma"], "{sets:#?}");
+    assert_eq!(names, ["Alpha", "Zeta", "Beta", "Eta", "Gamma"], "{sets:#?}");
 
     let alpha = &sets[0];
     assert_eq!((alpha.system.as_str(), alpha.m3u_state), ("ps1", M3uState::Missing));
@@ -1314,16 +1323,31 @@ fn multidisc_sets_are_found_with_the_state_of_their_playlist() {
     assert!(alpha.discs[0].missing_tracks.is_empty());
     assert_eq!(alpha.discs[1].missing_tracks, ["alpha (disc 2).bin"]);
 
-    let beta = &sets[1];
+    let zeta: Vec<_> = sets[1].discs.iter().map(|d| (d.disc.as_str(), d.path.rsplit('.').next())).collect();
+    assert_eq!(zeta, [("1", Some("cue")), ("2", Some("chd"))]);
+
+    let beta = &sets[2];
     assert_eq!(beta.m3u_state, M3uState::Complete, "{beta:#?}");
     assert!(beta.m3u_path.as_deref().unwrap().ends_with("Beta.m3u"));
 
-    let gamma = &sets[2];
+    let eta = &sets[3];
+    assert_eq!(eta.m3u_state, M3uState::Incomplete, "{eta:#?}");
+    assert_eq!(eta.m3u_problems, [
+        "It lists Wrong (Disc 1).chd, which doesn't exist.",
+        "Disc 1 isn't listed.",
+        "Disc 2 isn't listed.",
+    ]);
+
+    let gamma = &sets[4];
     assert_eq!((gamma.system.as_str(), gamma.m3u_state), ("saturn", M3uState::Incomplete));
     assert_eq!(gamma.m3u_problems, [
         "It lists Gamma (Disc 4).chd, which doesn't exist.",
         "Disc 3 isn't listed.",
     ]);
+
+    // Pointed straight at a system folder, the system is that folder's
+    let saturn = detect_sets(&lib.path("roms/saturn")).unwrap();
+    assert!(saturn.len() == 2 && saturn.iter().all(|s| s.system == "saturn"), "{saturn:#?}");
 
     assert!(detect_sets(&lib.path("missing")).is_err(), "an unreadable root is an error, not an empty library");
 }
@@ -1338,6 +1362,7 @@ fn scummvm_games_are_recognised_by_content_and_matched_to_their_pointer() {
     lib.game("roms/scummvm/Third/notes.txt");
     lib.file("roms/scummvm/Third/third.scummvm", b"");
     lib.game("roms/scummvm/loose.scummvm");
+    lib.game("roms/scummvm/media/cover.png"); // scraped media, not a game
 
     let report = detect_games(lib.root()).unwrap();
     assert!(report.folder.as_deref().unwrap().ends_with("scummvm"));
@@ -1369,6 +1394,7 @@ fn installed_titles_are_checked_by_folder_name_and_required_files() {
     lib.game("game/BLUS30443/USRDIR/EBOOT.BIN");
     lib.game("game/NPEB00001/param.sfo"); // add-on data: no boot file, other case
     lib.game("game/My Game/USRDIR/EBOOT.BIN");
+    lib.game("game/.locks/lock"); // RPCS3's own folder, not a title
     let titles = check_titles(&lib.path("game"), "rpcs3").unwrap();
     let rows: Vec<_> = titles.iter().map(|t| (t.folder.as_str(), t.kind, t.issues.len())).collect();
     assert_eq!(rows, [
@@ -1383,12 +1409,19 @@ fn installed_titles_are_checked_by_folder_name_and_required_files() {
     lib.game("ps4/CUSA00419/sce_sys/param.sfo");
     lib.game("ps4/CUSA00419-UPDATE/eboot.bin");
     lib.game("ps4/CUSA00419-UPDATE/sce_sys/param.sfo");
+    lib.game("ps4/CUSA00419-mods/mod.bin"); // overlay folder, not a title
     let titles = check_titles(&lib.path("ps4"), "shadps4").unwrap();
     let rows: Vec<_> = titles.iter().map(|t| (t.title_id.as_deref(), t.kind, t.issues.len())).collect();
     assert_eq!(rows, [
         (Some("CUSA00419"), TitleKind::Game, 0),
         (Some("CUSA00419"), TitleKind::Update, 0),
     ], "{titles:#?}");
+
+    // Everything in Vita3K's app folder must boot, and IDs are accepted in any case
+    lib.game("vita/pcse00120/sce_sys/param.sfo");
+    let titles = check_titles(&lib.path("vita"), "vita3k").unwrap();
+    assert_eq!((titles[0].title_id.as_deref(), titles[0].kind), (Some("pcse00120"), TitleKind::Game));
+    assert_eq!(titles[0].issues, ["eboot.bin is missing, so Vita3K can't start this title. Reinstall it through Vita3K."]);
 
     lib.game("wiiu/Some Title/code/app.rpx");
     lib.game("wiiu/Some Title/meta/meta.xml");

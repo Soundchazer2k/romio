@@ -69,8 +69,17 @@ pub fn validate_launch_command(
         }
     }
 
-    // Resolve and check executable path (first token in command)
-    if let Some(exe_path) = extract_executable(command) {
+    // Resolve and check the executable path at the start of the command
+    let executable = extract_executable(command);
+    if executable.is_none() && command.trim_start().starts_with('"') {
+        issues.push(ShortcutIssue {
+            issue_type: ShortcutIssueType::UnquotedSpacePath,
+            description: "The command opens a quote and never closes it.".to_string(),
+            value: None,
+            fix: Some("Close the quote after the emulator's path.".to_string()),
+        });
+    }
+    if let Some((exe_path, quoted)) = executable {
         let resolved = resolve_env_vars(&exe_path, env);
         if !Path::new(&resolved).exists() {
             issues.push(ShortcutIssue {
@@ -81,7 +90,7 @@ pub fn validate_launch_command(
             });
         }
         // Check quoting
-        if exe_path.contains(' ') && !exe_path.starts_with('"') {
+        if exe_path.contains(' ') && !quoted {
             issues.push(ShortcutIssue {
                 issue_type: ShortcutIssueType::UnquotedSpacePath,
                 description: format!("Executable path contains spaces but is not quoted: {}", exe_path),
@@ -94,31 +103,39 @@ pub fn validate_launch_command(
     issues
 }
 
-/// Title ID prefixes per emulator: disc and download releases for each region.
-/// Not a full list, so a miss is worded as "doesn't look like", not "is wrong".
-const RPCS3_PREFIXES: &[&str] = &[
-    "BLES", "BLUS", "BLJM", "BLJS", "BLAS", "BLKS", "BCES", "BCUS", "BCJS", "BCAS", "BCKS",
-    "NPEB", "NPUB", "NPJB", "NPHB", "NPKB", "NPEA", "NPUA", "NPJA", "NPHA", "NPKA",
-];
-const SHADPS4_PREFIXES: &[&str] = &["CUSA", "PLAS", "PCAS", "PCJS", "PCKS"];
-const VITA3K_PREFIXES: &[&str] = &["PCSA", "PCSB", "PCSC", "PCSD", "PCSE", "PCSF", "PCSG", "PCSH"];
+/// The name an emulator is shown by.
+pub fn display_name(emulator: &str) -> &str {
+    match emulator {
+        "rpcs3"   => "RPCS3",
+        "shadps4" => "shadPS4",
+        "vita3k"  => "Vita3K",
+        "cemu"    => "Cemu",
+        other     => other,
+    }
+}
 
-/// Validate title ID format for installed-title emulators: a known four-letter prefix and
-/// five digits. shadPS4 folders are written both as CUSA00419 and CUSA-00419.
+/// Validate title ID format for installed-title emulators, in any letter case.
+/// RPCS3 and shadPS4: four letters and five digits; shadPS4 folders are written both as
+/// CUSA00419 and CUSA-00419. Vita3K: nine letters or digits, as homebrew IDs have no digits rule.
+/// The shape, not a prefix list: the emulators don't filter by prefix, and any list has gaps.
 pub fn validate_title_id(title_id: &str, emulator: &str) -> Option<ShortcutIssue> {
-    let (prefixes, example) = match emulator {
-        "rpcs3"   => (RPCS3_PREFIXES, "BLUS30443"),
-        "shadps4" => (SHADPS4_PREFIXES, "CUSA00419"),
-        "vita3k"  => (VITA3K_PREFIXES, "PCSG00004"),
+    let example = match emulator {
+        "rpcs3"   => "BLUS30443",
+        "shadps4" => "CUSA00419",
+        "vita3k"  => "PCSG00004",
         _         => return None, // Unknown emulator — skip validation
     };
-    let (prefix, digits) = title_id.split_at_checked(4).unwrap_or((title_id, ""));
-    let digits = if emulator == "shadps4" { digits.strip_prefix('-').unwrap_or(digits) } else { digits };
-    let valid = prefixes.contains(&prefix)
-        && digits.len() == 5
-        && digits.chars().all(|c| c.is_ascii_digit());
+    let valid = if emulator == "vita3k" {
+        title_id.len() == 9 && title_id.chars().all(|c| c.is_ascii_alphanumeric())
+    } else {
+        let (prefix, digits) = title_id.split_at_checked(4).unwrap_or((title_id, ""));
+        let digits = if emulator == "shadps4" { digits.strip_prefix('-').unwrap_or(digits) } else { digits };
+        prefix.len() == 4 && prefix.chars().all(|c| c.is_ascii_alphabetic())
+            && digits.len() == 5 && digits.chars().all(|c| c.is_ascii_digit())
+    };
     if valid { return None; }
 
+    let emulator = display_name(emulator);
     Some(ShortcutIssue {
         issue_type: ShortcutIssueType::TargetPathNotFound,
         description: format!(
@@ -131,17 +148,19 @@ pub fn validate_title_id(title_id: &str, emulator: &str) -> Option<ShortcutIssue
     })
 }
 
-fn extract_executable(command: &str) -> Option<String> {
+/// The executable at the start of a command, and whether it was quoted.
+/// None for an empty command or a leading quote that is never closed.
+fn extract_executable(command: &str) -> Option<(String, bool)> {
     let trimmed = command.trim();
-    if trimmed.starts_with('"') {
-        // Quoted path — find closing quote
-        trimmed.find('"').and_then(|_| {
-            trimmed[1..].find('"').map(|end| trimmed[1..=end].to_string())
-        })
-    } else {
-        // Unquoted — first whitespace-delimited token
-        trimmed.split_whitespace().next().map(String::from)
+    if let Some(rest) = trimmed.strip_prefix('"') {
+        return rest.find('"').map(|end| (rest[..end].to_string(), true));
     }
+    // Unquoted: up to the first .exe, so a path with spaces is seen whole; else the first word
+    let exe = match trimmed.to_ascii_lowercase().find(".exe") {
+        Some(end) => &trimmed[..end + 4],
+        None => trimmed.split_whitespace().next()?,
+    };
+    Some((exe.to_string(), false))
 }
 
 fn resolve_env_vars(s: &str, env: &HashMap<String, String>) -> String {
@@ -179,8 +198,28 @@ mod tests {
     }
 
     #[test]
+    fn quoting_is_judged_on_what_was_typed() {
+        let env = HashMap::new();
+        let kinds = |command: &str| validate_launch_command(command, &env).into_iter()
+            .map(|i| (i.issue_type, i.value)).collect::<Vec<_>>();
+
+        // Quoted path with spaces: only "not found", never "not quoted"
+        let quoted = kinds(r#""C:\no where\emu.exe" --no-gui"#);
+        assert!(matches!(quoted.as_slice(), [(ShortcutIssueType::ExecutableNotFound, _)]));
+
+        // Unquoted path with spaces: flagged, and the whole path is named, not its first word
+        let unquoted = kinds(r"C:\no where\emu.exe --no-gui");
+        assert!(unquoted.iter().any(|(t, v)| matches!(t, ShortcutIssueType::UnquotedSpacePath)
+            && v.as_deref() == Some(r"C:\no where\emu.exe")));
+
+        // A quote that never closes is a problem, not a pass
+        assert_eq!(kinds(r#""C:\no where\emu.exe --no-gui"#).len(), 1);
+        assert!(kinds("").is_empty());
+    }
+
+    #[test]
     fn test_invalid_rpcs3_title_id() {
-        let result = validate_title_id("GAME12345", "rpcs3");
+        let result = validate_title_id("Renamed Game", "rpcs3");
         assert!(result.is_some());
     }
 
@@ -200,6 +239,11 @@ mod tests {
     fn title_ids_need_a_known_prefix_and_five_digits() {
         assert!(validate_title_id("PCSE00120", "vita3k").is_none());
         assert!(validate_title_id("NPEA00123", "rpcs3").is_none());
+        // Any prefix, any case; Vita homebrew IDs have no digits rule
+        assert!(validate_title_id("MRTC00003", "rpcs3").is_none());
+        assert!(validate_title_id("blus30443", "rpcs3").is_none());
+        assert!(validate_title_id("VITASHELL", "vita3k").is_none());
+        assert!(validate_title_id("PCSE0012", "vita3k").is_some());
         assert!(validate_title_id("BLUS3044", "rpcs3").is_some());
         assert!(validate_title_id("BLUS30443 copy", "rpcs3").is_some());
         assert!(validate_title_id("BLUS-30443", "rpcs3").is_some());

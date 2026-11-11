@@ -57,8 +57,8 @@ pub fn detect_sets(root: &Path) -> Result<Vec<MultiDiscSet>> {
     let roms = root.join("roms");
     let base = if roms.is_dir() { roms } else { root.to_path_buf() };
 
-    // (folder, lowercased name without its disc tag) -> extension -> discs
-    let mut groups: BTreeMap<(PathBuf, String), (String, BTreeMap<String, Vec<(String, PathBuf)>>)> = BTreeMap::new();
+    // (folder, lowercased name without its disc tag) -> (name, disc images as (disc, format rank, path))
+    let mut groups: BTreeMap<(PathBuf, String), (String, Vec<(String, usize, PathBuf)>)> = BTreeMap::new();
     let mut playlists: BTreeMap<PathBuf, Vec<PathBuf>> = BTreeMap::new();
 
     for entry in WalkDir::new(&base).follow_links(false) {
@@ -71,24 +71,25 @@ pub fn detect_sets(root: &Path) -> Result<Vec<MultiDiscSet>> {
             playlists.entry(dir.to_path_buf()).or_default().push(path.to_path_buf());
             continue;
         }
-        if !DISC_EXTENSIONS.contains(&ext.as_str()) { continue; }
+        let Some(rank) = DISC_EXTENSIONS.iter().position(|e| *e == ext) else { continue };
         let stem = path.file_stem().unwrap_or_default().to_string_lossy();
+        // "Game (Disc 1) (Track 2).bin" is one track of a disc, not a disc
+        if stem.to_lowercase().contains("(track ") { continue; }
         let Some((name, disc)) = split_disc_tag(&stem) else { continue };
         groups.entry((dir.to_path_buf(), name.to_lowercase()))
-            .or_insert_with(|| (name, BTreeMap::new()))
-            .1.entry(ext).or_default().push((disc, path.to_path_buf()));
+            .or_insert_with(|| (name, Vec::new()))
+            .1.push((disc, rank, path.to_path_buf()));
     }
 
     let mut sets = Vec::new();
-    for ((dir, _), (name, mut by_ext)) in groups {
-        // One format per set, so a .cue's own .bin files aren't counted as extra discs
-        let Some(ext) = DISC_EXTENSIONS.iter().find(|e| by_ext.contains_key(**e)) else { continue };
-        let mut discs = by_ext.remove(*ext).unwrap_or_default();
-        discs.sort_by_key(|(disc, _)| disc_order(disc));
+    for ((dir, _), (name, mut discs)) in groups {
+        // One image per disc, best format first, so a .cue's own .bin isn't a second disc.
+        // Per disc, not per set: a set can mix formats.
+        discs.sort_by_key(|(disc, rank, _)| (disc_order(disc), *rank));
         discs.dedup_by(|a, b| a.0 == b.0);
         if discs.len() < 2 { continue; }
 
-        let discs: Vec<DiscFile> = discs.into_iter().map(|(disc, path)| DiscFile {
+        let discs: Vec<DiscFile> = discs.into_iter().map(|(disc, _, path)| DiscFile {
             missing_tracks: missing_tracks(&path),
             path: path.to_string_lossy().to_string(),
             disc,
@@ -99,13 +100,16 @@ pub fn detect_sets(root: &Path) -> Result<Vec<MultiDiscSet>> {
             .chain(dir.parent().and_then(|p| playlists.get(p)))
             .flatten();
         let (m3u_path, m3u_state, m3u_problems) = candidates
-            .filter_map(|m3u| check_m3u(m3u, &discs))
+            .filter_map(|m3u| check_m3u(m3u, &name, &discs))
             .next()
             .unwrap_or((None, M3uState::Missing, vec![]));
 
+        // Discs directly in the root mean the root is itself a system folder
         let top = dir.strip_prefix(&base).ok()
             .and_then(|rel| rel.components().next())
-            .map(|c| c.as_os_str().to_string_lossy().to_string())
+            .map(|c| c.as_os_str())
+            .or(base.file_name())
+            .map(|n| n.to_string_lossy().to_string())
             .unwrap_or_default();
 
         sets.push(MultiDiscSet {
@@ -176,8 +180,9 @@ fn missing_tracks(sheet: &Path) -> Vec<String> {
     missing
 }
 
-/// How a playlist covers a set, or None when it lists none of the set's discs.
-fn check_m3u(m3u: &Path, discs: &[DiscFile]) -> Option<(Option<String>, M3uState, Vec<String>)> {
+/// How a playlist covers a set, or None when it isn't this set's: it lists none of the
+/// set's discs and isn't named after the set.
+fn check_m3u(m3u: &Path, name: &str, discs: &[DiscFile]) -> Option<(Option<String>, M3uState, Vec<String>)> {
     let bytes = std::fs::read(m3u).ok()?;
     let text = String::from_utf8_lossy(&bytes);
     let dir = m3u.parent()?;
@@ -200,7 +205,8 @@ fn check_m3u(m3u: &Path, discs: &[DiscFile]) -> Option<(Option<String>, M3uState
             None => {}
         }
     }
-    if listed.is_empty() { return None; }
+    let named_after_set = m3u.file_stem().is_some_and(|s| s.to_string_lossy().eq_ignore_ascii_case(name));
+    if listed.is_empty() && !named_after_set { return None; }
 
     for (i, disc) in discs.iter().enumerate() {
         if !listed.contains(&i) {

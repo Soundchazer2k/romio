@@ -7,7 +7,7 @@ use anyhow::{bail, Result};
 use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 
-use crate::engine::shortcut_validator::validate_title_id;
+use crate::engine::shortcut_validator::{display_name, validate_title_id};
 
 pub const EMULATORS: &[&str] = &["rpcs3", "shadps4", "vita3k", "cemu"];
 
@@ -40,7 +40,11 @@ pub fn check_titles(dir: &Path, emulator: &str) -> Result<Vec<TitleCheck>> {
         .map_err(|e| anyhow::anyhow!("Couldn't read {}: {e}", dir.display()))?
         .map(|e| e.map(|e| e.path()))
         .collect::<std::io::Result<Vec<_>>>()?;
-    dirs.retain(|p| p.is_dir());
+    // Not titles: RPCS3's .locks and $locks, and shadPS4's <ID>-mods overlay folders
+    dirs.retain(|p| {
+        let name = p.file_name().unwrap_or_default().to_string_lossy().to_lowercase();
+        p.is_dir() && !name.starts_with(['.', '$']) && !(emulator == "shadps4" && name.ends_with("-mods"))
+    });
     dirs.sort();
 
     Ok(dirs.iter().map(|path| check_title(path, emulator)).collect())
@@ -78,15 +82,21 @@ fn check_title(path: &Path, emulator: &str) -> TitleCheck {
         "cemu" => find(path, boot).is_some_and(|code| has_extension(&code, "rpx")),
         _      => find(path, boot).is_some(),
     };
+    let shown = display_name(emulator);
     for rel in required {
         if find(path, rel).is_none() {
-            issues.push(format!("{} is missing, so {emulator} can't identify this title. Reinstall it through {emulator}.", rel.join("/")));
+            issues.push(format!("{} is missing, so {shown} can't identify this title. Reinstall it through {shown}.", rel.join("/")));
         }
+    }
+    // Vita3K keeps updates and add-ons in ux0/patch and ux0/addcont, so everything in ux0/app must boot
+    let must_boot = emulator == "vita3k";
+    if must_boot && !bootable {
+        issues.push(format!("eboot.bin is missing, so {shown} can't start this title. Reinstall it through {shown}."));
     }
 
     let kind = if update_suffix.is_some() {
         TitleKind::Update
-    } else if bootable {
+    } else if bootable || must_boot {
         TitleKind::Game
     } else {
         TitleKind::Data

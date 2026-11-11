@@ -124,13 +124,17 @@ describe("MultiDiscScreen", () => {
     expect(region.textContent).toMatch(/You stopped the scan/);
     expect(stopButton().disabled).toBe(true);
     expect(document.activeElement).toBe(scanButton());
+    // No results, so nothing to call out of date
+    fireEvent.change(screen.getByLabelText("Library root"), { target: { value: "/lib2" } });
+    expect(screen.queryByText(/out of date/)).toBeNull();
+    fireEvent.change(screen.getByLabelText("Library root"), { target: { value: "/lib" } });
 
     finish(SETS);
     await Promise.resolve();
     expect(screen.queryByText(/multi-disc sets,/)).toBeNull();
 
     mocks.detectMultiDisc.mockResolvedValue([]);
-    fireEvent.click(scanButton());
+    fireEvent.keyDown(screen.getByLabelText("Library root"), { key: "Enter" });
     await screen.findByText(/No multi-disc sets found in \/lib/);
     expect(document.querySelector("[aria-live]")).toBe(region);
   });
@@ -166,9 +170,10 @@ describe("ScummVmScreen", () => {
     fireEvent.click(scanButton());
 
     await screen.findByText("3 ScummVM folders, 1 without a pointer file");
-    expect(screen.getByText("Pointer file found")).toBeTruthy();
     expect(screen.getByText("No pointer file")).toBeTruthy();
-    expect(screen.getByText("Pointer is empty")).toBeTruthy();
+    // An empty pointer is valid (the file's name is the ID), so it isn't counted or flagged
+    expect(screen.getAllByText("Pointer file found")).toHaveLength(2);
+    expect(screen.getByText(/the game ID is the file's name/)).toBeTruthy();
     expect(screen.getByText("Files not recognised")).toBeTruthy();
     expect(screen.getByText(/doesn't write pointer files/)).toBeTruthy();
   });

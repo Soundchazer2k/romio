@@ -125,7 +125,7 @@ const NON_GAME_FOLDERS: &[&str] = &[
 ];
 
 /// ES-DE adds `noload.txt`, its marker for a folder to leave alone, such as a texture pack.
-fn is_non_game_folder(dir: &Path) -> bool {
+pub(crate) fn is_non_game_folder(dir: &Path) -> bool {
     let name = dir.file_name().unwrap_or_default().to_string_lossy().to_lowercase();
     name.starts_with('.') || name.starts_with("downloaded_")
         || NON_GAME_FOLDERS.contains(&name.as_str())

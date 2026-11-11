@@ -48,6 +48,7 @@ export function ScanBar({ label, placeholder, path, running, onPathChange, onSca
             id={id}
             value={path}
             onChange={(e) => onPathChange(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter" && path.trim() && !running) onScan(); }}
             placeholder={placeholder}
             className="flex-1 min-w-0 px-3 py-2 rounded-lg bg-background-surface border border-white/10
                        text-sm font-mono text-romio-cream placeholder:text-romio-gray

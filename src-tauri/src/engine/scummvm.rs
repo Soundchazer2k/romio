@@ -8,7 +8,7 @@ use std::collections::HashSet;
 use std::path::Path;
 use serde::{Deserialize, Serialize};
 
-use crate::engine::format_matrix::system_for_folder;
+use crate::engine::format_matrix::{is_non_game_folder, system_for_folder};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -53,7 +53,8 @@ pub fn detect_games(root: &Path) -> Result<ScummVmReport> {
     let Some(folder) = folder else { return Ok(ScummVmReport { folder: None, games: vec![] }) };
 
     let mut games = Vec::new();
-    for dir in subfolders(&folder)? {
+    // Scraped media and the like sit beside the games and aren't games
+    for dir in subfolders(&folder)?.into_iter().filter(|d| !is_non_game_folder(d)) {
         let mut files: Vec<_> = std::fs::read_dir(&dir)?
             .collect::<std::io::Result<Vec<_>>>()?
             .into_iter()
