@@ -307,8 +307,17 @@ export const ipc = {
   checkInstalledTitles: async (dir: string, _emulator: string): Promise<TitleCheck[]> => [
     { path: `${dir}/BLUS30443`, folder: "BLUS30443", titleId: "BLUS30443", kind: "game", issues: [] },
   ],
-  validateShortcutContent: async (command: string): Promise<ShortcutValidationResult> =>
-    ({ shortcutPath: command, isValid: true, issues: [] }),
+  validateShortcutContent: async (command: string): Promise<ShortcutValidationResult> => {
+    // Mirror the Rust validator's unexpanded-variable check so both outcomes can be shown
+    const tokens = ["%RPCS3_GAMEID%", "%EMULATORPATH%", "%ROMPATH%", "%SAVESPATH%", "%BIOSDIR%", "{GAMEID}", "{ROM}", "{EMULATOR}"];
+    const issues = tokens.filter((t) => command.includes(t)).map((t) => ({
+      issueType: "unexpanded_variable" as const,
+      description: `Launch command contains unexpanded variable: ${t}. This shortcut will fail silently at runtime.`,
+      value: t,
+      fix: `Regenerate the shortcut — ${t} must be resolved before the shortcut is written.`,
+    }));
+    return { shortcutPath: command, isValid: issues.length === 0, issues };
+  },
   generateShortcuts: async (_titles: unknown[], _frontend: string): Promise<string[]> =>
     [],
 
