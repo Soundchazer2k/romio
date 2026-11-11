@@ -58,11 +58,24 @@ plan_*(project_id, ...)        -> ChangePlan        (reads only; stored as pendi
   UI: ChangePreview modal lists every operation: full path, and the file's contents
   for CreateFile. One primary button: "Write N files" / "Rename N files". Cancel discards.
 apply_plan(plan_id)            -> ApplyResult
-  1. confine:  every path resolves inside a library root (canonical parent, no symlink escape)
-  2. recheck:  every op's precondition still holds; if not, return blockers, write nothing
-  3. apply ops in order, noting each completed op
-  4. on failure: undo completed ops in reverse, return the error and what was undone
-  5. write one operation_log row (plan JSON included) in a transaction
+  0. open:     resolve each library root and each op's parent folder to a directory handle.
+               Every later file operation is made relative to these handles (openat-style),
+               never by re-resolving a path string, so a folder swapped for a symlink after
+               this point is not followed
+  1. confine:  every path resolves inside a library root through those handles; a symlink
+               component anywhere in the path is refused
+  2. recheck:  every op's precondition still holds, checked through the same handles; if not,
+               return blockers, write nothing
+  3. record:   in one transaction, insert an operation_log row with status `applying` and the
+               plan JSON. If this insert fails, stop: nothing has been written
+  4. apply ops in order. After each op, record its identity (size, modified time, and file id
+               where the platform gives one) and mark it completed
+  5. on failure: undo completed ops in reverse, then clean up the op that failed (see below).
+               Set the row to `failed` with the list of undone ops. If any undo or cleanup fails,
+               set it to `incomplete` and list each path left behind and why. Return the error
+               and that list
+  6. on success: set the row to `applied`. If that update fails, undo every op as in step 5;
+               if the undo can't complete, the row is `incomplete`
 rollback_operation(log_id)     -> RollbackResult
   reverse each op, last first, only where it is still safe (below); mark rolled_back
 ```
@@ -73,11 +86,21 @@ rollback_operation(log_id)     -> RollbackResult
 
 | Operation | Apply only if | Undo / rollback only if |
 |---|---|---|
-| `CreateFile` | nothing exists at `path`; parent folder exists | the file's bytes still equal what Romio wrote. Otherwise leave it and report "changed since Romio wrote it" |
-| `Rename` | `from` exists with the recorded size and modified time; nothing exists at `to` | `to` exists and nothing exists at `from` |
+| `CreateFile` | nothing exists at `path`; parent folder exists | the file's identity and bytes still match what Romio created. Otherwise leave it and report "changed since Romio wrote it" |
+| `Rename` | `from` exists with the recorded size and modified time; nothing exists at `to` | `to` exists with the identity recorded at apply time and nothing exists at `from`. Otherwise skip and report "replaced since Romio renamed it" |
 
 `CreateFile` opens with `create_new`, so a file that appears between the recheck and the
 write still fails instead of being overwritten.
+
+Every destination is created with a no-replace primitive, and rollback uses the same primitive
+in reverse: `create_new` for `CreateFile`; for `Rename`, `renameat2(RENAME_NOREPLACE)` on Linux,
+`renamex_np(RENAME_EXCL)` on macOS, and `MoveFileExW` without `MOVEFILE_REPLACE_EXISTING` on
+Windows. If the platform primitive isn't available, the operation is refused. There is no
+check-then-rename fallback.
+
+If a `CreateFile` fails after `create_new` has succeeded (short write, flush error, disk full),
+Romio removes that file through the parent handle, but only if its identity still matches the
+file it just created. If that removal fails, the path is recorded as residue in the log.
 
 A rollback can be partial. The result lists each operation as undone or skipped with the
 reason, and the log entry is marked rolled back only when every operation was undone.
@@ -114,6 +137,14 @@ as failed: a write Romio can't reverse later must not stand.
   a target that appears before apply blocks the whole plan; a failure on the second op
   undoes the first; a created file edited afterwards is skipped by rollback; a path outside
   the library root (including through a symlink) is refused.
+- Race tests: a library parent replaced by a symlink between confine and apply is not followed,
+  and nothing is written outside the root; a file created at a rename destination between recheck
+  and rename is not overwritten; a rename destination removed and replaced (including with
+  identical bytes at a created path) is not moved or removed by rollback.
+- Failure tests: an injected mid-write error on `CreateFile` removes the partial file; an injected
+  failure during compensation leaves the row `incomplete` with the residue listed; an injected
+  failure of the `applying` insert writes nothing; an injected failure of the outcome update
+  undoes the plan.
 - Codex reviews this spec, then each PR. Gemini checks each write feature on the desktop
   against a throwaway copy of a library.
 
