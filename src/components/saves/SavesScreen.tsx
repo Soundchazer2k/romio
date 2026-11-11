@@ -26,9 +26,17 @@ export function SavesScreen() {
   const frontendRoot = saveRoots?.[projectId] ?? activeProject?.libraryRoots?.[0] ?? "";
 
   // ── Queries ───────────────────────────────────────────────────────────────
+  // Wait for typing to pause: each discovery probes every rule's folders, and on an
+  // unreachable share each probe is a network timeout
+  const [queryRoot, setQueryRoot] = useState(frontendRoot);
+  useEffect(() => {
+    const timer = setTimeout(() => setQueryRoot(frontendRoot), 400);
+    return () => clearTimeout(timer);
+  }, [frontendRoot]);
+
   const { data: roots = [], isLoading } = useQuery({
-    queryKey: ["save-roots", frontendRoot],
-    queryFn:  () => ipc.discoverSaveRoots(frontendRoot),
+    queryKey: ["save-roots", queryRoot],
+    queryFn:  () => ipc.discoverSaveRoots(queryRoot),
     // %APPDATA% rules need no frontend root, so discover as soon as a project is open
     enabled:  !!activeProject,
   });
