@@ -60,6 +60,7 @@ pub fn detect_sets(root: &Path) -> Result<Vec<MultiDiscSet>> {
     // (folder, lowercased name without its disc tag) -> extension -> discs
     let mut groups: BTreeMap<(PathBuf, String), (String, BTreeMap<String, Vec<(String, PathBuf)>>)> = BTreeMap::new();
     let mut playlists: BTreeMap<PathBuf, Vec<PathBuf>> = BTreeMap::new();
+    let mut sheets: Vec<PathBuf> = Vec::new();
 
     for entry in WalkDir::new(&base).follow_links(false) {
         let entry = entry.map_err(|e| crate::engine::scanner::walk_error(&base, &e))?;
@@ -71,6 +72,9 @@ pub fn detect_sets(root: &Path) -> Result<Vec<MultiDiscSet>> {
             playlists.entry(dir.to_path_buf()).or_default().push(path.to_path_buf());
             continue;
         }
+        if ext == "cue" || ext == "gdi" {
+            sheets.push(path.to_path_buf());
+        }
         if !DISC_EXTENSIONS.contains(&ext.as_str()) { continue; }
         let stem = path.file_stem().unwrap_or_default().to_string_lossy();
         let Some((name, disc)) = split_disc_tag(&stem) else { continue };
@@ -79,11 +83,24 @@ pub fn detect_sets(root: &Path) -> Result<Vec<MultiDiscSet>> {
             .1.entry(ext).or_default().push((disc, path.to_path_buf()));
     }
 
+    // Track files that a sheet names, per folder. They belong to the sheet, not to a disc set.
+    let mut companions: HashSet<(PathBuf, String)> = HashSet::new();
+    for sheet in &sheets {
+        let Some(dir) = sheet.parent() else { continue };
+        for track in named_tracks(sheet) {
+            companions.insert((dir.to_path_buf(), track));
+        }
+    }
+
     let mut sets = Vec::new();
     for ((dir, _), (name, mut by_ext)) in groups {
         // One format per set, so a .cue's own .bin files aren't counted as extra discs
         let Some(ext) = DISC_EXTENSIONS.iter().find(|e| by_ext.contains_key(**e)) else { continue };
         let mut discs = by_ext.remove(*ext).unwrap_or_default();
+        discs.retain(|(_, path)| {
+            let file = path.file_name().unwrap_or_default().to_string_lossy().to_lowercase();
+            !companions.contains(&(dir.clone(), file))
+        });
         discs.sort_by_key(|(disc, _)| disc_order(disc));
         discs.dedup_by(|a, b| a.0 == b.0);
         if discs.len() < 2 { continue; }
@@ -156,14 +173,19 @@ fn disc_order(disc: &str) -> (u8, u32, String) {
     }
 }
 
-/// Track files a sheet names that aren't in its folder. A sheet that can't be read names none.
-fn missing_tracks(sheet: &Path) -> Vec<String> {
+/// Lowercased track file names a .cue or .gdi names. A sheet that can't be read names none.
+fn named_tracks(sheet: &Path) -> Vec<String> {
     let ext = sheet.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
     if ext != "cue" && ext != "gdi" { return vec![]; }
     let Ok(bytes) = std::fs::read(sheet) else { return vec![] };
     let text = String::from_utf8_lossy(&bytes);
     let text = text.trim_start_matches('\u{feff}');
-    let named = if ext == "cue" { cue_files(text) } else { gdi_files(text) };
+    if ext == "cue" { cue_files(text) } else { gdi_files(text) }
+}
+
+/// Track files a sheet names that aren't in its folder. A sheet that can't be read names none.
+fn missing_tracks(sheet: &Path) -> Vec<String> {
+    let named = named_tracks(sheet);
 
     let present: HashSet<String> = sheet.parent()
         .and_then(|dir| std::fs::read_dir(dir).ok())
@@ -227,6 +249,26 @@ mod tests {
         assert_eq!(split_disc_tag("Game (Discovery Edition)"), None);
         assert_eq!(split_disc_tag("Game Disc 2"), None);
         assert_eq!(split_disc_tag("(Disc 1)"), None);
+    }
+
+    #[test]
+    fn track_files_named_by_a_cue_are_not_discs() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        for disc in ["1", "2"] {
+            let sheet = format!("Game (USA) (Disc {disc}).cue");
+            let track1 = format!("Game (USA) (Disc {disc}) (Track 01).bin");
+            let track2 = format!("Game (USA) (Disc {disc}) (Track 02).bin");
+            std::fs::write(root.join(&sheet), format!(
+                "FILE \"{track1}\" BINARY\n  TRACK 01 MODE2/2352\nFILE \"{track2}\" BINARY\n  TRACK 02 AUDIO\n"
+            )).unwrap();
+            std::fs::write(root.join(&track1), b"").unwrap();
+            std::fs::write(root.join(&track2), b"").unwrap();
+        }
+        let sets = detect_sets(root).unwrap();
+        assert_eq!(sets.len(), 1);
+        assert_eq!(sets[0].discs.len(), 2);
+        assert!(sets[0].discs.iter().all(|d| d.path.ends_with(".cue")));
     }
 
     #[test]
