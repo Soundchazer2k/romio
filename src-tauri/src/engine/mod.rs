@@ -12,6 +12,9 @@ pub mod scanner;
 pub mod shortcut_validator;
 pub mod bios_sweep;
 pub mod save_checkpoint;
+pub mod multidisc;
+pub mod scummvm;
+pub mod installed_titles;
 
 /// The frontend whose rules apply. EmuDeck and RetroDECK install ES-DE and keep its
 /// folder layout, so they share ES-DE's rules.

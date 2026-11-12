@@ -12,6 +12,9 @@ import { DashboardScreen }  from "@/components/dashboard/DashboardScreen";
 import { BiosScreen }       from "@/components/bios/BiosScreen";
 import { FormatScreen }    from "@/components/format/FormatScreen";
 import { SavesScreen }      from "@/components/saves/SavesScreen";
+import { MultiDiscScreen }  from "@/components/multidisc/MultiDiscScreen";
+import { ScummVmScreen }    from "@/components/scummvm/ScummVmScreen";
+import { InstalledScreen }  from "@/components/installed/InstalledScreen";
 
 // Layout
 import { Sidebar }          from "@/components/shared/Sidebar";
@@ -24,9 +27,9 @@ const SCREENS: Record<Screen, React.ComponentType> = {
   dashboard:  DashboardScreen,
   bios:       BiosScreen,
   format:     FormatScreen,
-  multidisc:  () => <PlaceholderScreen name="Multi-Disc Toolkit" />,
-  scummvm:    () => <PlaceholderScreen name="ScummVM Workspace" />,
-  installed:  () => <PlaceholderScreen name="Installed Titles" />,
+  multidisc:  MultiDiscScreen,
+  scummvm:    ScummVmScreen,
+  installed:  InstalledScreen,
   saves:      SavesScreen,
   export:     () => <PlaceholderScreen name="Export Planner" />,
   preview:    () => <PlaceholderScreen name="Change Preview" />,

@@ -125,7 +125,7 @@ const NON_GAME_FOLDERS: &[&str] = &[
 ];
 
 /// ES-DE adds `noload.txt`, its marker for a folder to leave alone, such as a texture pack.
-fn is_non_game_folder(dir: &Path) -> bool {
+pub(crate) fn is_non_game_folder(dir: &Path) -> bool {
     let name = dir.file_name().unwrap_or_default().to_string_lossy().to_lowercase();
     name.starts_with('.') || name.starts_with("downloaded_")
         || NON_GAME_FOLDERS.contains(&name.as_str())
@@ -172,7 +172,7 @@ fn disc_companions(files: &[PathBuf]) -> HashSet<String> {
 }
 
 /// Files in a .cue that hold a track: `FILE "a.bin" BINARY` followed by `TRACK 01 ...`.
-fn cue_files(text: &str) -> Vec<String> {
+pub(crate) fn cue_files(text: &str) -> Vec<String> {
     let mut files = Vec::new();
     let mut pending = None;
     for line in text.lines() {
@@ -189,7 +189,7 @@ fn cue_files(text: &str) -> Vec<String> {
 
 /// Files in a .gdi: a track count, then that many `1 0 4 2352 a.bin 0` records. Anything else
 /// isn't a sheet Flycast would load, so it names nothing.
-fn gdi_files(text: &str) -> Vec<String> {
+pub(crate) fn gdi_files(text: &str) -> Vec<String> {
     let mut lines = text.lines().filter(|l| !l.trim().is_empty());
     let Some(count) = lines.next().and_then(|l| l.trim().parse::<usize>().ok()) else { return vec![] };
     let files: Option<Vec<String>> = lines.take(count).map(|line| {
