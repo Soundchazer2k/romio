@@ -1329,10 +1329,14 @@ fn multidisc_sets_are_found_with_the_state_of_their_playlist() {
     lib.game("roms/wii/Kappa (Disc 3).ccd");
     lib.file("roms/wii/Kappa (Disc 4).cue", sheet("k4.bin").as_bytes());
     lib.game("roms/wii/k4.bin/inside");
+    // A playlist that isn't text (here UTF-16) can't be read, however small
+    lib.game("roms/wii/Lambda (Disc 1).chd");
+    lib.game("roms/wii/Lambda (Disc 2).chd");
+    lib.file("roms/wii/Lambda.m3u", &[0xFF, 0xFE, b'L', 0, b'a', 0]);
 
     let sets = detect_sets(lib.root()).unwrap();
     let names: Vec<&str> = sets.iter().map(|s| s.name.as_str()).collect();
-    assert_eq!(names, ["Alpha", "Zeta", "Beta", "Eta", "Gamma", "Theta", "Iota", "Kappa"], "{sets:#?}");
+    assert_eq!(names, ["Alpha", "Zeta", "Beta", "Eta", "Gamma", "Theta", "Iota", "Kappa", "Lambda"], "{sets:#?}");
 
     let alpha = &sets[0];
     assert_eq!((alpha.system.as_str(), alpha.m3u_state), ("ps1", M3uState::Missing));
@@ -1374,6 +1378,9 @@ fn multidisc_sets_are_found_with_the_state_of_their_playlist() {
         (vec!["kappa (disc 3).img".to_string()], false),
         (vec!["k4.bin".to_string()], false),
     ]);
+
+    assert_eq!(sets[8].m3u_state, M3uState::Incomplete, "{:#?}", sets[8]);
+    assert_eq!(sets[8].m3u_problems, ["Romio couldn't read this playlist."]);
 
     // Pointed straight at a system folder, the system is that folder's
     let saturn = detect_sets(&lib.path("roms/saturn")).unwrap();
@@ -1466,9 +1473,12 @@ fn installed_titles_are_checked_by_folder_name_and_required_files() {
     lib.game("wiiu/Some Title/code/app.rpx");
     lib.game("wiiu/Some Title/meta/meta.xml");
     lib.game("wiiu/Broken/code/app.rpx");
+    // A file named code isn't the code folder
+    lib.game("wiiu/Filed/code");
+    lib.game("wiiu/Filed/meta/meta.xml");
     let titles = check_titles(&lib.path("wiiu"), "cemu").unwrap();
     let rows: Vec<_> = titles.iter().map(|t| (t.folder.as_str(), t.kind, t.issues.len())).collect();
-    assert_eq!(rows, [("Broken", TitleKind::Game, 1), ("Some Title", TitleKind::Game, 0)], "{titles:#?}");
+    assert_eq!(rows, [("Broken", TitleKind::Game, 1), ("Filed", TitleKind::Data, 1), ("Some Title", TitleKind::Game, 0)], "{titles:#?}");
 
     assert!(check_titles(&lib.path("game"), "xenia").is_err());
     assert!(check_titles(&lib.path("missing"), "rpcs3").is_err());

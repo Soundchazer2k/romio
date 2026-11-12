@@ -35,6 +35,11 @@ pub(crate) fn read_small_text(path: &Path) -> std::io::Result<String> {
         return Err(std::io::Error::other("too large to be a text file"));
     }
     let bytes = std::fs::read(path)?;
+    // A NUL byte means binary or UTF-16, which nothing reads as a playlist or sheet. Other
+    // encodings are read as far as they go: sheets with non-UTF-8 titles are common and work.
+    if bytes.contains(&0) {
+        return Err(std::io::Error::other("not a text file"));
+    }
     Ok(String::from_utf8_lossy(&bytes).trim_start_matches('\u{feff}').to_string())
 }
 

@@ -69,6 +69,15 @@ describe("MultiDiscScreen", () => {
     expect(screen.getByText(/doesn't write playlists/)).toBeTruthy();
   });
 
+  it("marks a set whose sheet couldn't be checked, even with a complete playlist", async () => {
+    const set = { ...SETS[1], discs: [{ ...SETS[1].discs[0], problem: "Romio couldn't read this sheet." }, SETS[1].discs[1]] };
+    mocks.detectMultiDisc.mockResolvedValue([set]);
+    render(<MultiDiscScreen />);
+    fireEvent.click(scanButton());
+    await screen.findByText("1 multi-disc set, 1 needs attention");
+    expect(screen.getByText("Sheet not checked")).toBeTruthy();
+  });
+
   it("keeps inputs and results when you leave and come back", async () => {
     mocks.detectMultiDisc.mockResolvedValue(SETS);
     const first = render(<MultiDiscScreen />);
@@ -250,6 +259,8 @@ describe("InstalledScreen", () => {
     mocks.validateShortcutContent.mockImplementationOnce(() => new Promise((resolve) => { answer = resolve; }));
     fireEvent.click(check);
     fireEvent.change(screen.getByLabelText("Launch command"), { target: { value: "emu other" } });
+    // The new text can be checked straight away, without waiting for the old answer
+    expect(check.disabled).toBe(false);
     answer(bad);
     await waitFor(() => expect(check.disabled).toBe(false));
     expect(screen.queryByText("Regenerate the shortcut.")).toBeNull();

@@ -88,11 +88,12 @@ export function MultiDiscScreen() {
 
 function SetRow({ set }: { set: MultiDiscSet }) {
   const broken = set.discs.some((d) => d.missingTracks.length > 0);
+  const unchecked = set.discs.some((d) => d.problem);
   return (
     <details className={cn(
       "rounded-xl border overflow-hidden",
       broken                        ? "border-romio-red/30 bg-romio-red/5" :
-      set.m3uState === "complete"   ? "border-romio-green/20" :
+      set.m3uState === "complete" && !unchecked ? "border-romio-green/20" :
                                       "border-amber-400/20 bg-amber-400/5"
     )}>
       <summary className="flex items-center justify-between gap-3 px-4 py-3 cursor-pointer
@@ -107,6 +108,11 @@ function SetRow({ set }: { set: MultiDiscSet }) {
           {broken && (
             <span className="px-2 py-0.5 rounded-full text-xs bg-background-surface text-romio-red">
               Track files missing
+            </span>
+          )}
+          {unchecked && (
+            <span className="px-2 py-0.5 rounded-full text-xs bg-background-surface text-amber-400">
+              Sheet not checked
             </span>
           )}
           <span className={cn(

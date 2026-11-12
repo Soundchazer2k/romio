@@ -94,6 +94,10 @@ fn check_title(path: &Path, emulator: &str) -> TitleCheck {
     if must_boot && !bootable {
         issues.push(format!("eboot.bin is missing, so {shown} can't start this title. Reinstall it through {shown}."));
     }
+    // Cemu's code is a folder. A file of that name is a broken install, not add-on content.
+    if emulator == "cemu" && find(path, boot).is_some_and(|code| !code.is_dir()) {
+        issues.push(format!("code is a file, not a folder, so {shown} can't start this title. Reinstall it through {shown}."));
+    }
 
     let kind = if update_suffix.is_some() {
         TitleKind::Update
