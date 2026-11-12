@@ -1,6 +1,6 @@
 # Write Backbone — Design Spec
 
-**Status:** Draft, revised after Codex's reviews of `a450cdb` and `eae265b`. No code yet.
+**Status:** Draft, revised after Codex's reviews of `a450cdb`, `eae265b` and `8c3927b`. No code yet.
 **Scope:** The one path every write to a user's library goes through, plus the first feature
 on it (M3U playlists). Pointer files, format fixes, save migration, shortcuts and export
 follow as separate specs that only define their own plans.
@@ -76,7 +76,9 @@ pub enum FileOp {
 - Plans are built by pure engine functions (`engine::multidisc::plan_m3u`, ...) that read
   the disk and write nothing. A planner takes what the user picked (`input`) and reads the
   files itself. It never trusts file lists sent from the webview.
-- A planner is deterministic: the same `input` on an unchanged library gives the same operations.
+- A planner is deterministic: the same `input` on an unchanged library gives the same
+  operations in the same order. Two plans are equal when their ordered operations are
+  equal; `id` and `created_at` don't count.
 
 ### Pending plans
 
@@ -87,8 +89,9 @@ and sends back only its id and project id.
   the map's lock. A second call with the same id, at the same time or later, finds nothing
   and is refused.
 - **Bound to its project.** The id must belong to the project id sent with it, the project
-  must still exist, and its library roots must equal the plan's `roots`. Otherwise the plan
-  is dropped and the user is told to preview again.
+  must still exist, and its library roots must equal the plan's `roots`. This is checked
+  under the writer lock, so a root edit can't slip in after it. Otherwise the plan is
+  dropped and the user is told to preview again.
 - **Short-lived.** A plan is dropped when its preview is cancelled (`discard_plan`), ten
   minutes after it was built, when its project's roots change, and when the app closes.
 - An id that is already in the map is never replaced; a new plan gets a new id.
@@ -104,13 +107,25 @@ checks that the confirm button is the only caller of `apply_plan`.
 Apply, rollback and recovery all take one lock, and nothing else writes to a library.
 
 - Inside the app it is a mutex. Across copies of Romio it is an exclusive OS lock on a file
-  in the app data folder (`File::try_lock`, which needs Rust 1.89; the manifest says 1.75),
-  held for the length of the operation. Romio has no single-instance guard today, so two
-  copies can run.
+  in the app data folder (`File::try_lock`, which needs Rust 1.89; the manifest says 1.75).
+  Romio has no single-instance guard today, so two copies can run.
 - It is one lock for the whole app, not one per project: two projects can share a root.
+- **Held for the whole of it.** The lock is taken before the plan's project and roots are
+  checked and released only after the row's final status is saved. That covers every
+  operation of the plan, the undo of a failed plan, and a whole rollback or recovery.
+  It is never dropped between two operations.
+- **Recover before writing.** Whoever takes the lock first settles every unsettled journal
+  row (see "Recovery"), and only then starts its own work. A copy of Romio that started
+  while another was writing skipped recovery at its own start; if the writer then crashed,
+  this is where its row gets settled, before anything new is written.
 - A call that finds the lock taken is refused with "Romio is already writing", not queued.
-  Recovery that finds it taken does nothing; the copy holding it is still working.
-- Editing a project's library roots, and deleting a project, are refused while the lock is held.
+  Recovery at start that finds it taken does nothing; the copy holding it is still working.
+- Editing a project's library roots, and deleting a project, take the same lock, so they
+  can't interleave with a write.
+- **Fail closed.** If the lock file can't be created or locked for any reason other than
+  being held, nothing is written. The guarantee covers copies of Romio that share one
+  local app data folder. An app data folder on a network share, where file locks vary, is
+  not supported for writing until it is tested.
 
 Scans don't take the lock and don't wait for it. A scan that runs during a write can see a
 temporary file or half a plan applied. That is accepted: a scan's report never authorises a
@@ -123,25 +138,33 @@ plan_*(project_id, input)          -> ChangePlan     (reads only; stored as pend
   UI: ChangePreview modal lists every operation: full path and the file's contents.
   One primary button: "Write N files". Cancel discards.
 apply_plan(plan_id, project_id)    -> ApplyResult
-  1. claim:    take the plan out of the pending map; check project and roots
-  2. lock:     take the writer lock, or refuse
-  3. replan:   build the plan again from `input`. If its operations differ from the ones
-               shown, refuse: "the library changed, preview again". Nothing is written.
+  1. claim:    take the plan out of the pending map
+  2. lock:     take the writer lock, or refuse. Held until the end of step 8.
+               Settle any unsettled journal row first. Then check project and roots.
+  3. replan:   build the plan again from `input`. If it isn't equal to the one shown,
+               refuse: "the library changed, preview again". Nothing is written.
   4. confine:  every path, and every `requires` path, is inside a library root (below)
   5. journal:  insert the row, status "applying", every op "pending". Commit. If this
                fails, stop: nothing has been written.
   6. per op:   the steps under "One operation, step by step"
-  7. on failure: undo completed ops in reverse (the rollback steps); status "failed"
-  8. status "applied"
+  7. on failure: settle the op that failed from the disk (the transition table), then
+               undo every "done" op in reverse (the rollback steps)
+  8. save the row's final status (one rule, under "The journal"); release the lock
 rollback_operation(log_id)         -> RollbackResult
-  take the writer lock; the row's recorded roots must still be roots of its project;
-  reverse each "done" op, last first, by the rollback steps
+  take the writer lock and settle unsettled rows; the row's recorded roots must still be
+  roots of its project; reverse each "done" op, last first, by the rollback steps; save
+  the final status; release the lock
 ```
 
 `apply_plan` and `rollback_operation` run in `spawn_blocking`.
 
 Steps 1 to 4 can fail without a trace, because nothing has been written. From step 5 on,
 every failure leaves a journal row that says how far it got.
+
+An equal replan runs on the original preview; the user isn't asked again. The library can
+still change between step 3 and an operation's own recheck, which looks only at whether
+files exist and are regular files. That gap is part of the window stated under "What this
+protects against".
 
 ## Confinement
 
@@ -157,7 +180,12 @@ recovery or rollback touches.
   as a root: same volume and same file id, read from both while both are open. This is
   right on case-sensitive and case-insensitive volumes alike, for Unicode-equivalent
   spellings, 8.3 short names, and drive-letter, UNC and `\\?\` forms of the same path, because
-  none of them are compared as text. Where the two can't be compared this way, the plan is refused.
+  none of them are compared as text. Where the two can't be compared this way, the plan is
+  refused: a mapped or `subst` drive, a mount point or a share whose folders give no
+  comparable id is a reason to refuse, not to fall back to text.
+- This needs less than "Ownership" does. Two folders that are open at the same moment can
+  be told apart or matched even on a filesystem whose ids don't last, so a drive with no
+  rollback can still be written to safely.
 - A path with a `..` component is refused outright, not resolved.
 - No folder between the root and the file may be a symlink, a junction or any other
   reparse point, and the file itself may not be one. Libraries built on symlinks are
@@ -171,25 +199,33 @@ What this leaves open is stated under "What this protects against".
 Romio may delete a file only if it can prove the file is the one it wrote. The proof is two
 things recorded in the journal while the file was still Romio's private temporary file:
 
-- its **file identity**: volume and file index on Windows, device and inode elsewhere. A
-  rename within a folder keeps it, so the published file carries the temporary file's identity;
+- its **file identity**, three parts together: the volume, the file's id on that volume,
+  and the file's creation time. On Windows the id is the full 128-bit file id
+  (`FILE_ID_INFO`), which ReFS needs. Elsewhere it is the device and inode, with the
+  subvolume where the filesystem has them (Btrfs inodes are unique only within one). A
+  rename within a folder keeps all three, so the published file carries the temporary
+  file's identity. The creation time is there because filesystems reuse ids: a file
+  deleted and written again can get the old id, but not the old creation time;
 - the **SHA-256** of its contents.
 
 A file is Romio's when both match. Contents alone are not proof: a frontend can write a
-byte-identical playlist of its own.
+byte-identical playlist of its own. A file's name is not proof either, however random.
 
-**Where identity can be trusted.** Only on filesystems on an allow-list, starting with
-NTFS, ReFS, APFS, ext4, Btrfs and XFS. FAT and exFAT ids can change on rename; network
-shares vary. Everything not on the list is treated as having no identity, whatever the
-system call returns. On such a drive:
+**Where identity can be trusted.** Only on a filesystem that has been qualified: a test,
+recorded in the implementation PR, shows that there the identity survives a no-replace
+rename within a folder and a restart, and that a file deleted and recreated gets a
+different one. NTFS, ReFS, APFS, ext4, Btrfs and XFS are the candidates; none is on the
+list until its test exists. FAT and exFAT ids can change on rename, and network shares
+vary, so they stay off. Everything not on the list is treated as having no identity,
+whatever the system call returns. On such a drive:
 
 - Romio still writes the file. The preview says first: "Romio can't undo this on this drive.
   To undo it, delete the files yourself."
 - The journal entry has no Roll back button and lists the files written.
 - Recovery never removes or claims anything there. It reports what it found.
 
-Exactly which filesystems belong on the list, and how exFAT and common network shares
-behave, is not verified yet. The list starts short for that reason.
+The list starts empty, so until a filesystem is qualified Romio writes everywhere without
+rollback.
 
 ## One operation, step by step
 
@@ -201,13 +237,24 @@ written to the journal row and committed before the next step starts.
 | 1 | Confine and recheck: nothing exists at `path`, the parent folder exists, every `requires` path is a regular file | |
 | 2 | Choose the temporary name: `.romio-<uuid>.tmp` in the same folder | `started`, with the name |
 | 3 | Create the temporary file with create-new (fails if anything is there), write the contents in full, sync the file | |
-| 4 | Read the temporary file's identity and hash | `written`, with both |
-| 5 | Recheck step 1, then publish: move the temporary file to `path` with a no-replace rename, then sync the folder where the platform can | |
+| 4 | Read the temporary file's identity and hash from the handle that wrote it | `written`, with both |
+| 5 | Recheck step 1. Check that the file at the temporary path still has the recorded identity and hash. Publish: move it to `path` with a no-replace rename, then sync the folder where the platform can | |
 | 6 | | `done` |
 
-Any step that fails, including a sync or a journal commit that fails or can't be confirmed,
-fails the operation. Romio removes its temporary file (under the recovery rule for the
-state reached, below) and the plan goes to "on failure".
+**When a step fails.** A failed sync counts as a failed step. So does a journal commit that
+fails or can't be confirmed: Romio reads the row back, and what the database holds is the
+state.
+
+- Step 3, create-new fails: something else is at that name. Romio did not create it and
+  does not touch it. The op becomes `skipped`.
+- Step 3, after create-new succeeded: Romio removes the file through the handle it just
+  created it with, while that handle is still open. The op becomes `skipped`. If it can't,
+  the file stays and the op becomes `unknown`.
+- Steps 4 to 6: the op is settled by the transition table below, exactly as at a restart,
+  before anything else is undone. A file that was published but never recorded as `done` is
+  found there and becomes `done`, so the undo that follows removes it.
+
+Then the plan goes to "on failure" in the flow.
 
 **No-replace rename.** `std::fs::rename` replaces an existing file on every platform, so it
 isn't used. Windows: `MoveFileExW` without `MOVEFILE_REPLACE_EXISTING`. Linux:
@@ -222,81 +269,110 @@ The temporary file is in the destination folder, so the rename never crosses vol
 Migration `005_operation_journal.sql` adds to `operation_log`:
 
 - `status`: `applying`, `applied`, `failed`, `rolling_back`, `rolled_back`, `partly_rolled_back`
+- `settled`: 0 or 1; whether the row has been checked against the disk since it last changed
 - `record_json`: a versioned record
 
 ```json
 { "version": 1,
   "plan": { ... the ChangePlan ... },
-  "ops": [ { "state": "...", "temp_path": "...", "file_id": "... or null",
+  "ops": [ { "state": "...", "temp_path": "...", "identity": "... or null",
              "sha256": "...", "note": "what was found, or why it failed" } ] }
 ```
 
 **Op states**
 
-| State | Means | Reached from |
-|---|---|---|
-| `pending` | not started | |
-| `started` | the temporary name is chosen; the file may exist, in part or whole | `pending` |
-| `written` | the temporary file is complete and its identity and hash are recorded | `started` |
-| `done` | published at `path` | `written`, or `undoing` at recovery |
-| `undoing` | Romio has decided to remove the file | `done` |
-| `undone` | removed, or found already gone | `undoing` |
-| `skipped` | never produced a file; nothing to reverse | `pending`, `started`, `written` |
-| `kept` | the file is there but no longer provably Romio's; left alone | `undoing` |
-| `unknown` | recovery couldn't tell what happened; left alone | `started`, `written`, `undoing` |
+| State | Means |
+|---|---|
+| `pending` | not started |
+| `started` | the temporary name is chosen; a file may or may not exist there, and nothing proves whose it is |
+| `written` | the temporary file is complete and its identity and hash are recorded |
+| `done` | published at `path` |
+| `undoing` | Romio has decided to remove the file |
+| `undone` | removed, or found gone |
+| `skipped` | never produced a file; nothing to reverse |
+| `kept` | a file is at `path` but isn't provably Romio's; left alone |
+| `unknown` | Romio can't tell what happened; whatever is there is left alone |
 
-`skipped`, `undone`, `kept` and `unknown` are final for recovery. A later rollback tries
-`done` ops only. `kept` and `unknown` are never retried automatically: the entry shows the
-path and what was found, and the user decides.
+**Transitions.** This is the only table. Applying, undoing and recovery all move an op by it
+and by nothing else. "Is Romio's" means the file has the recorded identity and hash, on a
+drive whose identity is trusted; on any other drive it is never true.
+
+| From | When | To |
+|---|---|---|
+| `pending` | step 2 of an operation | `started` |
+| `pending` | settling | `skipped` |
+| `started` | step 4 | `written` |
+| `started` | create-new failed, or Romio removed its own file through its open handle | `skipped` |
+| `started` | settling: nothing is at `temp_path` | `skipped` |
+| `started` | settling: anything is at `temp_path`. It is left there. | `unknown` |
+| `written` | step 6 | `done` |
+| `written` | settling: the file at `temp_path` is Romio's. Remove it. | `skipped` |
+| `written` | settling: the file at `path` is Romio's | `done` |
+| `written` | settling: nothing at `temp_path` and nothing at `path` | `skipped` |
+| `written` | settling: anything else | `unknown` |
+| `done` | rollback step 2 | `undoing` |
+| `done` | settling: nothing is at `path` | `undone`, "not on disk" |
+| `done` | settling: the file at `path` is Romio's | `done` |
+| `done` | settling: something else is at `path` | `kept` |
+| `undoing` | nothing is at `path` | `undone` |
+| `undoing` | the file at `path` is Romio's, during a rollback: remove it | `undone` |
+| `undoing` | the file at `path` is Romio's, while settling: the removal never happened | `done` |
+| `undoing` | something else is at `path` | `kept` |
+| `undone`, `skipped` | settling: the file at `path` is Romio's. It came back. | `done`, "came back after a power loss" |
+| `undone`, `skipped` | settling: anything else | unchanged |
+| `kept`, `unknown` | settling | unchanged |
+
+`kept` and `unknown` are never changed or retried automatically: the entry shows the path
+and what was found, and the user decides. A later rollback tries `done` ops only.
+
+**The row's status, one rule.** Whenever a row's status is saved, at the end of an apply, a
+rollback or a settling, it is computed from the op states and from what the row was doing:
+
+- it was `applying`: `applied` when every op is `done`, otherwise `failed`;
+- it was `rolling_back`: `rolled_back` when no op is `done`, `kept` or `unknown`, otherwise
+  `partly_rolled_back`;
+- it was already final and settling moved an op: `applied` when every op is `done`;
+  `rolled_back` when it was `rolled_back` and still no op is `done`, `kept` or `unknown`;
+  `partly_rolled_back` when it had been rolled back and that no longer holds; otherwise `failed`.
 
 **Durability.** The database connection sets `journal_mode = WAL` and `synchronous = FULL`
-explicitly; today it sets neither. Each state change is its own committed transaction. A
-`done` therefore never exists without its `written` before it, and a `written` never
-without the file having been synced.
+explicitly; today it sets neither. Each state change is its own committed transaction, and
+clears the row's `settled` flag in the same transaction. A `done` therefore never exists
+without its `written` before it, and a `written` never without the file having been synced.
 
-The other direction can't be made airtight everywhere: Romio has no dependable way to
-sync a folder on Windows, so after a power loss a `done` can outlive the rename it recorded. That case is
-safe by construction. Every later step looks at the disk before it acts, and a `done` file
-that isn't there is recorded as `undone` with the note "already gone".
+Changes to a folder (a publish, a removal) can't be made as durable everywhere: Romio has
+no dependable way to sync a folder on Windows. After a power loss the journal can be ahead
+of the folder in either direction: a `done` whose file is gone, an `undone` or `skipped`
+whose file is back. So no state is taken on trust across a restart. Every row that changed
+is settled against the disk at the next start, which is what `settled` is for, and the
+table has a row for each of those cases.
 
 - A record whose `version` this build doesn't know is shown read-only, with no rollback
-  control, and recovery doesn't touch it.
+  control, and is never settled or touched.
 - Entries without a record (existing checkpoints) are not reversible and show no rollback control.
-- If the row's final status can't be saved, the row keeps its in-progress status and
-  recovery sets it at the next start. The status follows from the op states. A row left
-  in `applying` becomes `applied` when every op is `done`, and `failed` otherwise. A row
-  left in `rolling_back` becomes `rolled_back` when no op is `done`, `kept` or `unknown`,
-  and `partly_rolled_back` otherwise.
+- If a row's final status can't be saved, the row keeps its in-progress status and is
+  settled at the next start, or by the next writer.
 
-### Recovery at start
+## Recovery
 
-Recovery takes the writer lock, then handles every row of a known version whose status is
-`applying` or `rolling_back`, or that has an op in `started`, `written` or `undoing`. For
-each op, by state:
+Settling a row means: for each op, look at the disk, apply the one matching "settling" line
+of the transition table, save the state; then save the row's status by the rule above and
+set `settled`.
 
-| State | Recovery does | Becomes |
-|---|---|---|
-| `pending` | nothing | `skipped` |
-| `started` | if a regular file is at `temp_path` and its bytes are the start of the planned contents, it is Romio's half-written file: remove it. If nothing is there, nothing to do. | `skipped` |
-| | anything else at `temp_path` | `unknown` |
-| `written` | if the file at `temp_path` has the recorded identity and hash, it was never published: remove it | `skipped` |
-| | else if the file at `path` has the recorded identity and hash, it was published | `done` |
-| | else if neither path holds anything | `skipped` |
-| | anything else | `unknown` |
-| `undoing` | if the file at `path` has the recorded identity and hash, the removal never happened | `done` |
-| | if nothing is at `path` | `undone` |
-| | anything else | `unknown` |
-| `done`, and every final state | nothing | unchanged |
-
-- On a drive without trusted identity, "has the recorded identity and hash" is never true,
-  so recovery removes nothing there and marks what it finds `unknown`. The one exception is
-  the `started` rule, which rests on the file's own bytes and its random name.
-- Every row above reads the disk and then writes one state. Run twice, or interrupted and
-  run again, it reaches the same answer, because a removed file is simply "nothing there"
-  the second time.
-- Afterwards the row's status is set from its op states. An interrupted apply becomes
-  `failed` and is listed in Rollback History as interrupted, with each operation's state.
-  The user can roll back what is `done`. Nothing is reapplied automatically.
+- **When.** At start, under the writer lock, for every row of a known version whose
+  `settled` flag is clear. And again by whoever takes the writer lock, before it writes.
+  That second case covers a copy of Romio that outlived a crashed writer.
+- **What it removes.** One thing only: a temporary file that is provably Romio's, in the
+  `written` state. It never removes a file on the strength of its name or its contents, and
+  never removes anything on a drive without trusted identity.
+- **Run twice.** Every line reads the disk and then writes one state. Interrupted and run
+  again, it reaches the same answer: a file it removed is "nothing there" the second time,
+  and `settled` is set only after the last op is saved.
+- An interrupted apply ends as `failed` unless every op turned out `done`. It is listed in
+  Rollback History as interrupted, with each operation's state. The user can roll back
+  what is `done`. Nothing is reapplied automatically.
+- A leftover `.romio-*.tmp` file that Romio couldn't prove was its own stays where it is.
+  The entry names it so the user can delete it.
 
 ## Rollback
 
@@ -307,22 +383,19 @@ each `done` op, last first:
 |---|---|---|
 | 1 | Confine `path` | |
 | 2 | | `undoing` |
-| 3 | If nothing is at `path`: nothing to do | `undone`, "already gone" |
-| 4 | If the file at `path` has the recorded identity and hash: remove it, sync the folder where the platform can | `undone` |
-| 5 | Otherwise leave it | `kept`, "changed or replaced since Romio wrote it" |
+| 3 | Look at `path` and apply the `undoing` line of the transition table: nothing there; Romio's file, which is removed, then the folder synced where the platform can; or something else, which is left | `undone` or `kept` |
 
 - An op that never reached `done` needs no reversal and is not touched.
-- If saving an outcome fails, rollback stops. The op is left in `undoing`, which recovery
-  settles from the disk at the next start.
-- The entry is `rolled_back` when no op is left `done`, `kept` or `unknown`, and
-  `partly_rolled_back` otherwise.
+- If saving an outcome fails, rollback stops. The op is left in `undoing`, which settling
+  resolves from the disk.
 - The row's recorded roots must still be roots of its project. If they aren't, rollback is
   refused and the entry says which root is missing.
 
 **Deleting a project.** Romio can't delete a project today. `operation_log` rows are deleted
-with their project (`ON DELETE CASCADE`), so when deletion is built it must be refused while
-any of the project's rows is `applying` or `rolling_back`, and its confirmation must say
-that the project's rollback history goes with it and list entries that still have files on disk.
+with their project (`ON DELETE CASCADE`), so when deletion is built it takes the writer
+lock, settles first, and is refused while any of the project's rows is `applying`,
+`rolling_back` or unsettled. Its confirmation must say that the project's rollback history
+goes with it, and list entries that still have files on disk.
 
 ## Screens
 
@@ -383,12 +456,19 @@ that the project's rollback history goes with it and list entries that still hav
     process, is refused; recovery in a second process does nothing;
   - a playlist the planner emits reads back as complete, and a disc named with leading
     whitespace before `#` can't be selected;
-  - with identity reported as untrusted, the entry has no rollback and recovery removes nothing.
+  - with identity reported as untrusted, the entry has no rollback and recovery removes nothing;
+  - a file already at the temporary name, empty or not, is never removed, in a normal
+    failure or at a restart;
+  - a file deleted and recreated with the same bytes at the same path is kept by rollback;
+  - a copy of Romio that outlives a crashed writer settles that writer's row before its
+    own apply; a root edit during an apply waits or is refused.
 - **Failure injection.** The file and journal steps go through one seam that a test can
   fail or stop at. For every step of "One operation" and of rollback: stop there, run
   recovery, and check each op's state and the folder. Then stop recovery itself at each
-  write and run it again; the result must be the same. This covers every row of the
-  recovery table, including a foreign file at the temporary or final path, and a row with an
+  write and run it again; the result must be the same. Named cases: the publish succeeds
+  and the `done` commit fails; the removal succeeds and the `undone` commit fails; a file
+  reappears at the path of an `undone` op. This covers every row of the
+  transition table, including a foreign file at the temporary or final path, and a row with an
   unknown `version`, which must come out untouched.
 - Not testable in CI: a real power loss, a filesystem without no-replace rename, and real
   FAT, exFAT and network drives. The refusal path and the untrusted-identity path get unit
@@ -396,6 +476,22 @@ that the project's rollback history goes with it and list entries that still hav
 - Codex reviews this spec, then each PR. Gemini checks each write feature on the desktop
   against a throwaway copy of a library, including killing the app mid-apply and writing to
   an exFAT drive.
+
+## Left to the implementation PR
+
+Details Codex's third review sorted as settleable in code review, not here:
+
+- Qualifying each candidate filesystem for trusted identity, with the test recorded.
+- The same-volume rename and folder-sync call actually used on each platform.
+- WAL's effect on the whole app database: the `-wal` and `-shm` files, checkpointing, and
+  checking the effective mode before a write is allowed.
+- `File::try_lock` against the manifest's Rust 1.75, and lock behaviour on a network home.
+- Which root spellings (mapped drive, `subst`, UNC, mount point) can be compared by
+  identity, and the refusal message where they can't.
+- Playlists read by ES-DE, Batocera and RetroBat themselves. The round trip proves the
+  planner agrees with Romio's reader, nothing more.
+- A future `Rename` keeps the versioned record but needs its own intent, identity and
+  reverse states.
 
 ## Decisions on the earlier open questions
 
@@ -426,3 +522,12 @@ Decided by the owner on 2026-11-12, following Codex's recommendations.
   rollback where identity can't be trusted, one app-wide writer lock, and replanning at
   apply. `Rename` is deferred to the format-fix spec, not fixed here. Still not taken:
   folder handles; the residual risk is now stated in the rules as well as the threat model.
+- Codex on `8c3927b`, "merge after fixes", four blockers: a temporary file could be
+  removed on its name and a content prefix; apply, undo and recovery disagreed on
+  transitions and on a row's final status, and trusted states that a power loss can
+  reverse; filesystem type alone didn't qualify a file id for deletion; a copy of Romio
+  that outlived a crashed writer could write before recovering it. Taken as: nothing is
+  removed without identity, one transition table and one status rule used by all three
+  paths, every changed row settled against the disk at the next start, identity that
+  includes creation time on filesystems qualified by test, and one lock held for the whole
+  plan with recovery before any new write.
