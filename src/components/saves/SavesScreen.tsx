@@ -26,12 +26,26 @@ export function SavesScreen() {
   const frontendRoot = saveRoots?.[projectId] ?? activeProject?.libraryRoots?.[0] ?? "";
 
   // ── Queries ───────────────────────────────────────────────────────────────
-  const { data: roots = [], isLoading } = useQuery({
-    queryKey: ["save-roots", frontendRoot],
-    queryFn:  () => ipc.discoverSaveRoots(frontendRoot),
+  // Wait for typing to pause: each discovery probes every rule's folders, and on an
+  // unreachable share each probe is a network timeout
+  const [queryRoot, setQueryRoot] = useState(frontendRoot);
+  useEffect(() => {
+    const timer = setTimeout(() => setQueryRoot(frontendRoot), 400);
+    return () => clearTimeout(timer);
+  }, [frontendRoot]);
+
+  // Until the typed root has been looked up, what's on screen belongs to the previous root
+  const settled = queryRoot === frontendRoot;
+
+  const { data = [], isLoading: discovering, error: discoverError } = useQuery({
+    queryKey: ["save-roots", queryRoot],
+    queryFn:  () => ipc.discoverSaveRoots(queryRoot),
     // %APPDATA% rules need no frontend root, so discover as soon as a project is open
     enabled:  !!activeProject,
   });
+  // Rows for a root that is no longer in the field are neither shown nor acted on
+  const roots = settled ? data : [];
+  const isLoading = discovering || !settled;
 
   const { data: log = [] } = useQuery({
     queryKey: ["operation-log", projectId],
@@ -160,7 +174,14 @@ export function SavesScreen() {
         </div>
       )}
 
-      {!isLoading && roots.length === 0 && (
+      {!isLoading && discoverError && (
+        <div role="alert"
+             className="px-4 py-3 rounded-xl bg-romio-red/10 border border-romio-red/20 text-sm text-romio-red">
+          Romio couldn't look for save roots: {discoverError instanceof Error ? discoverError.message : String(discoverError)}
+        </div>
+      )}
+
+      {!isLoading && !discoverError && roots.length === 0 && (
         <div className="text-center py-12 text-romio-gray space-y-2">
           <ShieldCheck className="w-10 h-10 mx-auto opacity-30" />
           <p>No save roots found at risk{frontendRoot ? " in this directory or AppData" : " in AppData"}.</p>

@@ -66,12 +66,12 @@ pub async fn scan_library(
             let _ = walk_app.emit("scan_progress", &progress);
         })
     })
-    .await
-    .map_err(|e| e.to_string())?;
+    .await;
 
+    // Cleared before any error returns, so a walk that panicked doesn't leave a scan "running"
     SCAN_RUNNING.store(false, Ordering::Relaxed);
 
-    let artifacts = result.map_err(|e| e.to_string())?;
+    let artifacts = result.map_err(|e| e.to_string())?.map_err(|e| e.to_string())?;
 
     // If the scan was cancelled, discard partial results — do not persist.
     let saved = persist_scan(&project_id, &artifacts, cancel_flag(), |progress| {
@@ -84,43 +84,51 @@ pub async fn scan_library(
     // Best-effort BIOS sweep — failure does not fail the scan.
     // DB note: get() and load_all_rules() each acquire and release the mutex independently.
     // Do NOT nest them inside each other or inside another with_conn closure.
-    let project_for_bios = crate::db::projects::get(&project_id);
-    if let Ok(project) = project_for_bios {
-        if let Some(ref bios_root) = project.bios_root {
-            match crate::commands::bios::resolve_primary_frontend(&project.target_frontends) {
-                Ok(frontend) => {
-                    match crate::db::bios::load_all_rules() {
-                        Ok(all_rules) => {
-                            let config = crate::engine::bios_sweep::BiosSweepConfig {
-                                bios_root:      std::path::PathBuf::from(bios_root),
-                                frontend:       frontend.clone(),
-                                emulator_prefs: project.emulator_prefs.clone(),
-                            };
-                            match crate::engine::bios_sweep::run_sweep(&config, &all_rules) {
-                                Ok(results) => {
-                                    if let Err(e) = crate::db::projects::update_bios_results(
-                                        &project_id, results
-                                    ) {
-                                        eprintln!(
-                                            "[scan] BIOS results persist failed \
-                                             project_id={} bios_root={} frontend={}: {}",
-                                            project_id, bios_root, frontend, e
-                                        );
+    // Off the async workers, so a stalled BIOS drive can't starve every other command
+    let sweep = tokio::task::spawn_blocking(move || {
+        let project_for_bios = crate::db::projects::get(&project_id);
+        if let Ok(project) = project_for_bios {
+            if let Some(ref bios_root) = project.bios_root {
+                match crate::commands::bios::resolve_primary_frontend(&project.target_frontends) {
+                    Ok(frontend) => {
+                        match crate::db::bios::load_all_rules() {
+                            Ok(all_rules) => {
+                                let config = crate::engine::bios_sweep::BiosSweepConfig {
+                                    bios_root:      std::path::PathBuf::from(bios_root),
+                                    frontend:       frontend.clone(),
+                                    emulator_prefs: project.emulator_prefs.clone(),
+                                };
+                                match crate::engine::bios_sweep::run_sweep(&config, &all_rules) {
+                                    Ok(results) => {
+                                        if let Err(e) = crate::db::projects::update_bios_results(
+                                            &project_id, results
+                                        ) {
+                                            eprintln!(
+                                                "[scan] BIOS results persist failed \
+                                                 project_id={} bios_root={} frontend={}: {}",
+                                                project_id, bios_root, frontend, e
+                                            );
+                                        }
                                     }
+                                    Err(e) => eprintln!(
+                                        "[scan] BIOS sweep failed \
+                                         project_id={} bios_root={} frontend={}: {}",
+                                        project_id, bios_root, frontend, e
+                                    ),
                                 }
-                                Err(e) => eprintln!(
-                                    "[scan] BIOS sweep failed \
-                                     project_id={} bios_root={} frontend={}: {}",
-                                    project_id, bios_root, frontend, e
-                                ),
                             }
+                            Err(e) => eprintln!("[scan] BIOS rules load failed: {}", e),
                         }
-                        Err(e) => eprintln!("[scan] BIOS rules load failed: {}", e),
                     }
+                    Err(e) => eprintln!("[scan] BIOS sweep skipped: {}", e),
                 }
-                Err(e) => eprintln!("[scan] BIOS sweep skipped: {}", e),
             }
         }
+    })
+    .await;
+    // The scan is saved either way; a sweep that panicked leaves the previous BIOS results in place
+    if let Err(e) = sweep {
+        eprintln!("[scan] BIOS sweep did not finish: {e}");
     }
 
     Ok(())
