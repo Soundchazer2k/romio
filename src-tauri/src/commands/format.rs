@@ -3,17 +3,27 @@ use crate::models::format::{FormatRule, FormatCheckResult, SystemFolder};
 /// Takes a list so the rules are parsed once per call instead of once per file.
 #[tauri::command]
 pub async fn check_format_batch(paths: Vec<String>, system: String, emulator: String, frontend: String) -> Result<Vec<FormatCheckResult>, String> {
-    let rules = crate::db::format::load_rules().map_err(|e| e.to_string())?;
-    Ok(paths.iter()
-        .map(|path| crate::engine::format_matrix::check_format(std::path::Path::new(path), &rules, &system, &emulator, &frontend))
-        .collect())
+    // Off the async workers, so a stalled drive can't starve every other command
+    tokio::task::spawn_blocking(move || {
+        let rules = crate::db::format::load_rules().map_err(|e| e.to_string())?;
+        Ok(paths.iter()
+            .map(|path| crate::engine::format_matrix::check_format(std::path::Path::new(path), &rules, &system, &emulator, &frontend))
+            .collect())
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 /// Listed in Rust because the fs plugin only reaches one level below a picked folder.
 #[tauri::command]
 pub async fn list_library_folders(root: String) -> Result<Vec<SystemFolder>, String> {
-    let rules = crate::db::format::load_rules().map_err(|e| e.to_string())?;
-    crate::engine::format_matrix::list_system_folders(std::path::Path::new(&root), &rules)
-        .map_err(|e| format!("Couldn't read {root}: {e}"))
+    // Off the async workers, so a stalled drive can't starve every other command
+    tokio::task::spawn_blocking(move || {
+        let rules = crate::db::format::load_rules().map_err(|e| e.to_string())?;
+        crate::engine::format_matrix::list_system_folders(std::path::Path::new(&root), &rules)
+            .map_err(|e| format!("Couldn't read {root}: {e}"))
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 #[tauri::command]
 pub async fn get_format_matrix() -> Result<Vec<FormatRule>, String> {

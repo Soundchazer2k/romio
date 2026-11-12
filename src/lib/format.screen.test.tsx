@@ -9,6 +9,7 @@ import { FormatSystemRow } from "@/components/format/FormatSystemRow";
 import { FormatReferenceDrawer } from "@/components/format/FormatReferenceDrawer";
 import { FormatImpactTable } from "@/components/format/FormatImpactTable";
 import { emulatorForSystem } from "@/lib/utils";
+import { useFormatStore } from "@/stores";
 import type { EmulatorMatrixEntry, FormatCheckResult, FormatCompatibilityState, FormatRule } from "@/types";
 
 const MATRIX = [
@@ -28,9 +29,10 @@ const mocks = vi.hoisted(() => ({
   getEmulatorMatrix: vi.fn(),
 }));
 
-vi.mock("@/stores", () => ({
+vi.mock("@/stores", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/stores")>(),
   useAppStore: () => ({
-    activeProject: { libraryRoots: ["/roms"], targetFrontends: ["esde", "retrobat"] },
+    activeProject: { id: "p1", libraryRoots: ["/roms"], targetFrontends: ["esde", "retrobat"] },
   }),
 }));
 
@@ -65,6 +67,9 @@ function renderRow(results: FormatCheckResult[], rules: FormatRule[] = []) {
     />
   );
 }
+
+// Sessions outlive the screen, so each test starts from none
+beforeEach(() => useFormatStore.setState({ sessions: {} }));
 
 describe("emulatorForSystem", () => {
   it("uses the recommended emulator on auto", () =>
@@ -215,13 +220,13 @@ describe("FormatScreen", () => {
     await setUp();
     fireEvent.click(screen.getByRole("button", { name: /Scan/ }));
 
-    expect(screen.getByRole("status").textContent).toBe("Finding game files…");
+    expect(screen.getByText("Finding game files…")).toBeTruthy();
 
     listed(TWO_FOLDERS);
-    await waitFor(() => expect(screen.getByRole("status").textContent).toBe("Checked 0 of 2 files"));
+    await screen.findByText("Checked 0 of 2 files");
     await waitFor(() => expect(pending).toHaveLength(1));
     pending[0]();
-    await waitFor(() => expect(screen.getByRole("status").textContent).toBe("Checked 1 of 2 files"));
+    await screen.findByText("Checked 1 of 2 files");
     await waitFor(() => expect(pending).toHaveLength(2));
     pending[1]();
 
