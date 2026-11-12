@@ -244,7 +244,7 @@ Each reverse operation is confined and checked the same way as an apply.
 
 ## Decisions on the earlier open questions
 
-Codex's recommendations, adopted here pending the owner's word.
+Decided by the owner on 2026-11-12, following Codex's recommendations.
 
 1. **Disc files still show as games.** Version 1 writes the playlist only and keeps the
    discs visible. Batocera and RetroBat already hide discs a playlist lists; ES-DE doesn't.
