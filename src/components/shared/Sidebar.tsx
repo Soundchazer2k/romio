@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0
 import { motion } from "framer-motion";
-import { Home, Shield, Save, Cpu, FileCode2, FolderOpen } from "lucide-react";
+import { Home, Shield, Save, Cpu, FileCode2, FolderOpen, Disc3, MousePointerClick, HardDrive } from "lucide-react";
 import { useAppStore, type Screen } from "@/stores";
 import { RomioCompanion } from "@/components/romio/RomioCompanion";
 import { cn } from "@/lib/utils";
@@ -12,14 +12,17 @@ interface NavItem {
   divider?: boolean;
 }
 
-// Only finished screens. Multi-Disc, ScummVM, Installed, Export, Change Preview and
-// Rollback stay out until they're built (DESIGN.md: no sidebar items to "Coming soon").
+// Only finished screens. Export, Change Preview and Rollback stay out until they're
+// built (DESIGN.md: no sidebar items to "Coming soon").
 const NAV: NavItem[] = [
   { id: "projects",   label: "Projects",      icon: FolderOpen },
   { id: "dashboard",  label: "Dashboard",     icon: Home,       divider: true },
   { id: "preflight",  label: "Pre-flight",    icon: Cpu,        divider: true },
   { id: "bios",       label: "BIOS",          icon: Shield },
   { id: "format",     label: "Format Check",  icon: FileCode2 },
+  { id: "multidisc",  label: "Multi-Disc",    icon: Disc3 },
+  { id: "scummvm",    label: "ScummVM",       icon: MousePointerClick },
+  { id: "installed",  label: "Installed Titles", icon: HardDrive },
   { id: "saves",      label: "Save Migration",icon: Save,       divider: true },
 ];
 

@@ -10,6 +10,7 @@ import type {
   SaveRoot, MigrationPlan, SaveCheckpoint, OperationLogEntry,
   FrontendInfo,
   FormatRule, FormatCheckResult, EmulatorMatrixEntry, SystemFolder,
+  MultiDiscSet, ScummVmReport, TitleCheck, ShortcutValidationResult,
 } from "@/types";
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -233,14 +234,14 @@ export const ipc = {
     undefined,
 
   // Format
-  checkFormat: async (
-    path: string, _system: string, _emulator: string, _frontend: string
-  ): Promise<FormatCheckResult> =>
+  checkFormatBatch: async (
+    paths: string[], _system: string, _emulator: string, _frontend: string
+  ): Promise<FormatCheckResult[]> =>
     // .bin files come back deprecated with a rename fix so the fix tray can be exercised
-    path.endsWith(".bin")
+    paths.map((path) => path.endsWith(".bin")
       ? { ...FIXTURE_FORMAT_RESULT, path, state: "FormatDeprecated",
           fixAction: { actionType: "rename", description: "Rename to .cue/.bin pair", safe: true } }
-      : { ...FIXTURE_FORMAT_RESULT, path, extension: path.split(".").pop() ?? "" },
+      : { ...FIXTURE_FORMAT_RESULT, path, extension: path.split(".").pop() ?? "" }),
   getFormatMatrix: async (): Promise<FormatRule[]> => [],
   listLibraryFolders: async (root: string): Promise<SystemFolder[]> =>
     [["psx", "ps1"], ["gba", "gba"]].map(([name, system]) => ({
@@ -249,6 +250,7 @@ export const ipc = {
       system,
       files: [`${root}/${name}/game1.bin`, `${root}/${name}/game2.chd`],
       error: null,
+      uncheckedSubfolders: false,
     })),
   getEmulatorMatrix: async (): Promise<EmulatorMatrixEntry[]> =>
     FIXTURE_EMULATOR_MATRIX,
@@ -275,19 +277,38 @@ export const ipc = {
   }),
   getCheckpoints: async (_projectId: string): Promise<SaveCheckpoint[]> => [],
 
-  // Multi-disc (placeholder screens — minimal stubs)
-  detectMultiDisc: async (_root: string) => [],
+  // Multi-disc
+  detectMultiDisc: async (root: string): Promise<MultiDiscSet[]> => [
+    {
+      name: "Fixture Quest (USA)", folder: `${root}/psx`, system: "ps1",
+      discs: [
+        { path: `${root}/psx/Fixture Quest (USA) (Disc 1).chd`, disc: "1", missingTracks: [], problem: null },
+        { path: `${root}/psx/Fixture Quest (USA) (Disc 2).chd`, disc: "2", missingTracks: [], problem: null },
+      ],
+      m3uPath: null, m3uState: "missing", m3uProblems: [],
+    },
+  ],
   generateM3u: async (_set: unknown, _outputDir: string, _frontend: string): Promise<string> =>
     "",
 
-  // ScummVM (placeholder screens — minimal stubs)
-  detectScummvm: async (_root: string) => [],
+  // ScummVM
+  detectScummvm: async (root: string): Promise<ScummVmReport> => ({
+    folder: `${root}/scummvm`,
+    games: [
+      { path: `${root}/scummvm/fixture-one`, name: "fixture-one", engine: "SCUMM",
+        pointerPath: `${root}/scummvm/fixture-one/fixture-one.scummvm`, pointerId: "scumm:fixture" },
+      { path: `${root}/scummvm/fixture-two`, name: "fixture-two", engine: null, pointerPath: null, pointerId: null },
+    ],
+  }),
   generatePointers: async (_games: unknown[], _frontend: string): Promise<string[]> =>
     [],
 
-  // Installed titles (placeholder screens — minimal stubs)
-  validateInstalled: async (_titles: unknown[]) => [],
-  validateShortcutContent: async (_command: string) => null,
+  // Installed titles
+  checkInstalledTitles: async (dir: string, _emulator: string): Promise<TitleCheck[]> => [
+    { path: `${dir}/BLUS30443`, folder: "BLUS30443", titleId: "BLUS30443", kind: "game", issues: [] },
+  ],
+  validateShortcutContent: async (command: string): Promise<ShortcutValidationResult> =>
+    ({ shortcutPath: command, isValid: true, issues: [] }),
   generateShortcuts: async (_titles: unknown[], _frontend: string): Promise<string[]> =>
     [],
 

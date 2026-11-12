@@ -2,7 +2,7 @@
 // The Romio companion panel — displays the correct mascot state
 // and a contextual message. Lives in the bottom-left of the sidebar.
 
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import type { RomioState } from "@/types";
 
 interface Props {
@@ -50,44 +50,40 @@ export function RomioCompanion({ state, message }: Props) {
 
   return (
     <div className="flex flex-col items-center gap-3 p-4">
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={state}
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.9 }}
-          transition={{ duration: 0.2, ease: "easeOut" }}
-          className="relative"
-        >
-          <img
-            src={img}
-            alt={`Romio — ${state}`}
-            className="w-24 h-24 object-contain drop-shadow-lg"
-            draggable={false}
+      {/* No exit animation: AnimatePresence mode="wait" holds the old line until its exit
+          ends, and a stuck line was reproduced with it and not without it. */}
+      <motion.div
+        key={state}
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.2, ease: "easeOut" }}
+        className="relative"
+      >
+        <img
+          src={img}
+          alt={`Romio — ${state}`}
+          className="w-24 h-24 object-contain drop-shadow-lg"
+          draggable={false}
+        />
+        {/* Pulse ring for active states */}
+        {(state === "working" || state === "processing") && (
+          <motion.div
+            className="absolute inset-0 rounded-full border-2 border-romio-green/30"
+            animate={{ scale: [1, 1.2, 1], opacity: [0.5, 0, 0.5] }}
+            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
           />
-          {/* Pulse ring for active states */}
-          {(state === "working" || state === "processing") && (
-            <motion.div
-              className="absolute inset-0 rounded-full border-2 border-romio-green/30"
-              animate={{ scale: [1, 1.2, 1], opacity: [0.5, 0, 0.5] }}
-              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-            />
-          )}
-        </motion.div>
-      </AnimatePresence>
+        )}
+      </motion.div>
 
-      <AnimatePresence mode="wait">
-        <motion.p
-          key={msg}
-          initial={{ opacity: 0, y: 4 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -4 }}
-          transition={{ duration: 0.15 }}
-          className="text-xs text-center text-romio-gray leading-relaxed max-w-[180px]"
-        >
-          {msg}
-        </motion.p>
-      </AnimatePresence>
+      <motion.p
+        key={msg}
+        initial={{ opacity: 0, y: 4 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.15 }}
+        className="text-xs text-center text-romio-gray leading-relaxed max-w-[180px]"
+      >
+        {msg}
+      </motion.p>
     </div>
   );
 }

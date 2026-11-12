@@ -6,6 +6,7 @@ use anyhow::Result;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 use walkdir::WalkDir;
 use serde::{Deserialize, Serialize};
 
@@ -28,6 +29,9 @@ pub enum ScanPhase {
     Hashing,
     Classifying,
     Complete,
+    /// The walk is done and its results are being saved. Never sent for a cancelled scan.
+    /// `files_scanned` is the results being saved, which can be fewer than the walk's count: don't show it.
+    Saving,
 }
 
 /// Extensions that are ROM/image files (not BIOS, not metadata)
@@ -51,7 +55,7 @@ const ROM_EXTENSIONS: &[&str] = &[
     "lnx",
     "a26", "a78",
     "j64", "jag",
-    "hypseus", "daphne",  // daphne flagged as deprecated
+    "hypseus", "daphne",
     "m3u",
     "ccd", "sub",
     "gdi",
@@ -65,6 +69,19 @@ const ROM_EXTENSIONS: &[&str] = &[
 
 pub fn is_rom_extension(ext: &str) -> bool {
     ROM_EXTENSIONS.contains(&ext)
+}
+
+/// One event per directory entry floods the webview's event queue on large libraries,
+/// which freezes the UI until the backlog drains.
+const PROGRESS_INTERVAL: Duration = Duration::from_millis(100);
+
+/// True when a progress update is due at `now`. The first call always is.
+fn progress_due(last_sent: &mut Option<Instant>, now: Instant) -> bool {
+    let due = last_sent.is_none_or(|last| now.duration_since(last) >= PROGRESS_INTERVAL);
+    if due {
+        *last_sent = Some(now);
+    }
+    due
 }
 
 /// A failed directory walk, worded for the user: which path, and why.
@@ -88,6 +105,7 @@ pub fn scan_roots(
 ) -> Result<Vec<Artifact>> {
     let mut artifacts = Vec::new();
     let mut files_scanned = 0u64;
+    let mut last_progress = None;
 
     for root in roots {
         if cancel.load(Ordering::Relaxed) { break; }
@@ -98,12 +116,14 @@ pub fn scan_roots(
             let entry = entry.map_err(|e| walk_error(root, &e))?;
             let path = entry.path();
 
-            on_progress(ScanProgress {
-                files_scanned,
-                files_total: None,
-                current_path: path.to_string_lossy().to_string(),
-                phase: ScanPhase::Classifying,
-            });
+            if progress_due(&mut last_progress, Instant::now()) {
+                on_progress(ScanProgress {
+                    files_scanned,
+                    files_total: None,
+                    current_path: path.to_string_lossy().to_string(),
+                    phase: ScanPhase::Classifying,
+                });
+            }
 
             if entry.file_type().is_file() {
                 files_scanned += 1;
@@ -135,9 +155,6 @@ fn classify_file(path: &Path) -> Option<Artifact> {
 
     let artifact_type = if ext == "m3u" {
         ArtifactType::M3u
-    } else if ext == "daphne" {
-        // Deprecated LaserDisc extension — flag in format validation
-        ArtifactType::Rom
     } else if ROM_EXTENSIONS.contains(&ext.as_str()) {
         ArtifactType::Rom
     } else {
@@ -236,6 +253,63 @@ mod tests {
             notes:                 None,
             scanned_at:            chrono::Utc::now(),
         }
+    }
+
+    #[test]
+    fn progress_is_sent_first_then_once_per_interval() {
+        let start = Instant::now();
+        let mut last = None;
+
+        assert!(progress_due(&mut last, start));
+        assert!(!progress_due(&mut last, start));
+        assert!(!progress_due(&mut last, start + PROGRESS_INTERVAL - Duration::from_millis(1)));
+        assert!(progress_due(&mut last, start + PROGRESS_INTERVAL));
+        // The interval restarts from the last update sent, not from the start.
+        assert!(!progress_due(&mut last, start + PROGRESS_INTERVAL * 2 - Duration::from_millis(1)));
+        assert!(progress_due(&mut last, start + PROGRESS_INTERVAL * 2));
+    }
+
+    #[test]
+    fn scan_throttles_progress_and_always_sends_complete_with_the_full_count() {
+        let dir = tempfile::tempdir().unwrap();
+        for i in 0..200 {
+            std::fs::write(dir.path().join(format!("{i}.sfc")), b"").unwrap();
+        }
+        let events = std::cell::RefCell::new(Vec::new());
+
+        let started = Instant::now();
+        let artifacts = scan_roots(
+            &[dir.path().to_path_buf()],
+            Arc::new(AtomicBool::new(false)),
+            |p| events.borrow_mut().push(p),
+        )
+        .unwrap();
+        let elapsed = started.elapsed();
+
+        let events = events.into_inner();
+        assert_eq!(artifacts.len(), 200);
+        // One update per elapsed interval, plus the first update and Complete.
+        let limit = elapsed.as_millis() / PROGRESS_INTERVAL.as_millis() + 2;
+        assert!(events.len() as u128 <= limit, "sent {} events, limit {limit}", events.len());
+        let last = events.last().unwrap();
+        assert!(matches!(last.phase, ScanPhase::Complete));
+        assert_eq!(last.files_scanned, 200);
+        assert_eq!(last.files_total, Some(200));
+    }
+
+    #[test]
+    fn unreadable_root_fails_without_a_complete_event() {
+        let dir = tempfile::tempdir().unwrap();
+        let events = std::cell::RefCell::new(Vec::new());
+
+        let result = scan_roots(
+            &[dir.path().join("missing")],
+            Arc::new(AtomicBool::new(false)),
+            |p| events.borrow_mut().push(p),
+        );
+
+        assert!(result.is_err());
+        assert!(events.into_inner().iter().all(|p| !matches!(p.phase, ScanPhase::Complete)));
     }
 
     #[test]

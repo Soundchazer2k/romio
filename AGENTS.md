@@ -16,7 +16,7 @@ Tauri v2 desktop app: React + TypeScript frontend, Rust backend.
 
 ```
 src/lib/ipc.ts          ← ALL invoke() calls live here — never call from components directly
-src/stores/index.ts     ← Zustand stores (App, Scan, Preflight, BIOS)
+src/stores/index.ts     ← Zustand stores (App, Scan, Preflight, BIOS, Format)
 src/types/index.ts      ← TS types — must stay in sync with src-tauri/src/models/
 src-tauri/src/engine/   ← Pure Rust business logic (no Tauri deps, unit-testable)
 src-tauri/src/commands/ ← Thin IPC handlers — call engine, return serializable results
@@ -41,8 +41,8 @@ root-level `tauri.conf.json`; the CLI finds it first and fails with "No package 
 
 ## Screens & Status
 
-Implemented: `welcome`, `projects`, `dashboard`, `preflight`, `bios`, `saves`
-Placeholder (backend stubs exist, UI TODO): `format`, `multidisc`, `scummvm`, `installed`, `export`, `preview`, `rollback`
+Implemented: `welcome`, `projects`, `dashboard`, `preflight`, `bios`, `format`, `saves`, `multidisc`, `scummvm`, `installed` (these three report only; their write actions wait for the write backbone)
+Placeholder (backend stubs exist, UI TODO): `export`, `preview`, `rollback`
 
 ## Type Sync
 

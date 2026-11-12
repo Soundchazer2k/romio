@@ -15,16 +15,17 @@ describe("Sidebar companion", () => {
   });
   afterEach(cleanup);
 
-  it("doesn't carry one screen's warning to the next", async () => {
+  it("doesn't carry one screen's warning to the next", () => {
     render(<Sidebar />);
     expect(screen.getByText(WARNING)).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: /Format Check/ }));
 
     expect(useAppStore.getState().screen).toBe("format");
-    // The old line animates out first
-    expect(await screen.findByText("Ready when you are.")).toBeTruthy();
+    // At once: waiting on an exit animation is what let a quick click strand the warning
+    expect(screen.getByText("Ready when you are.")).toBeTruthy();
     expect(screen.queryByText(WARNING)).toBeNull();
+    expect(screen.getByAltText("Romio — idle")).toBeTruthy();
   });
 
   it("asks for a scan on a Dashboard that has no checks to pick yet", () => {

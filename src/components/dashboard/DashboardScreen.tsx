@@ -44,12 +44,14 @@ export function DashboardScreen() {
   // The project travels with the scan: you can switch to another one before it ends
   const scanMut = useMutation({
     mutationFn: async (project: Project) => {
+      setProgress(null);
       setScanning(project);
       setScanError(project.id, null);
       await ipc.scanLibrary(project.id, project.libraryRoots);
     },
     onSuccess: async (_, project) => {
       setScanning(null);
+      setProgress(null);
       queryClient.invalidateQueries({ queryKey: ["projects"] });
       // Re-fetch project so scanStats and lastScannedAt reflect persisted data.
       // If you've switched away there's nothing to update: opening it again fetches it fresh.
@@ -79,6 +81,7 @@ export function DashboardScreen() {
   }
 
   const stats = activeProject.scanStats;
+  const finishing = progress?.phase === "saving";
 
   return (
     <div className="p-8 space-y-8 max-w-4xl mx-auto">
@@ -115,7 +118,7 @@ export function DashboardScreen() {
               <div className="w-4 h-4 rounded-full border-2 border-romio-green/40
                                border-t-romio-green animate-spin" />
               <span className="truncate max-w-48">
-                {scanningHere ? "Scanning…" : `Scanning ${scanningProject.name}…`}
+                {finishing ? "Finishing…" : scanningHere ? "Scanning…" : `Scanning ${scanningProject.name}…`}
               </span>
             </>
           ) : (
@@ -135,13 +138,16 @@ export function DashboardScreen() {
           className="space-y-2"
         >
           <div className="flex justify-between text-xs text-romio-gray">
-            <span className="font-mono truncate max-w-xs">{progress.currentPath || "Scanning…"}</span>
-            <span>{progress.filesScanned.toLocaleString()} files</span>
+            <span className={cn("truncate max-w-xs", !finishing && "font-mono")}>
+              {finishing ? "Finishing scan…" : progress.currentPath || "Scanning…"}
+            </span>
+            {!finishing && <span>{progress.filesScanned.toLocaleString()} files</span>}
           </div>
           <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
             <motion.div
-              className="h-full bg-romio-green rounded-full"
-              animate={{ width: progress.filesTotal
+              className={cn("h-full bg-romio-green rounded-full", finishing && "animate-pulse")}
+              initial={{ width: 0 }}
+              animate={{ width: finishing ? "100%" : progress.filesTotal
                 ? `${Math.min(100, (progress.filesScanned / progress.filesTotal) * 100)}%`
                 : "60%" }}
               transition={{ ease: "easeOut" }}

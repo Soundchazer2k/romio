@@ -3,13 +3,10 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { FileSearch, HelpCircle } from "lucide-react";
-import { useAppStore } from "@/stores";
+import { formatSessionOf, useAppStore, useFormatStore } from "@/stores";
 import { ipc } from "@/lib/ipc";
-import type {
-  FormatSystemGroup, FormatRule, StagedFix,
-  EmulatorMatrixEntry, FormatCheckResult,
-} from "@/types";
-import { emulatorForSystem, groupResultsBySystem } from "@/lib/utils";
+import { runFormatScan, stopFormatScan } from "@/lib/format-scan";
+import type { FormatRule, StagedFix, EmulatorMatrixEntry } from "@/types";
 import { FormatConfigBar }       from "./FormatConfigBar";
 import { FormatSystemRow }       from "./FormatSystemRow";
 import { FormatFixTray }         from "./FormatFixTray";
@@ -19,25 +16,18 @@ import { FormatReferenceDrawer } from "./FormatReferenceDrawer";
 export function FormatScreen() {
   const { activeProject } = useAppStore();
 
-  // Config state — pre-fill from active project if available
-  const [libraryPath, setLibraryPath] = useState(
-    activeProject?.libraryRoots[0] ?? ""
-  );
-  const [frontend, setFrontend] = useState(
-    activeProject?.targetFrontends[0] ?? "esde"
-  );
-  const [emulatorOverride, setEmulatorOverride] = useState("auto");
+  // Config, scan and staged fixes outlive this screen: they're per project, in the store
+  const session = useFormatStore((s) => s.sessions[activeProject?.id ?? ""]) ?? formatSessionOf(activeProject);
+  const updateSession = useFormatStore((s) => s.updateSession);
+  const {
+    libraryPath, frontend, emulatorOverride, isScanning, stopped, progress, scanError, scanned,
+    scannedWith, groups, partialSystems, limitedFolders, stagedFixes,
+  } = session;
 
-  // Scan state
-  const [isScanning,  setIsScanning]  = useState(false);
-  const [scanError,   setScanError]   = useState<string | null>(null);
-  const [scanned,     setScanned]     = useState(false);
-  const [scannedWith, setScannedWith] = useState({ path: "", frontend: "", emulator: "" });
-  const [groups,      setGroups]      = useState<FormatSystemGroup[]>([]);
+  // Not kept: coming back to an expanded row would render all its files at once
   const [expandedSys, setExpandedSys] = useState<string | null>(null);
 
   // Fix plan state
-  const [stagedFixes, setStagedFixes] = useState<StagedFix[]>([]);
   const [planOpen,    setPlanOpen]    = useState(false);
   const [drawerOpen,  setDrawerOpen]  = useState(false);
 
@@ -58,67 +48,9 @@ export function FormatScreen() {
   const bannerError = scanError
     ?? (rulesFailed || matrixFailed ? "Romio couldn't load its format rules, so it can't check this library. Restart Romio and try again." : null);
 
-  async function runScan() {
-    if (!libraryPath || !ready) return;
-    setIsScanning(true);
-    setScanError(null);
-    setGroups([]);
-    setScanned(false);
-    setStagedFixes([]);
-    setScannedWith({ path: libraryPath, frontend, emulator: emulatorOverride });
-
-    try {
-      const allResults: FormatCheckResult[] = [];
-
-      // System folders and their game files, listed by the backend (uses roms/ when present)
-      const folders = await ipc.listLibraryFolders(libraryPath);
-      const unreadable = folders.filter((f) => f.error).map((f) => f.name);
-
-      for (const folder of folders) {
-        const systemId = folder.system;
-
-        const emu = emulatorForSystem(systemId, emulatorOverride, emulatorMatrix);
-
-        for (const filePath of folder.files) {
-          const name = filePath.split(/[\\/]/).pop() ?? filePath;
-          try {
-            const result = await ipc.checkFormat(filePath, systemId, emu, frontend);
-            allResults.push(result);
-          } catch {
-            // Per-file error: push Unknown result
-            const ext = name.includes(".")
-              ? name.split(".").pop() ?? ""
-              : "";
-            allResults.push({
-              path:      filePath,
-              extension: ext,
-              system:    systemId,
-              emulator:  emu,
-              state:     "Unknown",
-              notes:     "Check failed — file may be unreadable",
-            });
-          }
-        }
-      }
-
-      setGroups(groupResultsBySystem(allResults));
-      setScanned(true);
-      if (unreadable.length > 0) {
-        setScanError(`Romio couldn't read these folders, so their games weren't checked: ${unreadable.join(", ")}.`);
-      }
-    } catch (err) {
-      setScanError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setIsScanning(false);
-    }
-  }
-
   function stageFix(fix: StagedFix) {
-    setStagedFixes((prev) =>
-      prev.some((f) => f.result.path === fix.result.path)
-        ? prev
-        : [...prev, fix]
-    );
+    if (stagedFixes.some((f) => f.result.path === fix.result.path)) return;
+    updateSession(activeProject, { stagedFixes: [...stagedFixes, fix] });
   }
 
   const hasResults = groups.length > 0;
@@ -169,15 +101,38 @@ export function FormatScreen() {
         emulatorMatrix={emulatorMatrix}
         isScanning={isScanning}
         ready={ready}
-        onPathChange={setLibraryPath}
-        onFrontendChange={setFrontend}
-        onEmulatorChange={setEmulatorOverride}
-        onScan={runScan}
+        onPathChange={(libraryPath) => updateSession(activeProject, { libraryPath })}
+        onFrontendChange={(frontend) => updateSession(activeProject, { frontend })}
+        onEmulatorChange={(emulatorOverride) => updateSession(activeProject, { emulatorOverride })}
+        onScan={() => { if (ready) void runFormatScan(activeProject, emulatorMatrix); }}
+        onStop={() => stopFormatScan(activeProject)}
       />
+
+      {/* Always mounted: screen readers announce changes inside a live region more reliably than a new one */}
+      <div aria-live="polite" aria-atomic="true" className="empty:absolute">
+        {isScanning && (
+          <p className="font-mono text-sm text-romio-gray">
+            {progress
+              ? `Checked ${progress.checked.toLocaleString()} of ${progress.total.toLocaleString()} ${progress.total === 1 ? "file" : "files"}`
+              : "Finding game files…"}
+          </p>
+        )}
+
+        {/* Not a failure, and nothing from the stopped run is shown */}
+        {stopped && (
+          <p
+            className="px-4 py-3 rounded-xl bg-background-surface border border-border
+                       text-sm text-romio-gray"
+          >
+            You stopped the scan, so there are no results. Romio may finish reading the current files in the background, but it ignores them. Scan again when you're ready.
+          </p>
+        )}
+      </div>
 
       {/* Scan error banner */}
       {bannerError && (
         <motion.div
+          role="alert"
           initial={{ opacity: 0, y: -4 }}
           animate={{ opacity: 1, y: 0 }}
           className="px-4 py-3 rounded-xl bg-romio-red/10 border border-romio-red/20
@@ -212,6 +167,17 @@ export function FormatScreen() {
         </p>
       )}
 
+      {/* A limit of the check, not a failure */}
+      {limitedFolders.length > 0 && (
+        <p
+          role="status"
+          className="px-4 py-3 rounded-xl bg-background-surface border border-border
+                     text-sm text-romio-gray"
+        >
+          Some files in subfolders of these systems weren't checked, because Romio can't judge their formats yet: {limitedFolders.join(", ")}.
+        </p>
+      )}
+
       {/* Results */}
       {hasResults && (
         <div className="space-y-2">
@@ -227,13 +193,14 @@ export function FormatScreen() {
               )}
               index={i}
               onStageFix={stageFix}
+              notFullyChecked={partialSystems.includes(group.system)}
             />
           ))}
         </div>
       )}
 
       {/* Empty state */}
-      {!hasResults && !isScanning && !bannerError && (
+      {!hasResults && !isScanning && !stopped && !bannerError && limitedFolders.length === 0 && (
         <div className="text-center py-16 text-romio-gray space-y-2">
           <FileSearch className="w-10 h-10 mx-auto opacity-30" />
           <p>{scanned
@@ -247,7 +214,7 @@ export function FormatScreen() {
         {stagedFixes.length > 0 && (
           <FormatFixTray
             fixes={stagedFixes}
-            onClear={() => setStagedFixes([])}
+            onClear={() => updateSession(activeProject, { stagedFixes: [] })}
             onReviewPlan={() => setPlanOpen(true)}
           />
         )}

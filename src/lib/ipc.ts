@@ -10,6 +10,7 @@ import type {
   SaveRoot, MigrationPlan, SaveCheckpoint, OperationLogEntry,
   FrontendInfo,
   FormatRule, FormatCheckResult, EmulatorMatrixEntry, SystemFolder,
+  MultiDiscSet, ScummVmReport, TitleCheck, ShortcutValidationResult,
 } from "@/types";
 
 // ── Project ───────────────────────────────────────────────────────────────────
@@ -42,8 +43,8 @@ export const ipc = {
                   invoke<void>("set_bios_root", { projectId, biosRoot }),
 
   // Format
-  checkFormat:       (path: string, system: string, emulator: string, frontend: string) =>
-                       invoke<FormatCheckResult>("check_format_compatibility", { path, system, emulator, frontend }),
+  checkFormatBatch:  (paths: string[], system: string, emulator: string, frontend: string) =>
+                       invoke<FormatCheckResult[]>("check_format_batch", { paths, system, emulator, frontend }),
   getFormatMatrix:   ()                                => invoke<FormatRule[]>("get_format_matrix"),
   listLibraryFolders: (root: string)                   => invoke<SystemFolder[]>("list_library_folders", { root }),
   getEmulatorMatrix: ()                                => invoke<EmulatorMatrixEntry[]>("get_emulator_matrix"),
@@ -56,18 +57,19 @@ export const ipc = {
   getCheckpoints:       (projectId: string)                                                        => invoke<SaveCheckpoint[]>("get_checkpoints", { projectId }),
 
   // Multi-disc
-  detectMultiDisc:  (root: string)                    => invoke("detect_multidisc_sets", { root }),
+  detectMultiDisc:  (root: string)                    => invoke<MultiDiscSet[]>("detect_multidisc_sets", { root }),
   generateM3u:      (set: unknown, outputDir: string, frontend: string) =>
                       invoke<string>("generate_m3u", { set, outputDir, frontend }),
 
   // ScummVM
-  detectScummvm:    (root: string)                    => invoke("detect_scummvm_games", { root }),
+  detectScummvm:    (root: string)                    => invoke<ScummVmReport>("detect_scummvm_games", { root }),
   generatePointers: (games: unknown[], frontend: string) =>
                       invoke<string[]>("generate_pointer_files", { games, frontend }),
 
   // Installed titles
-  validateInstalled:       (titles: unknown[])        => invoke("validate_installed_titles", { titles }),
-  validateShortcutContent: (command: string)          => invoke("validate_shortcut_content", { command }),
+  checkInstalledTitles:    (dir: string, emulator: string) =>
+                             invoke<TitleCheck[]>("check_installed_titles", { dir, emulator }),
+  validateShortcutContent: (command: string)          => invoke<ShortcutValidationResult>("validate_shortcut_content", { command }),
   generateShortcuts:       (titles: unknown[], frontend: string) =>
                              invoke<string[]>("generate_shortcuts", { titles, frontend }),
 

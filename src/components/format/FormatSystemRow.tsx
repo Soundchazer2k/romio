@@ -13,10 +13,12 @@ interface Props {
   onToggle:    () => void;
   index:       number;
   onStageFix:  (fix: StagedFix) => void;
+  /** Part of this system wasn't read or judged, so its rows can't add up to "All OK" */
+  notFullyChecked?: boolean;
 }
 
 export function FormatSystemRow({
-  group, rules, stagedFixes, expanded, onToggle, index, onStageFix
+  group, rules, stagedFixes, expanded, onToggle, index, onStageFix, notFullyChecked = false
 }: Props) {
   const issueCount = group.results.filter(
     (r) => r.state === "FormatIncompatible" || r.state === "FormatDeprecated"
@@ -26,7 +28,7 @@ export function FormatSystemRow({
   // Unknown means no rule covers the file: not checked, so never "All OK"
   const uncheckedCount = group.results.filter((r) => r.state === "Unknown").length;
   const conditionalCount = group.results.filter((r) => r.condition).length;
-  const allOk    = issueCount === 0 && uncheckedCount === 0 && conditionalCount === 0;
+  const allOk    = issueCount === 0 && uncheckedCount === 0 && conditionalCount === 0 && !notFullyChecked;
   const emulator = group.results[0]?.emulator;
   const noRules  = uncheckedCount === group.results.length
     && !rules.some((r) => r.system === group.system && r.emulator === emulator);
@@ -60,7 +62,7 @@ export function FormatSystemRow({
               {group.system}
             </span>
             <span className="ml-2 text-xs text-romio-gray">
-              {group.results.length} {group.results.length === 1 ? "file" : "files"}
+              {group.results.length.toLocaleString()} {group.results.length === 1 ? "file" : "files"}
             </span>
             {emulator && emulator !== "unknown" && (
               <span className="ml-2 font-mono text-xs text-romio-gray">{emulator}</span>
@@ -74,6 +76,7 @@ export function FormatSystemRow({
           uncheckedCount={uncheckedCount}
           noRules={noRules}
           hasRed={hasRed}
+          notFullyChecked={notFullyChecked}
         />
       </button>
 
@@ -105,14 +108,16 @@ export function FormatSystemRow({
   );
 }
 
-function SystemBadge({ issueCount, conditionalCount, uncheckedCount, noRules, hasRed }: {
-  issueCount: number; conditionalCount: number; uncheckedCount: number; noRules: boolean; hasRed: boolean;
+function SystemBadge({ issueCount, conditionalCount, uncheckedCount, noRules, hasRed, notFullyChecked }: {
+  issueCount: number; conditionalCount: number; uncheckedCount: number; noRules: boolean; hasRed: boolean; notFullyChecked: boolean;
 }) {
   if (noRules) {
     return <span className="text-xs font-medium text-romio-gray">No rules yet</span>;
   }
   if (issueCount === 0 && conditionalCount === 0 && uncheckedCount === 0) {
-    return <span className="text-xs font-medium text-romio-green">All OK</span>;
+    return notFullyChecked
+      ? <span className="text-xs font-medium text-romio-gray">Not fully checked</span>
+      : <span className="text-xs font-medium text-romio-green">All OK</span>;
   }
   return (
     <span className="flex gap-2 shrink-0 text-xs font-medium">
