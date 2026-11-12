@@ -282,8 +282,8 @@ export const ipc = {
     {
       name: "Fixture Quest (USA)", folder: `${root}/psx`, system: "ps1",
       discs: [
-        { path: `${root}/psx/Fixture Quest (USA) (Disc 1).chd`, disc: "1", missingTracks: [] },
-        { path: `${root}/psx/Fixture Quest (USA) (Disc 2).chd`, disc: "2", missingTracks: [] },
+        { path: `${root}/psx/Fixture Quest (USA) (Disc 1).chd`, disc: "1", missingTracks: [], problem: null },
+        { path: `${root}/psx/Fixture Quest (USA) (Disc 2).chd`, disc: "2", missingTracks: [], problem: null },
       ],
       m3uPath: null, m3uState: "missing", m3uProblems: [],
     },

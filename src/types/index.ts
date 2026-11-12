@@ -336,6 +336,8 @@ export interface DiscFile {
   path: string;
   disc: string;
   missingTracks: string[];
+  /** Why the sheet's track files couldn't be checked */
+  problem: string | null;
 }
 
 export type M3uState = "missing" | "complete" | "incomplete";

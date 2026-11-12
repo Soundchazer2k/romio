@@ -14,7 +14,7 @@ const M3U_LABEL: Record<M3uState, string> = {
 };
 
 function needsWork(set: MultiDiscSet) {
-  return set.m3uState !== "complete" || set.discs.some((d) => d.missingTracks.length > 0);
+  return set.m3uState !== "complete" || set.discs.some((d) => d.missingTracks.length > 0 || d.problem);
 }
 
 export function MultiDiscScreen() {
@@ -125,9 +125,10 @@ function SetRow({ set }: { set: MultiDiscSet }) {
               <p className="text-xs font-mono text-romio-gray" title={disc.path}>
                 Disc {disc.disc}: {truncatePath(disc.path)}
               </p>
+              {disc.problem && <p className="text-xs text-amber-400 mt-0.5">{disc.problem}</p>}
               {disc.missingTracks.length > 0 && (
                 <p className="text-xs text-romio-red mt-0.5">
-                  This sheet names {disc.missingTracks.length === 1 ? "a track file that isn't" : "track files that aren't"} beside it:{" "}
+                  This sheet needs {disc.missingTracks.length === 1 ? "a file that isn't" : "files that aren't"} there:{" "}
                   <span className="font-mono">{disc.missingTracks.join(", ")}</span>. The disc won't load until {disc.missingTracks.length === 1 ? "it is" : "they are"} back.
                 </p>
               )}

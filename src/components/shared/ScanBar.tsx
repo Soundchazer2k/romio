@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0
-import { useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { open } from "@tauri-apps/plugin-dialog";
 import { FolderOpen } from "lucide-react";
@@ -21,6 +21,8 @@ interface Props {
 export function ScanBar({ label, placeholder, path, running, onPathChange, onScan, onStop, children }: Props) {
   const id = useId();
   const scanButton = useRef<HTMLButtonElement>(null);
+  const stopButton = useRef<HTMLButtonElement>(null);
+  const pathField = useRef<HTMLInputElement>(null);
   const [browsing, setBrowsing] = useState(false);
 
   async function browse() {
@@ -33,11 +35,19 @@ export function ScanBar({ label, placeholder, path, running, onPathChange, onSca
     }
   }
 
-  // Stop is disabled once clicked, so hand focus to Scan rather than lose it
+  // Stop is disabled once a scan ends, so hand focus on rather than lose it:
+  // to Scan, or to the folder field when Scan is disabled too
+  function moveFocusOffStop() {
+    (scanButton.current?.disabled ? pathField : scanButton).current?.focus();
+  }
   function stop() {
     flushSync(onStop);
-    scanButton.current?.focus();
+    moveFocusOffStop();
   }
+  // A scan that ends by itself while Stop has focus
+  useEffect(() => {
+    if (!running && document.activeElement === stopButton.current) moveFocusOffStop();
+  }, [running]);
 
   return (
     <div className="flex gap-3 flex-wrap items-end">
@@ -45,6 +55,7 @@ export function ScanBar({ label, placeholder, path, running, onPathChange, onSca
         <label htmlFor={id} className="text-xs font-semibold text-romio-gray">{label}</label>
         <div className="flex gap-2">
           <input
+            ref={pathField}
             id={id}
             value={path}
             onChange={(e) => onPathChange(e.target.value)}
@@ -86,6 +97,7 @@ export function ScanBar({ label, placeholder, path, running, onPathChange, onSca
         }
       </button>
       <button
+        ref={stopButton}
         onClick={stop}
         disabled={!running}
         className="px-4 py-2 rounded-lg bg-background-surface border border-white/10

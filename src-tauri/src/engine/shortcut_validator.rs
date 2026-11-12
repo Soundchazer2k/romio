@@ -81,21 +81,28 @@ pub fn validate_launch_command(
     }
     if let Some((exe_path, quoted)) = executable {
         let resolved = resolve_env_vars(&exe_path, env);
-        if !Path::new(&resolved).exists() {
-            issues.push(ShortcutIssue {
-                issue_type: ShortcutIssueType::ExecutableNotFound,
-                description: format!("Executable not found: {}", resolved),
-                value: Some(resolved),
-                fix: Some("Verify the emulator is installed at the configured path.".to_string()),
-            });
-        }
-        // Check quoting
-        if exe_path.contains(' ') && !quoted {
-            issues.push(ShortcutIssue {
-                issue_type: ShortcutIssueType::UnquotedSpacePath,
-                description: format!("Executable path contains spaces but is not quoted: {}", exe_path),
-                value: Some(exe_path.clone()),
-                fix: Some(format!("Quote the path: \"{}\"", exe_path)),
+        // A folder of that name isn't an executable
+        if !Path::new(&resolved).is_file() {
+            // Unquoted, a path ends at its first space. If a file sits at a longer stretch of
+            // the command, the quotes are what's missing.
+            let whole = if quoted { None } else { unquoted_file_with_spaces(command, env) };
+            issues.push(match whole {
+                Some(path) => ShortcutIssue {
+                    issue_type: ShortcutIssueType::UnquotedSpacePath,
+                    description: format!("Executable path contains spaces but is not quoted: {path}"),
+                    fix: Some(format!("Quote the path: \"{path}\"")),
+                    value: Some(path),
+                },
+                None => ShortcutIssue {
+                    issue_type: ShortcutIssueType::ExecutableNotFound,
+                    description: format!("Executable not found: {resolved}"),
+                    value: Some(resolved),
+                    fix: Some(if quoted {
+                        "Verify the emulator is installed at the configured path.".to_string()
+                    } else {
+                        "Verify the emulator is installed at the configured path. If the path has spaces, put it in quotes.".to_string()
+                    }),
+                },
             });
         }
     }
@@ -155,12 +162,19 @@ fn extract_executable(command: &str) -> Option<(String, bool)> {
     if let Some(rest) = trimmed.strip_prefix('"') {
         return rest.find('"').map(|end| (rest[..end].to_string(), true));
     }
-    // Unquoted: up to the first .exe, so a path with spaces is seen whole; else the first word
-    let exe = match trimmed.to_ascii_lowercase().find(".exe") {
-        Some(end) => &trimmed[..end + 4],
-        None => trimmed.split_whitespace().next()?,
-    };
-    Some((exe.to_string(), false))
+    trimmed.split_whitespace().next().map(|word| (word.to_string(), false))
+}
+
+/// The shortest start of an unquoted command that has a space in it and is a file on disk.
+fn unquoted_file_with_spaces(command: &str, env: &HashMap<String, String>) -> Option<String> {
+    let trimmed = command.trim();
+    trimmed.match_indices(char::is_whitespace)
+        .map(|(end, _)| end)
+        .chain([trimmed.len()])
+        .skip(1) // up to the first space is the plain first word
+        .map(|end| &trimmed[..end])
+        .find(|path| Path::new(&resolve_env_vars(path, env)).is_file())
+        .map(String::from)
 }
 
 fn resolve_env_vars(s: &str, env: &HashMap<String, String>) -> String {
@@ -200,21 +214,33 @@ mod tests {
     #[test]
     fn quoting_is_judged_on_what_was_typed() {
         let env = HashMap::new();
-        let kinds = |command: &str| validate_launch_command(command, &env).into_iter()
+        let dir = tempfile::tempdir().unwrap();
+        let folder = dir.path().join("with space");
+        std::fs::create_dir(&folder).unwrap();
+        let exe = folder.join("emu.exe");
+        std::fs::write(&exe, b"").unwrap();
+        let exe = exe.to_string_lossy().to_string();
+        let kinds = |command: String| validate_launch_command(&command, &env).into_iter()
             .map(|i| (i.issue_type, i.value)).collect::<Vec<_>>();
 
-        // Quoted path with spaces: only "not found", never "not quoted"
-        let quoted = kinds(r#""C:\no where\emu.exe" --no-gui"#);
-        assert!(matches!(quoted.as_slice(), [(ShortcutIssueType::ExecutableNotFound, _)]));
+        // Quoted path with spaces: nothing wrong, even with an .exe among the arguments
+        assert!(kinds(format!("\"{exe}\" --no-gui other.exe")).is_empty());
 
-        // Unquoted path with spaces: flagged, and the whole path is named, not its first word
-        let unquoted = kinds(r"C:\no where\emu.exe --no-gui");
-        assert!(unquoted.iter().any(|(t, v)| matches!(t, ShortcutIssueType::UnquotedSpacePath)
-            && v.as_deref() == Some(r"C:\no where\emu.exe")));
+        // Unquoted: flagged, and the whole path is named, not its first word
+        let unquoted = kinds(format!("{exe} --no-gui"));
+        assert!(matches!(unquoted.as_slice(), [(ShortcutIssueType::UnquotedSpacePath, Some(v))] if *v == exe), "{unquoted:?}");
+
+        // A folder is not an executable, quoted or not
+        let folder = folder.to_string_lossy().to_string();
+        assert!(matches!(kinds(format!("\"{folder}\"")).as_slice(), [(ShortcutIssueType::ExecutableNotFound, _)]));
+
+        // Nothing on disk: "not found" on the first word, never a guess at quoting
+        let missing = kinds("nowhere --config other.exe".to_string());
+        assert!(matches!(missing.as_slice(), [(ShortcutIssueType::ExecutableNotFound, Some(v))] if v == "nowhere"), "{missing:?}");
 
         // A quote that never closes is a problem, not a pass
-        assert_eq!(kinds(r#""C:\no where\emu.exe --no-gui"#).len(), 1);
-        assert!(kinds("").is_empty());
+        assert_eq!(kinds(format!("\"{exe} --no-gui")).len(), 1);
+        assert!(kinds(String::new()).is_empty());
     }
 
     #[test]

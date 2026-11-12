@@ -9,6 +9,7 @@ use std::path::Path;
 use serde::{Deserialize, Serialize};
 
 use crate::engine::format_matrix::{is_non_game_folder, system_for_folder};
+use crate::engine::multidisc::read_small_text;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -18,7 +19,8 @@ pub struct ScummVmGame {
     /// The engine whose data files were recognised, or None when none were
     pub engine: Option<String>,
     pub pointer_path: Option<String>,
-    /// First line of the pointer file: the game ID the frontend passes to ScummVM. Empty means autodetect.
+    /// First line of the pointer file: the game ID the frontend passes to ScummVM. Empty means
+    /// the file's name is the ID. None beside a `pointer_path` means the file couldn't be read.
     pub pointer_id: Option<String>,
 }
 
@@ -34,8 +36,8 @@ pub struct ScummVmReport {
 ///
 /// Uses `roms/` when present, like the format check. `root` may also be the scummvm folder itself.
 ///
-/// shortcut: only pointer files inside a game's folder are matched; ones kept loose in the
-/// scummvm folder aren't tied to a game. Upgrade when a frontend that needs that layout is supported.
+/// shortcut: only pointer files inside a game's folder are matched, and only the first by name
+/// when a folder holds several; ones kept loose in the scummvm folder aren't tied to a game. Upgrade when a frontend that needs that layout is supported.
 pub fn detect_games(root: &Path) -> Result<ScummVmReport> {
     let roms = root.join("roms");
     let base = if roms.is_dir() { roms } else { root.to_path_buf() };
@@ -71,11 +73,8 @@ pub fn detect_games(root: &Path) -> Result<ScummVmReport> {
         let pointer = files.iter().find(|p| {
             p.extension().is_some_and(|e| e.eq_ignore_ascii_case("scummvm"))
         });
-        let pointer_id = pointer.map(|p| {
-            std::fs::read(p).ok()
-                .map(|b| String::from_utf8_lossy(&b).trim_start_matches('\u{feff}').lines().next().unwrap_or("").trim().to_string())
-                .unwrap_or_default()
-        });
+        let pointer_id = pointer.and_then(|p| read_small_text(p).ok())
+            .map(|text| text.lines().next().unwrap_or("").trim().to_string());
 
         games.push(ScummVmGame {
             name: dir.file_name().unwrap_or_default().to_string_lossy().to_string(),

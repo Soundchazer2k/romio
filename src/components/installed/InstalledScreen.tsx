@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { HardDrive, ChevronDown } from "lucide-react";
 import { ipc } from "@/lib/ipc";
 import { useTool } from "@/lib/tool-scan";
@@ -141,15 +141,19 @@ function LaunchCommandCheck() {
   const [checking, setChecking] = useState(false);
   const [result, setResult] = useState<ShortcutValidationResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // What the field holds now: an answer for an earlier command is dropped
+  const latest = useRef("");
 
   async function check() {
+    const asked = command;
     setChecking(true);
     setError(null);
     setResult(null);
     try {
-      setResult(await ipc.validateShortcutContent(command));
+      const answer = await ipc.validateShortcutContent(asked);
+      if (latest.current === asked) setResult(answer);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      if (latest.current === asked) setError(err instanceof Error ? err.message : String(err));
     } finally {
       setChecking(false);
     }
@@ -170,7 +174,7 @@ function LaunchCommandCheck() {
           <input
             id={id}
             value={command}
-            onChange={(e) => { setCommand(e.target.value); setResult(null); }}
+            onChange={(e) => { latest.current = e.target.value; setCommand(e.target.value); setResult(null); setError(null); }}
             onKeyDown={(e) => { if (e.key === "Enter" && command.trim() && !checking) check(); }}
             placeholder={'"/path/to/emulator" --no-gui "/path/to/game"'}
             className="w-full px-3 py-2 rounded-lg bg-background-surface border border-white/10

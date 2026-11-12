@@ -14,7 +14,8 @@ export function ScummVmScreen() {
   });
   const report = session.result;
   const games = report?.games ?? [];
-  const unpointed = games.filter((g) => !g.pointerPath).length;
+  // No pointer, or one Romio couldn't read
+  const open = games.filter((g) => g.pointerId === null).length;
 
   return (
     <div className="p-8 max-w-3xl mx-auto space-y-6">
@@ -25,7 +26,7 @@ export function ScummVmScreen() {
         <div>
           <h1 className="text-2xl font-bold text-romio-cream">
             {games.length > 0
-              ? `${games.length} ScummVM ${games.length === 1 ? "folder" : "folders"}, ${unpointed} without a pointer file`
+              ? `${games.length} ScummVM ${games.length === 1 ? "folder" : "folders"}, ${open} ${open === 1 ? "needs" : "need"} attention`
               : "ScummVM Workspace"}
           </h1>
           <p className="text-romio-gray text-sm mt-0.5">
@@ -80,8 +81,9 @@ export function ScummVmScreen() {
 }
 
 function GameRow({ game }: { game: ScummVmGame }) {
-  const emptyPointer = game.pointerPath && !game.pointerId;
-  const ok = !!game.pointerPath;
+  const emptyPointer = game.pointerPath && game.pointerId === "";
+  const unreadable = game.pointerPath && game.pointerId === null;
+  const ok = game.pointerId !== null;
   return (
     <div className={cn(
       "px-4 py-3 rounded-xl border space-y-1",
@@ -97,7 +99,7 @@ function GameRow({ game }: { game: ScummVmGame }) {
             "px-2 py-0.5 rounded-full text-xs bg-background-surface",
             ok ? "text-romio-green" : "text-amber-400"
           )}>
-            {game.pointerPath ? "Pointer file found" : "No pointer file"}
+            {!game.pointerPath ? "No pointer file" : unreadable ? "Pointer can't be read" : "Pointer file found"}
           </span>
         </span>
       </div>
@@ -105,6 +107,11 @@ function GameRow({ game }: { game: ScummVmGame }) {
       {game.pointerPath && (
         <p className="text-xs font-mono text-romio-gray" title={game.pointerPath}>
           {truncatePath(game.pointerPath)}{game.pointerId ? ` → ${game.pointerId}` : ""}
+        </p>
+      )}
+      {unreadable && (
+        <p className="text-xs text-amber-400">
+          Romio couldn't read this file, so it can't say which game ID it holds.
         </p>
       )}
       {emptyPointer && (

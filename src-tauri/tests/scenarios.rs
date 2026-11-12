@@ -1311,10 +1311,28 @@ fn multidisc_sets_are_found_with_the_state_of_their_playlist() {
     lib.game("roms/saturn/Eta (Disc 1).chd");
     lib.game("roms/saturn/Eta (Disc 2).chd");
     lib.file("roms/saturn/Eta.m3u", b"Wrong (Disc 1).chd\n");
+    // A complete playlist wins over an incomplete one that shares a disc
+    lib.game("roms/saturn/Theta (Disc 1).chd");
+    lib.game("roms/saturn/Theta (Disc 2).chd");
+    lib.file("roms/saturn/A partial.m3u", b"Theta (Disc 1).chd\n");
+    lib.file("roms/saturn/Theta.m3u", b"Theta (Disc 1).chd\nTheta (Disc 2).chd\n");
+    // A playlist that also lists a file from outside the set isn't complete
+    lib.game("roms/wii/Iota (Disc 1).chd");
+    lib.game("roms/wii/Iota (Disc 2).chd");
+    lib.game("roms/wii/Other.chd");
+    lib.file("roms/wii/Iota.m3u", b"Iota (Disc 1).chd\nIota (Disc 2).chd\nOther.chd\n");
+    // Sheets: one that names nothing, one whose track is in a subfolder, and a .ccd with no image.
+    // A folder with a track's name isn't the track.
+    lib.file("roms/wii/Kappa (Disc 1).cue", b"REM nothing here\n");
+    lib.file("roms/wii/Kappa (Disc 2).cue", sheet("tracks/K2.bin").as_bytes());
+    lib.game("roms/wii/tracks/k2.bin");
+    lib.game("roms/wii/Kappa (Disc 3).ccd");
+    lib.file("roms/wii/Kappa (Disc 4).cue", sheet("k4.bin").as_bytes());
+    lib.game("roms/wii/k4.bin/inside");
 
     let sets = detect_sets(lib.root()).unwrap();
     let names: Vec<&str> = sets.iter().map(|s| s.name.as_str()).collect();
-    assert_eq!(names, ["Alpha", "Zeta", "Beta", "Eta", "Gamma"], "{sets:#?}");
+    assert_eq!(names, ["Alpha", "Zeta", "Beta", "Eta", "Gamma", "Theta", "Iota", "Kappa"], "{sets:#?}");
 
     let alpha = &sets[0];
     assert_eq!((alpha.system.as_str(), alpha.m3u_state), ("ps1", M3uState::Missing));
@@ -1345,9 +1363,21 @@ fn multidisc_sets_are_found_with_the_state_of_their_playlist() {
         "Disc 3 isn't listed.",
     ]);
 
+    assert_eq!(sets[5].m3u_state, M3uState::Complete, "{:#?}", sets[5]);
+    assert!(sets[5].m3u_path.as_deref().unwrap().ends_with("Theta.m3u"));
+    assert_eq!(sets[6].m3u_problems, ["It also lists Other.chd, which isn't one of this set's discs."]);
+
+    let kappa: Vec<_> = sets[7].discs.iter().map(|d| (d.missing_tracks.clone(), d.problem.is_some())).collect();
+    assert_eq!(kappa, [
+        (vec![], true),
+        (vec![], false),
+        (vec!["kappa (disc 3).img".to_string()], false),
+        (vec!["k4.bin".to_string()], false),
+    ]);
+
     // Pointed straight at a system folder, the system is that folder's
     let saturn = detect_sets(&lib.path("roms/saturn")).unwrap();
-    assert!(saturn.len() == 2 && saturn.iter().all(|s| s.system == "saturn"), "{saturn:#?}");
+    assert!(saturn.len() == 3 && saturn.iter().all(|s| s.system == "saturn"), "{saturn:#?}");
 
     assert!(detect_sets(&lib.path("missing")).is_err(), "an unreadable root is an error, not an empty library");
 }
@@ -1363,6 +1393,8 @@ fn scummvm_games_are_recognised_by_content_and_matched_to_their_pointer() {
     lib.file("roms/scummvm/Third/third.scummvm", b"");
     lib.game("roms/scummvm/loose.scummvm");
     lib.game("roms/scummvm/media/cover.png"); // scraped media, not a game
+    // Too big to be a pointer: found, but not read
+    lib.file("roms/scummvm/Fourth/big.scummvm", &vec![b'a'; 1024 * 1024 + 1]);
 
     let report = detect_games(lib.root()).unwrap();
     assert!(report.folder.as_deref().unwrap().ends_with("scummvm"));
@@ -1371,12 +1403,16 @@ fn scummvm_games_are_recognised_by_content_and_matched_to_their_pointer() {
         .collect();
     assert_eq!(rows, [
         ("First",  Some("SCUMM"), Some("engine:first")),
+        ("Fourth", None,          None),
         ("Second", Some("SCI"),   None),
         ("Third",  None,          Some("")),
     ]);
 
+    assert!(report.games[1].pointer_path.is_some(), "an unreadable pointer is still a pointer");
+    assert!(report.games[2].pointer_path.is_none());
+
     // Pointed straight at the scummvm folder
-    assert_eq!(detect_games(&lib.path("roms/scummvm")).unwrap().games.len(), 3);
+    assert_eq!(detect_games(&lib.path("roms/scummvm")).unwrap().games.len(), 4);
 
     // A library with no scummvm folder isn't an error
     let other = Library::new();
@@ -1419,9 +1455,13 @@ fn installed_titles_are_checked_by_folder_name_and_required_files() {
 
     // Everything in Vita3K's app folder must boot, and IDs are accepted in any case
     lib.game("vita/pcse00120/sce_sys/param.sfo");
+    // A folder named like the boot file isn't the boot file
+    lib.game("vita/pcse00121/sce_sys/param.sfo");
+    lib.game("vita/pcse00121/eboot.bin/inside");
     let titles = check_titles(&lib.path("vita"), "vita3k").unwrap();
     assert_eq!((titles[0].title_id.as_deref(), titles[0].kind), (Some("pcse00120"), TitleKind::Game));
     assert_eq!(titles[0].issues, ["eboot.bin is missing, so Vita3K can't start this title. Reinstall it through Vita3K."]);
+    assert_eq!(titles[1].issues.len(), 1, "{titles:#?}");
 
     lib.game("wiiu/Some Title/code/app.rpx");
     lib.game("wiiu/Some Title/meta/meta.xml");

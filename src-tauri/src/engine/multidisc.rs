@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use walkdir::WalkDir;
 
 use crate::engine::format_matrix::{cue_files, gdi_files, system_for_folder};
+use crate::engine::installed_titles::find;
 
 /// One disc image per disc, best first: a sheet stands for its track files.
 const DISC_EXTENSIONS: &[&str] = &["cue", "gdi", "ccd", "chd", "rvz", "iso", "pbp", "cso", "bin", "img"];
@@ -20,8 +21,21 @@ pub struct DiscFile {
     pub path: String,
     /// "1", "2", or a letter such as "A"
     pub disc: String,
-    /// Track files a .cue or .gdi names that aren't beside it
+    /// Track files a .cue or .gdi names, or a .ccd's image, that aren't where the sheet says
     pub missing_tracks: Vec<String>,
+    /// Why the sheet's track files couldn't be checked at all
+    pub problem: Option<String>,
+}
+
+/// Sheets, playlists and pointers are small text files. Anything bigger isn't one, and isn't read into memory.
+const MAX_TEXT_BYTES: u64 = 1024 * 1024;
+
+pub(crate) fn read_small_text(path: &Path) -> std::io::Result<String> {
+    if std::fs::metadata(path)?.len() > MAX_TEXT_BYTES {
+        return Err(std::io::Error::other("too large to be a text file"));
+    }
+    let bytes = std::fs::read(path)?;
+    Ok(String::from_utf8_lossy(&bytes).trim_start_matches('\u{feff}').to_string())
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
@@ -74,7 +88,8 @@ pub fn detect_sets(root: &Path) -> Result<Vec<MultiDiscSet>> {
         let Some(rank) = DISC_EXTENSIONS.iter().position(|e| *e == ext) else { continue };
         let stem = path.file_stem().unwrap_or_default().to_string_lossy();
         // "Game (Disc 1) (Track 2).bin" is one track of a disc, not a disc
-        if stem.to_lowercase().contains("(track ") { continue; }
+        let lower = stem.to_lowercase();
+        if lower.contains("(track ") || lower.contains("[track ") { continue; }
         let Some((name, disc)) = split_disc_tag(&stem) else { continue };
         groups.entry((dir.to_path_buf(), name.to_lowercase()))
             .or_insert_with(|| (name, Vec::new()))
@@ -89,19 +104,19 @@ pub fn detect_sets(root: &Path) -> Result<Vec<MultiDiscSet>> {
         discs.dedup_by(|a, b| a.0 == b.0);
         if discs.len() < 2 { continue; }
 
-        let discs: Vec<DiscFile> = discs.into_iter().map(|(disc, _, path)| DiscFile {
-            missing_tracks: missing_tracks(&path),
-            path: path.to_string_lossy().to_string(),
-            disc,
+        let discs: Vec<DiscFile> = discs.into_iter().map(|(disc, _, path)| {
+            let (missing_tracks, problem) = check_sheet(&path);
+            DiscFile { path: path.to_string_lossy().to_string(), disc, missing_tracks, problem }
         }).collect();
 
         // A playlist beside the discs, or one folder up (discs kept in a subfolder)
         let candidates = playlists.get(&dir).into_iter()
             .chain(dir.parent().and_then(|p| playlists.get(p)))
             .flatten();
+        // A complete playlist wins over an incomplete one that shares a disc
         let (m3u_path, m3u_state, m3u_problems) = candidates
             .filter_map(|m3u| check_m3u(m3u, &name, &discs))
-            .next()
+            .min_by_key(|(_, state, _)| *state != M3uState::Complete)
             .unwrap_or((None, M3uState::Missing, vec![]));
 
         // Discs directly in the root mean the root is itself a system folder
@@ -160,31 +175,48 @@ fn disc_order(disc: &str) -> (u8, u32, String) {
     }
 }
 
-/// Track files a sheet names that aren't in its folder. A sheet that can't be read names none.
-fn missing_tracks(sheet: &Path) -> Vec<String> {
+/// The files a disc sheet needs that aren't there, or why they couldn't be checked.
+/// A name is followed from the sheet's folder, without regard to case, and must be a file.
+fn check_sheet(sheet: &Path) -> (Vec<String>, Option<String>) {
     let ext = sheet.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
-    if ext != "cue" && ext != "gdi" { return vec![]; }
-    let Ok(bytes) = std::fs::read(sheet) else { return vec![] };
-    let text = String::from_utf8_lossy(&bytes);
-    let text = text.trim_start_matches('\u{feff}');
-    let named = if ext == "cue" { cue_files(text) } else { gdi_files(text) };
-
-    let present: HashSet<String> = sheet.parent()
-        .and_then(|dir| std::fs::read_dir(dir).ok())
-        .into_iter().flatten().flatten()
-        .map(|e| e.file_name().to_string_lossy().to_lowercase())
-        .collect();
-    let mut missing: Vec<String> = named.into_iter().filter(|n| !present.contains(n)).collect();
+    let Some(dir) = sheet.parent() else { return (vec![], None) };
+    let named = match ext.as_str() {
+        // A .ccd names no files: its image is the .img of the same name
+        "ccd" => vec![format!("{}.img", sheet.file_stem().unwrap_or_default().to_string_lossy().to_lowercase())],
+        "cue" | "gdi" => {
+            let Ok(text) = read_small_text(sheet) else {
+                return (vec![], Some("Romio couldn't read this sheet, so its track files aren't checked.".into()));
+            };
+            let named = if ext == "cue" { cue_files(&text) } else { gdi_files(&text) };
+            if named.is_empty() {
+                return (vec![], Some("Romio found no track files named in this sheet, so there was nothing to check.".into()));
+            }
+            named
+        }
+        _ => return (vec![], None),
+    };
+    let mut missing: Vec<String> = named.into_iter().filter(|name| {
+        let parts: Vec<&str> = name.split(['/', '\\']).filter(|p| !p.is_empty() && *p != ".").collect();
+        !find(dir, &parts).is_some_and(|p| p.is_file())
+    }).collect();
     missing.sort();
     missing.dedup();
-    missing
+    (missing, None)
 }
 
 /// How a playlist covers a set, or None when it isn't this set's: it lists none of the
 /// set's discs and isn't named after the set.
 fn check_m3u(m3u: &Path, name: &str, discs: &[DiscFile]) -> Option<(Option<String>, M3uState, Vec<String>)> {
-    let bytes = std::fs::read(m3u).ok()?;
-    let text = String::from_utf8_lossy(&bytes);
+    let named_after_set = m3u.file_stem().is_some_and(|s| s.to_string_lossy().eq_ignore_ascii_case(name));
+    let text = match read_small_text(m3u) {
+        Ok(text) => text,
+        Err(_) if named_after_set => return Some((
+            Some(m3u.to_string_lossy().to_string()),
+            M3uState::Incomplete,
+            vec!["Romio couldn't read this playlist.".into()],
+        )),
+        Err(_) => return None,
+    };
     let dir = m3u.parent()?;
 
     let same = |a: &Path, b: &Path| match (dunce::canonicalize(a), dunce::canonicalize(b)) {
@@ -194,18 +226,25 @@ fn check_m3u(m3u: &Path, name: &str, discs: &[DiscFile]) -> Option<(Option<Strin
 
     let mut listed = HashSet::new();
     let mut problems = Vec::new();
-    for line in text.trim_start_matches('\u{feff}').lines() {
+    for line in text.lines() {
         let line = line.trim();
         if line.is_empty() || line.starts_with('#') { continue; }
         // Playlists written on Windows use backslashes; the frontends on other systems don't accept them
         let target = dir.join(line.replace('\\', std::path::MAIN_SEPARATOR_STR));
-        match discs.iter().position(|d| same(&target, Path::new(&d.path))) {
+        let index = discs.iter().position(|d| same(&target, Path::new(&d.path)))
+            // The same disc in another format (a .chd kept beside its .cue) still covers that disc
+            .or_else(|| {
+                let stem = target.file_stem()?.to_string_lossy().to_string();
+                let (set, disc) = split_disc_tag(&stem)?;
+                if !target.is_file() || !set.eq_ignore_ascii_case(name) { return None; }
+                discs.iter().position(|d| d.disc == disc)
+            });
+        match index {
             Some(i) => { listed.insert(i); }
             None if !target.exists() => problems.push(format!("It lists {line}, which doesn't exist.")),
-            None => {}
+            None => problems.push(format!("It also lists {line}, which isn't one of this set's discs.")),
         }
     }
-    let named_after_set = m3u.file_stem().is_some_and(|s| s.to_string_lossy().eq_ignore_ascii_case(name));
     if listed.is_empty() && !named_after_set { return None; }
 
     for (i, disc) in discs.iter().enumerate() {

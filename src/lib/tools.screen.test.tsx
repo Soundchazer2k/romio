@@ -26,16 +26,16 @@ const SETS: MultiDiscSet[] = [
   {
     name: "Alpha", folder: "/lib/psx", system: "ps1",
     discs: [
-      { path: "/lib/psx/Alpha (Disc 1).cue", disc: "1", missingTracks: [] },
-      { path: "/lib/psx/Alpha (Disc 2).cue", disc: "2", missingTracks: ["alpha (disc 2).bin"] },
+      { path: "/lib/psx/Alpha (Disc 1).cue", disc: "1", missingTracks: [], problem: null },
+      { path: "/lib/psx/Alpha (Disc 2).cue", disc: "2", missingTracks: ["alpha (disc 2).bin"], problem: null },
     ],
     m3uPath: null, m3uState: "missing", m3uProblems: [],
   },
   {
     name: "Beta", folder: "/lib/saturn", system: "saturn",
     discs: [
-      { path: "/lib/saturn/Beta (Disc 1).chd", disc: "1", missingTracks: [] },
-      { path: "/lib/saturn/Beta (Disc 2).chd", disc: "2", missingTracks: [] },
+      { path: "/lib/saturn/Beta (Disc 1).chd", disc: "1", missingTracks: [], problem: null },
+      { path: "/lib/saturn/Beta (Disc 2).chd", disc: "2", missingTracks: [], problem: null },
     ],
     m3uPath: "/lib/saturn/Beta.m3u", m3uState: "complete", m3uProblems: [],
   },
@@ -139,6 +139,15 @@ describe("MultiDiscScreen", () => {
     expect(document.querySelector("[aria-live]")).toBe(region);
   });
 
+  it("Stop hands focus to the folder field when Scan is disabled too", () => {
+    mocks.detectMultiDisc.mockImplementationOnce(() => new Promise(() => {}));
+    render(<MultiDiscScreen />);
+    fireEvent.click(scanButton());
+    fireEvent.change(screen.getByLabelText("Library root"), { target: { value: "" } });
+    fireEvent.click(stopButton());
+    expect(document.activeElement).toBe(screen.getByLabelText("Library root"));
+  });
+
   it("shows a failed scan as an error, and marks results out of date when the root changes", async () => {
     mocks.detectMultiDisc.mockRejectedValueOnce(new Error("Couldn't read /lib: denied"));
     render(<MultiDiscScreen />);
@@ -163,18 +172,21 @@ describe("ScummVmScreen", () => {
         { path: "/lib/scummvm/one", name: "one", engine: "SCUMM", pointerPath: "/lib/scummvm/one/one.scummvm", pointerId: "scumm:one" },
         { path: "/lib/scummvm/two", name: "two", engine: "SCI", pointerPath: null, pointerId: null },
         { path: "/lib/scummvm/three", name: "three", engine: null, pointerPath: "/lib/scummvm/three/three.scummvm", pointerId: "" },
+        { path: "/lib/scummvm/four", name: "four", engine: null, pointerPath: "/lib/scummvm/four/four.scummvm", pointerId: null },
       ],
     };
     mocks.detectScummvm.mockResolvedValue(report);
     render(<ScummVmScreen />);
     fireEvent.click(scanButton());
 
-    await screen.findByText("3 ScummVM folders, 1 without a pointer file");
+    await screen.findByText("4 ScummVM folders, 2 need attention");
     expect(screen.getByText("No pointer file")).toBeTruthy();
+    // A pointer Romio couldn't read isn't reported as an empty one
+    expect(screen.getByText("Pointer can't be read")).toBeTruthy();
     // An empty pointer is valid (the file's name is the ID), so it isn't counted or flagged
     expect(screen.getAllByText("Pointer file found")).toHaveLength(2);
     expect(screen.getByText(/the game ID is the file's name/)).toBeTruthy();
-    expect(screen.getByText("Files not recognised")).toBeTruthy();
+    expect(screen.getAllByText("Files not recognised")).toHaveLength(2);
     expect(screen.getByText(/doesn't write pointer files/)).toBeTruthy();
   });
 
@@ -232,5 +244,14 @@ describe("InstalledScreen", () => {
     await waitFor(() => expect(screen.queryByText("Regenerate the shortcut.")).toBeNull());
     fireEvent.click(check);
     await screen.findByText(/Nothing wrong found/);
+
+    // An answer that arrives after the command was edited isn't shown under the new text
+    let answer!: (r: ShortcutValidationResult) => void;
+    mocks.validateShortcutContent.mockImplementationOnce(() => new Promise((resolve) => { answer = resolve; }));
+    fireEvent.click(check);
+    fireEvent.change(screen.getByLabelText("Launch command"), { target: { value: "emu other" } });
+    answer(bad);
+    await waitFor(() => expect(check.disabled).toBe(false));
+    expect(screen.queryByText("Regenerate the shortcut.")).toBeNull();
   });
 });

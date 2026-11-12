@@ -79,12 +79,13 @@ fn check_title(path: &Path, emulator: &str) -> TitleCheck {
         _        => (&["eboot.bin"], &[&["sce_sys", "param.sfo"]]),
     };
     let bootable = match emulator {
-        "cemu" => find(path, boot).is_some_and(|code| has_extension(&code, "rpx")),
-        _      => find(path, boot).is_some(),
+        "cemu" => find(path, boot).is_some_and(|code| code.is_dir() && has_extension(&code, "rpx")),
+        _      => find(path, boot).is_some_and(|file| file.is_file()),
     };
     let shown = display_name(emulator);
     for rel in required {
-        if find(path, rel).is_none() {
+        // A folder with the file's name isn't the file
+        if !find(path, rel).is_some_and(|file| file.is_file()) {
             issues.push(format!("{} is missing, so {shown} can't identify this title. Reinstall it through {shown}.", rel.join("/")));
         }
     }
@@ -107,7 +108,7 @@ fn check_title(path: &Path, emulator: &str) -> TitleCheck {
 
 /// Follow `rel` below `dir`, matching each part without regard to case, as these
 /// emulators' own files differ in case between dumps.
-fn find(dir: &Path, rel: &[&str]) -> Option<PathBuf> {
+pub(crate) fn find(dir: &Path, rel: &[&str]) -> Option<PathBuf> {
     let mut current = dir.to_path_buf();
     for part in rel {
         current = std::fs::read_dir(&current).ok()?
@@ -120,5 +121,5 @@ fn find(dir: &Path, rel: &[&str]) -> Option<PathBuf> {
 
 fn has_extension(dir: &Path, ext: &str) -> bool {
     std::fs::read_dir(dir).into_iter().flatten().flatten()
-        .any(|e| e.path().extension().is_some_and(|x| x.eq_ignore_ascii_case(ext)))
+        .any(|e| e.path().is_file() && e.path().extension().is_some_and(|x| x.eq_ignore_ascii_case(ext)))
 }
