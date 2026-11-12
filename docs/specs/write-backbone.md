@@ -1,6 +1,6 @@
 # Write Backbone — Design Spec
 
-**Status:** Draft, revised after four Codex reviews (`a450cdb`, `eae265b`, `8c3927b`, `5aff901`). No code yet.
+**Status:** Draft, revised after five Codex reviews (`a450cdb`, `eae265b`, `8c3927b`, `5aff901`, `5cb47c1`). No code yet.
 **Scope:** The one path every write to a user's library goes through, plus the first feature
 on it (M3U playlists). Version 1 only creates new files. It has no rollback; see "Why
 version 1 has no rollback".
@@ -37,7 +37,7 @@ have been switched off everywhere anyway.
 
 So version 1 drops it, and with it every rule that existed to make deletion safe:
 
-- Romio never removes, changes or moves a file that is in the library.
+- Romio never removes, changes or moves a file. Not even one of its own.
 - A plan that stops halfway is not undone. What was written stays, and is listed.
 - After a crash Romio reports what it finds. It repairs nothing.
 
@@ -52,14 +52,13 @@ dropped.
 
 1. A write happens only by applying a **change plan**, once. The frontend shows the plan
    and asks for confirmation; the backend enforces the rest.
-2. Romio never overwrites a file, and never removes, changes or moves a file in the
-   library. The one thing it may remove is its own temporary file, while it still holds
-   the handle it created that file with.
+2. Romio never overwrites, removes, renames or moves a file. It creates new files, and
+   writes to a file only through the handle that created it.
 3. Every path a plan touches is checked to be inside the project's library roots, when the
    plan is applied and again before each operation. The check is by path, with the limit
    stated above.
 4. Each operation is checked against the disk again immediately before it runs, and
-   publishes its file with a primitive that refuses to replace an existing one.
+   creates its file with a call that fails if anything is already at that name.
 5. What Romio is about to do is durably in the journal before it does it.
 6. A plan that fails halfway stops. Nothing already written is undone, and the history
    says exactly what was and wasn't written.
@@ -148,7 +147,7 @@ Applying a plan and settling the journal both take one lock, and nothing else wr
   not supported for writing until it is tested.
 
 Scans don't take the lock and don't wait for it. A scan that runs during a write can see a
-temporary file or half a plan applied. That is accepted: a scan's report never authorises a
+file that is still being written or half a plan applied. That is accepted: a scan's report never authorises a
 write, because every planner reads the disk itself and every apply builds its plan again.
 
 ## Flow
@@ -167,8 +166,9 @@ apply_plan(plan_id, project_id)    -> ApplyResult
   5. journal:  insert the row, status "applying", every op "pending". Commit. If this
                fails, stop: nothing has been written.
   6. per op:   the steps under "One operation, step by step"
-  7. on the first op that fails: stop. Ops not yet started become "skipped".
-  8. save the row's final status with the last op state, in one transaction; release the lock
+  7. on the first op that doesn't end "done": stop. Ops not yet started become "skipped".
+  8. the last op's state, the skipped ops and the row's status are saved in one
+     transaction; release the lock
 ```
 
 `apply_plan` runs in `spawn_blocking`.
@@ -184,7 +184,7 @@ protects against".
 ## Confinement
 
 Checked for the whole plan before the journal row, and again for each operation right
-before it runs. The same check covers `requires` paths and temporary files.
+before it runs. The same check covers `requires` paths.
 
 - **The root first.** Each configured root is inspected as written, before anything
   resolves it: it must be an existing folder and not itself a symlink, junction or other
@@ -215,45 +215,41 @@ before the next step starts.
 | Step | What happens | Recorded state |
 |---|---|---|
 | 1 | Confine and recheck: nothing exists at `path`, the parent folder exists, every `requires` path is a regular file | |
-| 2 | Choose the temporary name: `.romio-<uuid>.tmp` in the same folder | `started`, with the name |
-| 3 | Create the temporary file with create-new (fails if anything is there), write the contents in full, sync the file. Keep the handle open. | |
-| 4 | Recheck step 1. Check that the temporary path still names the file the open handle refers to: same volume and file id, read from the handle and from the path. | |
-| 5 | Publish: move the temporary file to `path` with a no-replace rename, then sync the folder where the platform can. Close the handle. | |
-| 6 | | `done` |
+| 2 | | `started` |
+| 3 | Create the file at `path` with create-new, which fails if anything is already there. Keep the handle. | |
+| 4 | Write the contents in full through that handle and sync the file. Sync the folder where the platform can. Close the handle. | |
+| 5 | | `done` |
 
-The check in step 4 is a live one, like confinement: it compares two things that are open
-at the same moment, so it needs nothing from the filesystem that has to last. If the two
-can't be compared on this drive, the operation is refused before anything is published.
+**There is no temporary file and no rename.** Earlier drafts wrote a temporary file and
+moved it into place. Every step after creating it (checking it, renaming it, removing it)
+acted on a name, and a name can be pointed at a different file between a check and the
+call. Create-new at the final name is one call that both refuses to replace anything and
+hands back a handle to the file it made. Everything after that goes through the handle, so
+nothing Romio does can land on a file it didn't create.
 
-**When a step fails.** A failed sync of the temporary file counts as a failed step. So does a journal commit that
-fails or can't be confirmed: Romio reads the row back, and what the database holds is the state.
+What this gives up:
 
-| Where | What Romio does | Recorded state |
+- A program that reads the playlist in the instant between steps 3 and 4 sees it empty or
+  short. A playlist is a few hundred bytes written in one call, and the next read is right.
+- If the write fails or the app stops between steps 3 and 4, an empty or short file is
+  left at `path`. Romio doesn't remove it, because removing is by name. It is reported.
+
+**When a step fails.** A journal commit that fails, or can't be confirmed, counts as a
+failure of its step: Romio reads the row back, and what the database holds is the state. If
+it can't read the row back either, see the last line.
+
+| Where | What is at `path` | Recorded state |
 |---|---|---|
-| Step 1 | nothing | `failed`, with the reason |
-| Step 3, create-new fails | nothing. Something else is at that name; Romio didn't create it and doesn't touch it. | `failed` |
-| Steps 3 to 5, before the rename succeeded | removes its temporary file (below) | `failed`; the note names the temporary file if it had to be left |
-| Step 5, the rename succeeded but the folder sync failed | nothing. The file is at `path`. | `done`, with the note "couldn't confirm it is saved to disk" |
-| Step 6, the commit fails | stops the plan. The row stays `applying` and is settled at the next start. | whatever the database holds |
+| Step 1 | whatever was there | `failed`, with the reason |
+| Step 2, the commit fails or can't be confirmed | whatever was there. Romio stops before step 3 and creates nothing. | `failed` if that can be saved; otherwise the last line |
+| Step 3, create-new reports that a file is there | that file. Romio leaves it alone. | `failed`: "a file is already there" |
+| Step 3, any other error | unknown. On a network share an error can come back for a create that happened. | `unknown`, with the error |
+| Step 4, the write or the file sync fails | a file Romio created, empty or short. Romio empties it through the handle if it can, and leaves it. | `partial`, naming the file to delete |
+| Step 4, only the folder sync fails | the complete file | `done`, with the note "couldn't confirm it is saved to disk" |
+| Step 5, the commit fails or can't be confirmed | the complete file | whatever the database holds |
+| Any state can't be saved, and the row can't be read back | as above | none. `apply_plan` returns "Romio couldn't save its record of this write", with the database error and the paths it had touched. The row stays `applying` and is settled at the next start. |
 
-**Removing the temporary file.** This is the only removal Romio ever does, and only in the
-process that created the file, while the creating handle is still open:
-
-- Windows: the file is deleted through that handle.
-- Elsewhere a file can only be unlinked by name, so Romio first checks that the name still
-  refers to the open handle's file (the step 4 check), then unlinks it. The moment between
-  the two is the same path window as everywhere else.
-- If the check fails or the removal fails, the file is left and the entry names it.
-
-After a restart there is no open handle, so nothing is removed, whatever its name.
-
-**No-replace rename.** `std::fs::rename` replaces an existing file on every platform, so it
-isn't used. Windows: `MoveFileExW` without `MOVEFILE_REPLACE_EXISTING`. Linux:
-`renameat2` with `RENAME_NOREPLACE`. macOS: `renamex_np` with `RENAME_EXCL`. Where the
-filesystem doesn't support the call, the operation is refused with "this drive can't do a
-safe rename". There is no check-then-rename fallback: that is the race this rule exists to close.
-
-The temporary file is in the destination folder, so the rename never crosses volumes.
+Whatever the outcome, the plan stops at the first op that doesn't end `done` (flow, step 7).
 
 ## The journal
 
@@ -265,7 +261,7 @@ Migration `005_operation_journal.sql` adds to `operation_log`:
 ```json
 { "version": 1,
   "plan": { ... the ChangePlan ... },
-  "ops": [ { "state": "...", "temp_path": "...", "note": "why it failed, or what was found" } ] }
+  "ops": [ { "state": "...", "note": "why it ended this way, or what was found" } ] }
 ```
 
 **Op states**
@@ -273,28 +269,33 @@ Migration `005_operation_journal.sql` adds to `operation_log`:
 | State | Means | Set by |
 |---|---|---|
 | `pending` | not started | the journal row |
-| `started` | the temporary name is chosen; from here until `done` a file may exist at the temporary name or at `path` | step 2 |
-| `done` | the file was published at `path` | step 6, or a failed folder sync |
-| `failed` | Romio knows it published nothing at `path` | a failed step |
-| `skipped` | never started, because an earlier op failed or the app stopped | step 7, or settling |
-| `unknown` | the app stopped mid-operation; Romio doesn't know whether the file was published | settling |
+| `started` | Romio is about to create the file, or is writing it | step 2 |
+| `done` | Romio created the file and wrote all of it | step 5, or a failed folder sync |
+| `failed` | Romio wrote nothing. Either the checks stopped it, or the create call said a file was already there. | steps 1 to 3 |
+| `partial` | Romio created the file but couldn't write all of it. An empty or short file is at `path`. | step 4 |
+| `skipped` | never started, because an earlier op didn't finish or the app stopped | step 7, or settling |
+| `unknown` | Romio can't say whether it created the file: the create call gave an unclear error, or the app stopped mid-operation | step 3, or settling |
 
-Every state except `pending` and `started` is final. Nothing moves an op out of a final state.
+Every state except `pending` and `started` is final. Nothing moves an op out of a final
+state. No state says what is on the disk now; the History screen looks.
 
 **The row's status, one rule.** `applied` when every op is `done`; `incomplete` otherwise.
-It is computed from the op states alone and saved in the same transaction as the last op
-state it depends on. No status depends on what the row was doing before.
+It is computed from the op states alone.
+
+**Final states are saved together.** When a plan ends, for any reason, one transaction
+writes the last op's final state, `skipped` for every op not started, and the row's
+status. There is no moment at which the journal holds a finished op beside a row still
+marked `applying` with nothing left to do, other than between `done` ops of a plan that is
+still running.
 
 **Durability.** The database connection sets `journal_mode = WAL` and `synchronous = FULL`
 explicitly; today it sets neither. Each state change is its own committed transaction. The
-row exists before the first file is touched, and an op is `started` before its temporary
-file exists.
+row exists before the first file is touched, and an op is `started` before its file exists.
 
 The journal says what Romio did, not what is on the disk now. Changes to a folder can't be
 made durable everywhere (Romio has no dependable way to sync a folder on Windows), so
 after a power loss a `done` file can be missing. And a user can delete a playlist at any
-time. The history screen therefore looks at the disk each time it is shown, and says for
-each file whether it is there now. Nothing in the journal is changed by that look.
+time.
 
 - A record whose `version` this build doesn't know is shown read-only.
 - Entries without a record (existing checkpoints) are shown as they are today.
@@ -307,14 +308,13 @@ every op's final state and the row's status together:
 | Op state | Becomes |
 |---|---|
 | `pending` | `skipped` |
-| `started` | `unknown`. The note records what is at `path` and at the temporary name right now: a file, nothing, or "couldn't look", with the error. |
-| `done`, `failed`, `skipped` | unchanged |
+| `started` | `unknown`. The note records what is at `path` right now: nothing; a file with exactly the planned contents; a file with other contents, and its size; or "couldn't look", with the error. |
+| any final state | unchanged |
 
 - **When.** At start, under the writer lock. And again by whoever takes the writer lock,
   before it writes, subject to the gate.
-- **It touches no file.** It doesn't remove a leftover temporary file, and it doesn't
-  claim a file at `path` as Romio's. The note says what is there, and the entry names both
-  paths, so the user can look and delete what they don't want.
+- **It touches no file.** It reads `path` to write the note, and that is all. A file with
+  the planned contents is not claimed as Romio's: something else could have written it.
 - **Run twice.** The transaction either commits or it doesn't. If the app stops before the
   commit, the row is still `applying` and is settled again from the start; the only thing
   that can differ is the note, which describes the disk at the time.
@@ -328,10 +328,21 @@ every op's final state and the row's status together:
   removed. Above the confirm button it says: "Romio can't undo this. To undo it, delete the
   files listed here."
 - **History** is a sidebar screen, in place of the planned Rollback History: the project's
-  operation log, newest first. Each entry has its summary, time and status, and for each
-  file its state, whether it is there now, and a "Show in folder" button. Incomplete entries
-  are marked, with each `failed` and `unknown` note and any leftover temporary file named.
-  It has no Roll back button. The `rollback` screen id is renamed `history`.
+  operation log, newest first, with no Roll back button. The `rollback` screen id is renamed
+  `history`. Each entry has its summary, time and status. For each file it shows two things
+  side by side and never merges them:
+  - what Romio recorded: the op's state and its note, for every state including `done`
+    (so "couldn't confirm it is saved to disk" is visible);
+  - what is there now, read each time the screen is shown: there, not there, or "couldn't
+    check", with the error. Nothing in the journal is changed by that look.
+
+  Each file has a "Show in folder" button. Entries that aren't `applied` are marked, and
+  say which files to look at or delete.
+- **When writing is blocked by the gate**, the message carries the actual error and the
+  path of Romio's database, so the user can keep a copy and get help.
+- **Deleting a project**, when it is built, erases that project's history with it
+  (`operation_log` rows cascade). Its confirmation must list every entry that isn't
+  `applied`, with its paths, since that is the only record of an uncertain write.
 
 ## First feature: M3U playlists
 
@@ -355,26 +366,28 @@ every op's final state and the row's status together:
   problems. If it isn't, the set can't be selected. This keeps the writer and the reader
   from disagreeing about what a line means.
 - The planner checks collisions across the whole plan, not per set. Its check is for the
-  preview. What actually prevents a collision is the no-replace rename, which asks the
+  preview. What actually prevents a collision is the create-new call, which asks the
   filesystem and so is right on case-sensitive and case-insensitive volumes alike.
 - **At apply**, step 3 builds the plan again. A sheet that now names different tracks, a
   disc that was added or removed, or a competing playlist that appeared under any name
   changes the operations, and the apply is refused before anything is written.
-- **After a partial or interrupted apply**, the sets whose playlists were written now have
-  one, so they can't be selected again; the rest still can. Running the feature again
-  finishes the job.
+- **After a partial or interrupted apply**, a set whose playlist is on disk, complete or
+  not, has a playlist and can't be selected again, whatever History recorded for it. The
+  Multi-Disc screen shows an empty or short one as an incomplete playlist. The rest can
+  still be selected. Running the feature again finishes the job.
 - After writing, the screen rescans.
 
 ## Testing
 
 - Scenario tests on fake libraries:
   - a plan applied in full writes exactly the planned files with the planned bytes, and
-    leaves no temporary file;
+    nothing else;
   - a target that appears before apply blocks the whole plan, and one that appears between
-    the recheck and the publish fails that operation without replacing anything, removes
-    Romio's temporary file, and leaves the earlier playlists written and the later ones skipped;
-  - a file already at the temporary name, empty or not, is never removed;
-  - a temporary file swapped for another before the publish is not published and not removed;
+    the recheck and the create fails that operation as "a file is already there", leaves
+    that file byte-identical, the earlier playlists written and the later ones skipped;
+  - a write that fails after the create leaves an empty file, records `partial`, and
+    that set can't be selected again until the file is gone;
+  - a create call that returns an unclear error records `unknown` and stops the plan;
   - a path outside the library root, through `..`, a symlink or a junction, a root that is
     itself a link, or a sibling folder whose name starts with the root's, is refused; a
     path given in another letter case or as a `\\?\` path to the same folder is accepted;
@@ -390,16 +403,18 @@ every op's final state and the row's status together:
   - a playlist the planner emits reads back as complete, and a disc named with leading
     whitespace before `#` can't be selected;
   - after an interrupted apply, running the feature again offers only the missing playlists;
-  - no test, in any outcome, finds a file in the library removed or changed other than
-    Romio's own temporary file.
+  - the gate blocks apply, root edits and project deletion alike;
+  - no test, in any outcome, finds a file removed, renamed or moved, or a file Romio
+    didn't create changed.
 - **Failure injection.** The file and journal steps go through one seam that a test can
-  fail or stop at. For every step of "One operation": fail there and check the op's state,
-  the row's status and the folder against the failure table. Then stop the process there,
-  settle, and check against the settling table. Then stop the settling before its commit
-  and run it again; the states must be the same.
-- Not testable in CI: a real power loss, and a filesystem without no-replace rename. The
-  refusal path gets a unit test with the call stubbed. Killing the process tests restart
-  logic, not durability.
+  fail or stop at. For every row of the failure table, including a commit of `started`, of
+  each final state and of the skipped tail that fails, and a row that can't be read back:
+  check the op's state, the row's status, what `apply_plan` returned and the folder. Then
+  stop the process at every step, settle, and check against the settling table. Then stop
+  the settling before its commit and run it again; the states must be the same.
+- Not testable in CI: a real power loss, and a network share that reports an error for a
+  create that happened. The second gets a unit test with the call stubbed. Killing the
+  process tests restart logic, not durability.
 - Codex reviews this spec, then each PR. Gemini checks each write feature on the desktop
   against a throwaway copy of a library, including killing the app mid-apply and writing to
   an exFAT drive.
@@ -408,8 +423,9 @@ every op's final state and the row's status together:
 
 Details that can be settled in code review, not here:
 
-- The live identity check and the handle-based removal on each platform, with a test for each.
-- The same-volume rename and folder-sync call actually used on each platform.
+- Which create-new errors mean "a file is there" and which are unclear, on each platform
+  and on network shares. Anything not known to be the first is treated as unclear.
+- The folder-sync call actually used on each platform.
 - WAL's effect on the whole app database: the `-wal` and `-shm` files, checkpointing, and
   checking the effective mode before a write is allowed.
 - `File::try_lock` against the manifest's Rust 1.75, and lock behaviour on a network home.
@@ -417,6 +433,8 @@ Details that can be settled in code review, not here:
   identity, and the refusal message where they can't.
 - Playlists read by ES-DE, Batocera and RetroBat themselves. The round trip proves the
   planner agrees with Romio's reader, nothing more.
+- Features named here without a contract (ScummVM pointer files, Export) must each show in
+  their own spec that they only create new files, or wait for the rollback spec.
 
 ## For the rollback spec
 
@@ -431,7 +449,10 @@ established that this proof:
   on some Linux configurations, and FAT and exFAT ids can change on rename;
 - has to be shown per filesystem by tests that force id reuse, not by one delete-and-recreate;
 - needs a journal that records intent before each removal, derives a row's status from
-  durable state alone, and rechecks both the final and the temporary name after a power loss.
+  durable state alone, and rechecks every name it used after a power loss;
+- can't act on a name after checking it: a rename or an unlink takes a path, and the path
+  can be pointed at another file between the check and the call. Windows can rename and
+  delete through a handle; Linux and macOS mostly can't.
 
 ## Decisions
 
@@ -467,5 +488,13 @@ Decided by the owner on 2026-11-12.
   reappearing temporary file; with no qualified filesystem the publish check could never
   pass; one recreate test couldn't qualify a filesystem; the recovery gate wasn't explicit.
   Every one of these lived in rollback and repair. The owner chose to remove both from
-  version 1, which removes the findings with them. Kept from this round: the live check
-  before publishing, a status derived from op states in one transaction, and the gate.
+  version 1, which removes the findings with them. Kept from that round: a status derived
+  from op states in one transaction, and the gate.
+- Codex on `5cb47c1`, "do not merge yet", with the fourth round's findings closed: the
+  temporary file's name could be pointed at another file after the identity check, so the
+  rename could publish it or the cleanup remove it; a rename error could be recorded as a
+  definite failure after the file was published; the failure table left out the `started`
+  commit and the commits of final states. Taken by removing the temporary file: the
+  playlist is created at its final name with create-new and written through that handle,
+  so nothing after the create acts on a name. An unclear create error is `unknown`, a
+  failed write is `partial`, and final states are saved in one transaction.
