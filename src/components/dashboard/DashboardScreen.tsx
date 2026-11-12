@@ -58,7 +58,9 @@ export function DashboardScreen() {
       const stillOpen = () => useAppStore.getState().activeProject?.id === project.id;
       try {
         refreshActiveProject(await ipc.getProject(project.id));
-        if (stillOpen() && useAppStore.getState().screen === "dashboard") setRomioState("idle");
+        // A new scan may have started while this reload was out
+        const idle = stillOpen() && !useScanStore.getState().scanningProject;
+        if (idle && useAppStore.getState().screen === "dashboard") setRomioState("idle");
       } catch {
         if (stillOpen()) {
           setScanError(project.id, "The scan finished, but Romio couldn't load the new results. Scan again to see them.");
@@ -118,7 +120,9 @@ export function DashboardScreen() {
               <div className="w-4 h-4 rounded-full border-2 border-romio-green/40
                                border-t-romio-green animate-spin" />
               <span className="truncate max-w-48">
-                {finishing ? "Finishing…" : scanningHere ? "Scanning…" : `Scanning ${scanningProject.name}…`}
+                {scanningHere
+                  ? (finishing ? "Finishing…" : "Scanning…")
+                  : `${finishing ? "Finishing" : "Scanning"} ${scanningProject.name}…`}
               </span>
             </>
           ) : (

@@ -105,6 +105,19 @@ describe("Dashboard scan and the companion", () => {
     await waitFor(() => expect(useAppStore.getState().romioState).toBe("idle"));
   });
 
+  it("doesn't go idle when a new scan started before the last one's results loaded", async () => {
+    let loaded!: (p: Project) => void;
+    mocks.getProject.mockReturnValue(new Promise<Project>((res) => { loaded = res; }));
+    const { finish } = startScan();
+    finish();
+    await waitFor(() => expect(useScanStore.getState().scanningProject).toBeNull());
+
+    act(() => useScanStore.getState().setScanning(PROJECT));
+    loaded(PROJECT);
+    await waitFor(() => expect(useAppStore.getState().activeProject).toBe(PROJECT));
+    expect(useAppStore.getState().romioState).toBe("processing");
+  });
+
   it("has no old results to mention when a first scan fails", async () => {
     const { fail } = startScan();
     fail(new Error("unreadable"));
@@ -343,9 +356,16 @@ describe("Dashboard scan and the companion", () => {
       expect(mocks.scanLibrary).not.toHaveBeenCalled();
     });
 
-    it("shows no processing mood or progress for a scan of another project", async () => {
-      useScanStore.setState({ progress: { filesScanned: 3, filesTotal: 9, currentPath: "/roms/a.bin", phase: "hashing" } as ScanProgress });
+    it("still names the other project while its scan is finishing", async () => {
       await switchMidScan();
+      act(() => useScanStore.getState().setProgress({ filesScanned: 3, currentPath: "", phase: "saving" }));
+      expect(screen.getByRole("button", { name: "Finishing Test…" })).toBeTruthy();
+    });
+
+    it("shows no processing mood or progress for a scan of another project", async () => {
+      await switchMidScan();
+      // Set after the switch: starting a scan clears whatever progress was there
+      act(() => useScanStore.getState().setProgress({ filesScanned: 3, filesTotal: 9, currentPath: "/roms/a.bin", phase: "hashing" } as ScanProgress));
       expect(useAppStore.getState().romioState).toBe("idle");
       expect(screen.queryByText("/roms/a.bin")).toBeNull();
     });
@@ -353,9 +373,15 @@ describe("Dashboard scan and the companion", () => {
     it("refreshes the Projects list once the scan is saved", async () => {
       const client = new QueryClient();
       const invalidate = vi.spyOn(client, "invalidateQueries");
-      mocks.scanLibrary.mockResolvedValue(undefined);
+      let finish!: () => void;
+      mocks.scanLibrary.mockReturnValue(new Promise<void>((res) => { finish = res; }));
       render(<QueryClientProvider client={client}><DashboardScreen /></QueryClientProvider>);
       fireEvent.click(screen.getAllByRole("button", { name: /scan/i })[0]);
+      await waitFor(() => expect(useScanStore.getState().scanningProject).toBeTruthy());
+      // Not while the scan runs: the list would be re-read before the results exist
+      expect(invalidate).not.toHaveBeenCalled();
+
+      finish();
       await waitFor(() => expect(invalidate).toHaveBeenCalledWith({ queryKey: ["projects"] }));
     });
   });

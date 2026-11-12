@@ -37,7 +37,7 @@ describe("scan progress events", () => {
     act(() => events.handler!({ payload: { filesScanned: 3, currentPath: "", phase: "saving" } }));
 
     expect(useScanStore.getState().progress?.phase).toBe("saving");
-    expect(screen.getByText("Finishing scan…")).toBeTruthy();
+    expect(screen.getByText("Finishing scan of Test…")).toBeTruthy();
     expect(screen.queryByText(/d files/)).toBeNull();
   });
 });

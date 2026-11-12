@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { Plus, FolderOpen, Clock, AlertTriangle, X } from "lucide-react";
@@ -35,8 +35,12 @@ export function ProjectsScreen() {
     },
   });
 
+  // The last project picked: an answer for an earlier pick doesn't open it
+  const picked = useRef("");
   function openProject(id: string) {
+    picked.current = id;
     ipc.getProject(id).then((p) => {
+      if (picked.current !== id) return;
       setActiveProject(p);
       setRomioState("idle");
       setScreen(startScreen(scenario));

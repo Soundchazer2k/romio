@@ -40,7 +40,7 @@ export function Titlebar() {
           <div className="w-2 h-2 rounded-full bg-romio-green animate-pulse" />
           <span className="text-xs text-romio-gray">
             {progress.phase === "saving"
-              ? "Finishing scan…"
+              ? `Finishing scan of ${scanningProject.name}…`
               : `Scanning ${scanningProject.name}… ${progress.filesScanned.toLocaleString()} files`}
           </span>
         </div>
