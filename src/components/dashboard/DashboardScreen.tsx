@@ -27,6 +27,11 @@ function biosBadge(project: Project): {
   return { label: "All valid", color: "green" };
 }
 
+// The number of each project's latest scan. A reload belonging to an earlier scan of the
+// same project is dropped, whether it succeeds or fails. Kept outside the component
+// because the scan outlives the screen.
+const latestScan = new Map<string, number>();
+
 export function DashboardScreen() {
   const { activeProject, refreshActiveProject, setScreen, setRomioState, scenario, setScenario } = useAppStore();
   const { scanningProject, setScanning, progress, setProgress, scanErrors, setScanError } = useScanStore();
@@ -49,20 +54,28 @@ export function DashboardScreen() {
       setScanError(project.id, null);
       await ipc.scanLibrary(project.id, project.libraryRoots);
     },
-    onSuccess: async (_, project) => {
+    onMutate: (project) => {
+      const run = (latestScan.get(project.id) ?? 0) + 1;
+      latestScan.set(project.id, run);
+      return { run };
+    },
+    onSuccess: async (_, project, context) => {
       setScanning(null);
       setProgress(null);
       queryClient.invalidateQueries({ queryKey: ["projects"] });
       // Re-fetch project so scanStats and lastScannedAt reflect persisted data.
       // If you've switched away there's nothing to update: opening it again fetches it fresh.
       const stillOpen = () => useAppStore.getState().activeProject?.id === project.id;
+      const superseded = () => latestScan.get(project.id) !== context?.run;
       try {
-        refreshActiveProject(await ipc.getProject(project.id));
+        const reloaded = await ipc.getProject(project.id);
+        if (superseded()) return;
+        refreshActiveProject(reloaded);
         // A new scan may have started while this reload was out
         const idle = stillOpen() && !useScanStore.getState().scanningProject;
         if (idle && useAppStore.getState().screen === "dashboard") setRomioState("idle");
       } catch {
-        if (stillOpen()) {
+        if (stillOpen() && !superseded()) {
           setScanError(project.id, "The scan finished, but Romio couldn't load the new results. Scan again to see them.");
         }
       }

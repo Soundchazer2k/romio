@@ -118,6 +118,26 @@ describe("Dashboard scan and the companion", () => {
     expect(useAppStore.getState().romioState).toBe("processing");
   });
 
+  it("drops an earlier scan's failed reload once a newer scan of the project has loaded", async () => {
+    let failOld!: (e: Error) => void;
+    mocks.getProject.mockReturnValueOnce(new Promise<Project>((_, rej) => { failOld = rej; }));
+    const first = startScan();
+    first.finish();
+    await waitFor(() => expect(useScanStore.getState().scanningProject).toBeNull());
+
+    // Scan again while the first scan's reload is still out
+    let finishSecond!: () => void;
+    mocks.scanLibrary.mockReturnValue(new Promise<void>((res) => { finishSecond = res; }));
+    fireEvent.click(screen.getAllByRole("button", { name: /scan/i })[0]);
+    await waitFor(() => expect(useScanStore.getState().scanningProject).toBeTruthy());
+
+    await act(async () => { failOld(new Error("gone")); });
+    finishSecond();
+    await waitFor(() => expect(useScanStore.getState().scanningProject).toBeNull());
+    await waitFor(() => expect(useAppStore.getState().romioState).toBe("idle"));
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
   it("has no old results to mention when a first scan fails", async () => {
     const { fail } = startScan();
     fail(new Error("unreadable"));

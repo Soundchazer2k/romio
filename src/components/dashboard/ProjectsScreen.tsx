@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { Plus, FolderOpen, Clock, AlertTriangle, X } from "lucide-react";
@@ -35,16 +35,25 @@ export function ProjectsScreen() {
     },
   });
 
-  // The last project picked: an answer for an earlier pick doesn't open it
-  const picked = useRef("");
+  // Each pick gets a number. Only the latest one opens, and leaving the screen drops it:
+  // an answer that arrives late must not undo what you chose since.
+  const pick = useRef(0);
+  useEffect(() => () => { pick.current += 1; }, []);
+  const [openError, setOpenError] = useState<string | null>(null);
   function openProject(id: string) {
-    picked.current = id;
-    ipc.getProject(id).then((p) => {
-      if (picked.current !== id) return;
-      setActiveProject(p);
-      setRomioState("idle");
-      setScreen(startScreen(scenario));
-    });
+    const mine = ++pick.current;
+    setOpenError(null);
+    ipc.getProject(id).then(
+      (p) => {
+        if (pick.current !== mine) return;
+        setActiveProject(p);
+        setRomioState("idle");
+        setScreen(startScreen(scenario));
+      },
+      (err) => {
+        if (pick.current === mine) setOpenError(`Romio couldn't open that project: ${String(err)}`);
+      },
+    );
   }
 
   return (
@@ -64,6 +73,12 @@ export function ProjectsScreen() {
           <Plus className="w-4 h-4" /> New Project
         </button>
       </div>
+
+      {openError && (
+        <div role="alert" className="px-4 py-3 rounded-xl bg-romio-red/10 border border-romio-red/20 text-sm text-romio-red">
+          {openError}
+        </div>
+      )}
 
       {/* Existing projects */}
       {isLoading ? (
