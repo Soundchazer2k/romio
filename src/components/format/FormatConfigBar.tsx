@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0
-import { useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { open } from "@tauri-apps/plugin-dialog";
 import { FolderOpen, ChevronDown } from "lucide-react";
@@ -28,13 +28,23 @@ export function FormatConfigBar({
 
   const [browsing, setBrowsing] = useState(false);
   const scanButton = useRef<HTMLButtonElement>(null);
+  const stopButton = useRef<HTMLButtonElement>(null);
+  const pathField = useRef<HTMLInputElement>(null);
   const id = useId();
 
-  // Stop is disabled once clicked, so hand focus to Scan rather than lose it
+  // Stop is disabled once a scan ends, so hand focus on rather than lose it:
+  // to Scan, or to the folder field when Scan is disabled too
+  function moveFocusOffStop() {
+    (scanButton.current?.disabled ? pathField : scanButton).current?.focus();
+  }
   function stop() {
     flushSync(onStop);
-    scanButton.current?.focus();
+    moveFocusOffStop();
   }
+  // A scan that ends by itself while Stop has focus
+  useEffect(() => {
+    if (!isScanning && document.activeElement === stopButton.current) moveFocusOffStop();
+  }, [isScanning]);
 
   async function browse() {
     setBrowsing(true);
@@ -60,6 +70,7 @@ export function FormatConfigBar({
         <label htmlFor={`${id}-root`} className="text-xs font-semibold text-romio-gray">Library root</label>
         <div className="flex gap-2">
           <input
+            ref={pathField}
             id={`${id}-root`}
             value={path}
             onChange={(e) => onPathChange(e.target.value)}
@@ -135,6 +146,7 @@ export function FormatConfigBar({
       </button>
 
       <button
+        ref={stopButton}
         onClick={stop}
         disabled={!isScanning}
         className="px-4 py-2 rounded-lg bg-background-surface border border-white/10
