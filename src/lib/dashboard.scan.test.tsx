@@ -138,6 +138,26 @@ describe("Dashboard scan and the companion", () => {
     expect(screen.queryByRole("alert")).toBeNull();
   });
 
+  it("still shows a scan's results when the next scan of the project fails", async () => {
+    const scanned = { ...PROJECT, scanStats: { totalFiles: 21 } } as Project;
+    let loadFirst!: (p: Project) => void;
+    mocks.getProject.mockReturnValueOnce(new Promise<Project>((res) => { loadFirst = res; }));
+    const first = startScan();
+    first.finish();
+    await waitFor(() => expect(useScanStore.getState().scanningProject).toBeNull());
+
+    // Scan again while the first scan's reload is still out, and fail
+    let failSecond!: (e: Error) => void;
+    mocks.scanLibrary.mockReturnValue(new Promise<void>((_, rej) => { failSecond = rej; }));
+    fireEvent.click(screen.getAllByRole("button", { name: /scan/i })[0]);
+    await waitFor(() => expect(useScanStore.getState().scanningProject).toBeTruthy());
+    failSecond(new Error("unreadable"));
+    await waitFor(() => expect(useScanStore.getState().scanningProject).toBeNull());
+
+    await act(async () => { loadFirst(scanned); });
+    expect(useAppStore.getState().activeProject).toBe(scanned);
+  });
+
   it("has no old results to mention when a first scan fails", async () => {
     const { fail } = startScan();
     fail(new Error("unreadable"));

@@ -27,10 +27,12 @@ function biosBadge(project: Project): {
   return { label: "All valid", color: "green" };
 }
 
-// The number of each project's latest scan. A reload belonging to an earlier scan of the
-// same project is dropped, whether it succeeds or fails. Kept outside the component
-// because the scan outlives the screen.
+// Each project's scans are numbered, and the latest one that succeeded is remembered. A
+// reload belonging to an earlier scan is dropped once a later scan has succeeded, whether
+// that reload worked or not. A later scan that fails saved nothing, so it drops nothing.
+// Kept outside the component because the scan outlives the screen.
 const latestScan = new Map<string, number>();
+const latestSaved = new Map<string, number>();
 
 export function DashboardScreen() {
   const { activeProject, refreshActiveProject, setScreen, setRomioState, scenario, setScenario } = useAppStore();
@@ -66,7 +68,10 @@ export function DashboardScreen() {
       // Re-fetch project so scanStats and lastScannedAt reflect persisted data.
       // If you've switched away there's nothing to update: opening it again fetches it fresh.
       const stillOpen = () => useAppStore.getState().activeProject?.id === project.id;
-      const superseded = () => latestScan.get(project.id) !== context?.run;
+      if (context) latestSaved.set(project.id, context.run);
+      // This scan saved, so a message left by an earlier scan's reload no longer applies
+      setScanError(project.id, null);
+      const superseded = () => latestSaved.get(project.id) !== context?.run;
       try {
         const reloaded = await ipc.getProject(project.id);
         if (superseded()) return;
