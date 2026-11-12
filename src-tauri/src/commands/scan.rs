@@ -66,12 +66,12 @@ pub async fn scan_library(
             let _ = walk_app.emit("scan_progress", &progress);
         })
     })
-    .await
-    .map_err(|e| e.to_string())?;
+    .await;
 
+    // Cleared before any error returns, so a walk that panicked doesn't leave a scan "running"
     SCAN_RUNNING.store(false, Ordering::Relaxed);
 
-    let artifacts = result.map_err(|e| e.to_string())?;
+    let artifacts = result.map_err(|e| e.to_string())?.map_err(|e| e.to_string())?;
 
     // If the scan was cancelled, discard partial results — do not persist.
     let saved = persist_scan(&project_id, &artifacts, cancel_flag(), |progress| {
@@ -85,7 +85,7 @@ pub async fn scan_library(
     // DB note: get() and load_all_rules() each acquire and release the mutex independently.
     // Do NOT nest them inside each other or inside another with_conn closure.
     // Off the async workers, so a stalled BIOS drive can't starve every other command
-    let _ = tokio::task::spawn_blocking(move || {
+    let sweep = tokio::task::spawn_blocking(move || {
         let project_for_bios = crate::db::projects::get(&project_id);
         if let Ok(project) = project_for_bios {
             if let Some(ref bios_root) = project.bios_root {
@@ -126,6 +126,10 @@ pub async fn scan_library(
         }
     })
     .await;
+    // The scan is saved either way; a sweep that panicked leaves the previous BIOS results in place
+    if let Err(e) = sweep {
+        eprintln!("[scan] BIOS sweep did not finish: {e}");
+    }
 
     Ok(())
 }
