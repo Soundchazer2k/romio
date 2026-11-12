@@ -30,7 +30,7 @@ function showScreen() {
 describe("DashboardScreen", () => {
   beforeEach(() => {
     useAppStore.setState({ activeProject: project });
-    useScanStore.setState({ isScanning: false, progress: null });
+    useScanStore.setState({ scanningProject: null, progress: null, scanErrors: {} });
     mocks.scanLibrary.mockReset();
   });
   afterEach(cleanup);
@@ -43,7 +43,7 @@ describe("DashboardScreen", () => {
     await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("Couldn't read Z:\\Gone"));
     expect(screen.getByRole("alert").textContent).toContain("may be out of date");
     expect(screen.getByText("21")).toBeTruthy();
-    expect(useScanStore.getState().isScanning).toBe(false);
+    expect(useScanStore.getState().scanningProject).toBeNull();
   });
 
   it("doesn't show counts the scan can't produce", () => {

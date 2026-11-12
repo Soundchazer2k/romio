@@ -5,7 +5,7 @@ import { useScanStore } from "@/stores";
 
 export function Titlebar() {
   const { setSidebarOpen, sidebarOpen, activeProject } = useAppStore();
-  const { isScanning, progress } = useScanStore();
+  const { scanningProject, progress } = useScanStore();
 
   return (
     <header
@@ -35,13 +35,13 @@ export function Titlebar() {
       </div>
 
       {/* Center: scan progress indicator */}
-      {isScanning && progress && (
+      {scanningProject && progress && (
         <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-romio-green animate-pulse" />
           <span className="text-xs text-romio-gray">
             {progress.phase === "saving"
-              ? "Finishing scan…"
-              : `Scanning… ${progress.filesScanned.toLocaleString()} files`}
+              ? `Finishing scan of ${scanningProject.name}…`
+              : `Scanning ${scanningProject.name}… ${progress.filesScanned.toLocaleString()} files`}
           </span>
         </div>
       )}

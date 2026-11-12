@@ -18,6 +18,8 @@ interface AppStore {
   // Active project
   activeProject:    Project | null;
   setActiveProject: (p: Project | null) => void;
+  // For results that arrive late: does nothing if you've since switched projects
+  refreshActiveProject: (p: Project) => void;
 
   // Romio mascot state
   romioState:    RomioState;
@@ -58,6 +60,8 @@ export const useAppStore = create<AppStore>()(persist((set) => ({
 
   activeProject:    null,
   setActiveProject: (activeProject) => set({ activeProject }),
+  refreshActiveProject: (p) =>
+    set((s) => (s.activeProject?.id === p.id ? { activeProject: p } : s)),
 
   romioState:    "welcome",
   setRomioState: (romioState) => set({ romioState }),
@@ -80,22 +84,24 @@ export const useAppStore = create<AppStore>()(persist((set) => ({
 // ── Scan store ────────────────────────────────────────────────────────────────
 
 interface ScanStore {
-  isScanning:   boolean;
+  // The backend runs one scan at a time, and it may not be the open project's
+  scanningProject: Pick<Project, "id" | "name"> | null;
   progress:     ScanProgress | null;
-  // Kept here: a scan can fail after the Dashboard has unmounted
-  scanError:    { projectId: string; message: string } | null;
-  setScanning:  (v: boolean) => void;
+  // Per project and kept here: a scan can fail after the Dashboard has unmounted
+  scanErrors:   Record<string, string | null>;
+  setScanning:  (p: Pick<Project, "id" | "name"> | null) => void;
   setProgress:  (p: ScanProgress | null) => void;
-  setScanError: (e: { projectId: string; message: string } | null) => void;
+  setScanError: (projectId: string, message: string | null) => void;
 }
 
 export const useScanStore = create<ScanStore>((set) => ({
-  isScanning:  false,
+  scanningProject: null,
   progress:    null,
-  scanError:   null,
-  setScanning: (isScanning) => set({ isScanning }),
+  scanErrors:  {},
+  setScanning: (scanningProject) => set({ scanningProject }),
   setProgress: (progress)   => set({ progress }),
-  setScanError: (scanError) => set({ scanError }),
+  setScanError: (projectId, message) =>
+    set((s) => ({ scanErrors: { ...s.scanErrors, [projectId]: message } })),
 }));
 
 // ── Preflight store ───────────────────────────────────────────────────────────

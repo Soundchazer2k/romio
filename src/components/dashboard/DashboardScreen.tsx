@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0
 import { useEffect } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { Play, XCircle, Info, CheckCircle2 } from "lucide-react";
 import { useAppStore, useScanStore } from "@/stores";
 import { ipc } from "@/lib/ipc";
 import { cn, biosIssueLabel } from "@/lib/utils";
 import { SCENARIOS, SCENARIO_ORDER, dashboardChecks, type DashboardCheck, type Scenario } from "@/lib/scenario";
-import type { Project, RomioState } from "@/types";
+import type { Project } from "@/types";
 
 function biosBadge(project: Project): {
   label: string;
@@ -27,55 +27,67 @@ function biosBadge(project: Project): {
   return { label: "All valid", color: "green" };
 }
 
+// Each project's scans are numbered, and the latest one that succeeded is remembered.
+// A reload's data is used unless a later scan has succeeded: a later scan that fails saved
+// nothing, so the earlier results still stand. A reload's verdict (idle, or "couldn't load
+// the results") is used only if no later scan has started: that scan speaks for itself.
+// Kept outside the component because the scan outlives the screen.
+const latestScan = new Map<string, number>();
+const latestSaved = new Map<string, number>();
+
 export function DashboardScreen() {
-  const { activeProject, setActiveProject, setScreen, setRomioState, scenario, setScenario } = useAppStore();
-  const { isScanning, setScanning, progress, setProgress, scanError, setScanError } = useScanStore();
+  const { activeProject, refreshActiveProject, setScreen, setRomioState, scenario, setScenario } = useAppStore();
+  const { scanningProject, setScanning, progress, setProgress, scanErrors, setScanError } = useScanStore();
+  const queryClient = useQueryClient();
 
-  // The scan outlives this screen, so it only sets the mood while you're here
-  function scanMood(mood: RomioState) {
-    if (useAppStore.getState().screen === "dashboard") setRomioState(mood);
-  }
-
-  const scanFailed = !!scanError && scanError.projectId === activeProject?.id;
+  const isScanning   = !!scanningProject;
+  const scanningHere = isScanning && scanningProject.id === activeProject?.id;
+  const scanFailure  = activeProject ? scanErrors[activeProject.id] : null;
 
   useEffect(() => {
-    if (isScanning) setRomioState("processing");
-    else if (scanFailed) setRomioState("error");
-  }, [isScanning, scanFailed, setRomioState]);
+    if (scanningHere) setRomioState("processing");
+    else if (scanFailure) setRomioState("error");
+  }, [scanningHere, scanFailure, setRomioState]);
 
+  // The project travels with the scan: you can switch to another one before it ends
   const scanMut = useMutation({
-    mutationFn: async () => {
-      if (!activeProject) return;
+    mutationFn: async (project: Project) => {
       setProgress(null);
-      setScanning(true);
-      setScanError(null);
-      await ipc.scanLibrary(activeProject.id, activeProject.libraryRoots);
+      setScanning(project);
+      setScanError(project.id, null);
+      await ipc.scanLibrary(project.id, project.libraryRoots);
     },
-    onSuccess: async () => {
-      setScanning(false);
+    onMutate: (project) => {
+      const run = (latestScan.get(project.id) ?? 0) + 1;
+      latestScan.set(project.id, run);
+      return { run };
+    },
+    onSuccess: async (_, project, context) => {
+      setScanning(null);
       setProgress(null);
+      queryClient.invalidateQueries({ queryKey: ["projects"] });
       // Re-fetch project so scanStats and lastScannedAt reflect persisted data.
-      if (activeProject) {
-        try {
-          setActiveProject(await ipc.getProject(activeProject.id));
-          scanMood("idle");
-        } catch {
-          setScanError({
-            projectId: activeProject.id,
-            message: "The scan finished, but Romio couldn't load the new results. Scan again to see them.",
-          });
+      // If you've switched away there's nothing to update: opening it again fetches it fresh.
+      const stillOpen = () => useAppStore.getState().activeProject?.id === project.id;
+      if (context) latestSaved.set(project.id, context.run);
+      const superseded = () => latestSaved.get(project.id) !== context?.run;
+      const newest = () => latestScan.get(project.id) === context?.run;
+      try {
+        const reloaded = await ipc.getProject(project.id);
+        if (superseded()) return;
+        refreshActiveProject(reloaded);
+        const idle = stillOpen() && newest() && !useScanStore.getState().scanningProject;
+        if (idle && useAppStore.getState().screen === "dashboard") setRomioState("idle");
+      } catch {
+        if (stillOpen() && newest()) {
+          setScanError(project.id, "The scan finished, but Romio couldn't load the new results. Scan again to see them.");
         }
       }
     },
-    onError: (err) => {
-      setScanning(false);
+    onError: (err, project) => {
+      setScanning(null);
       setProgress(null);
-      if (activeProject) {
-        setScanError({
-          projectId: activeProject.id,
-          message: `${String(err)}. The scan stopped${activeProject.scanStats ? ", so these results may be out of date" : ""}.`,
-        });
-      }
+      setScanError(project.id, `${String(err)}. The scan stopped${project.scanStats ? ", so these results may be out of date" : ""}.`);
     },
   });
 
@@ -110,7 +122,7 @@ export function DashboardScreen() {
         </div>
 
         <button
-          onClick={() => scanMut.mutate()}
+          onClick={() => scanMut.mutate(activeProject)}
           disabled={isScanning}
           className={cn(
             "flex items-center gap-2 px-5 py-2.5 rounded-lg font-semibold text-sm",
@@ -124,7 +136,11 @@ export function DashboardScreen() {
             <>
               <div className="w-4 h-4 rounded-full border-2 border-romio-green/40
                                border-t-romio-green animate-spin" />
-              {finishing ? "Finishing…" : "Scanning…"}
+              <span className="truncate max-w-48">
+                {scanningHere
+                  ? (finishing ? "Finishing…" : "Scanning…")
+                  : `${finishing ? "Finishing" : "Scanning"} ${scanningProject.name}…`}
+              </span>
             </>
           ) : (
             <>
@@ -136,7 +152,7 @@ export function DashboardScreen() {
       </div>
 
       {/* Scan progress bar */}
-      {isScanning && progress && (
+      {scanningHere && progress && (
         <motion.div
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -162,9 +178,9 @@ export function DashboardScreen() {
       )}
 
       {/* Stats cards */}
-      {scanFailed && (
+      {scanFailure && (
         <div role="alert" className="px-4 py-3 rounded-xl bg-romio-red/10 border border-romio-red/20 text-sm text-romio-red">
-          {scanError.message}
+          {scanFailure}
         </div>
       )}
 
@@ -177,7 +193,7 @@ export function DashboardScreen() {
           />
         </div>
       ) : (
-        <NoScanState onScan={() => scanMut.mutate()} />
+        <NoScanState onScan={() => scanMut.mutate(activeProject)} disabled={isScanning} />
       )}
 
       {/* Quick-action cards, ordered for the person's situation */}
@@ -297,7 +313,7 @@ function ActionCard({ title, description, status, onClick, badge }: {
   );
 }
 
-function NoScanState({ onScan }: { onScan: () => void }) {
+function NoScanState({ onScan, disabled }: { onScan: () => void; disabled: boolean }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center space-y-4
                     border border-dashed border-border rounded-xl">
@@ -308,8 +324,10 @@ function NoScanState({ onScan }: { onScan: () => void }) {
       </div>
       <button
         onClick={onScan}
-        className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold
-                   bg-romio-green-fill text-white hover:bg-romio-green-fill/90 transition-colors"
+        disabled={disabled}
+        className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors
+                   bg-romio-green-fill text-white enabled:hover:bg-romio-green-fill/90
+                   disabled:bg-romio-green/20 disabled:text-romio-green disabled:cursor-not-allowed"
       >
         <Play className="w-3.5 h-3.5" /> Scan Now
       </button>
