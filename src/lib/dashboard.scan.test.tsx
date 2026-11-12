@@ -156,6 +156,27 @@ describe("Dashboard scan and the companion", () => {
 
     await act(async () => { loadFirst(scanned); });
     expect(useAppStore.getState().activeProject).toBe(scanned);
+    // The failed scan still has the last word
+    expect(screen.getByRole("alert").textContent).toContain("unreadable");
+    expect(useAppStore.getState().romioState).toBe("error");
+  });
+
+  it("keeps the newer scan's failure when an earlier scan's reload fails after it", async () => {
+    let failFirstReload!: (e: Error) => void;
+    mocks.getProject.mockReturnValueOnce(new Promise<Project>((_, rej) => { failFirstReload = rej; }));
+    const first = startScan();
+    first.finish();
+    await waitFor(() => expect(useScanStore.getState().scanningProject).toBeNull());
+
+    let failSecond!: (e: Error) => void;
+    mocks.scanLibrary.mockReturnValue(new Promise<void>((_, rej) => { failSecond = rej; }));
+    fireEvent.click(screen.getAllByRole("button", { name: /scan/i })[0]);
+    await waitFor(() => expect(useScanStore.getState().scanningProject).toBeTruthy());
+    failSecond(new Error("unreadable"));
+    await waitFor(() => expect(useScanStore.getState().scanningProject).toBeNull());
+
+    await act(async () => { failFirstReload(new Error("db locked")); });
+    expect(screen.getByRole("alert").textContent).toContain("unreadable");
   });
 
   it("has no old results to mention when a first scan fails", async () => {
