@@ -141,14 +141,18 @@ Decided by the owner on 2026-11-13.
 
 ## Order of work
 
-1. A spike: drive Igir from Romio against a generated library, report only, then a copy
-   into an output folder. It answers whether find, preview, progress and Stop are workable
-   on Windows, macOS and Linux.
-2. A spec for the adapter, reviewed before any code, like the write backbone.
-3. The read-only checks, which don't depend on either.
+The order is in `docs/superpowers/plans/2026-11-08-feature-roadmap.md`, revised with this
+amendment. In short:
 
-The six screens in the feature roadmap continue. Export Planner is the one this changes:
-it becomes the screen where adapter runs are planned.
+1. The read-only checks, which depend on nothing else.
+2. Romio's own create-only writes: the write backbone and playlists.
+3. Adapters, starting with a spike: drive Igir from Romio against a generated library,
+   report only, then a copy into an output folder. It answers whether finding the tool,
+   preview, progress and Stop are workable on Windows, macOS and Linux. Then a spec for
+   the adapter, reviewed before any code, like the write backbone.
+4. Anything that changes or moves existing files waits for a rollback spec.
+
+Export Planner is the screen this changes most: it becomes where adapter runs are planned.
 
 ## Risks
 
