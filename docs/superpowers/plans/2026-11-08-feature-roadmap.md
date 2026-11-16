@@ -78,17 +78,19 @@ No further native writers are planned. What else needs writing goes through an a
 
 ## Phase 3: Tool adapters
 
-Romio runs an established tool: a form in place of flags, a preview, output to a new
-folder outside the library. Igir is first.
+Romio runs an established tool: a form in place of flags, a preview, output to a new or
+empty folder outside the library. Every run against a library is recorded before it
+starts; reading a tool's version when the user chooses it is not. Igir is first.
 
 9. **Spike:** drive Igir from Romio against a generated library. Report only, then a
     copy into an output folder. It answers whether finding the tool, preview, progress and
     Stop are workable on Windows, macOS and Linux. Throwaway code.
 10. **Adapter spec,** reviewed before any code.
 11. **Igir, report only:** audit a library against DAT files the user supplies, and show
-    what is verified, unknown and missing. Writes nothing.
+    what is verified, unknown and missing. Writes nothing to the library: the tool's
+    report and cache go in Romio's own data folder.
 12. **Export Planner, through Igir:** a clean copy of the library for a frontend, in a new
-    folder: one copy of each game, renamed, headers stripped and patches applied where
+    or empty folder: one copy of each game, renamed, headers stripped and patches applied where
     asked. Copies, not links.
 13. **A second adapter,** chosen after item 12 ships. Disc compression is the likely
     candidate. Only then is what the two adapters share pulled out.

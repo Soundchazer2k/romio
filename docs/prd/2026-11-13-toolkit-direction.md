@@ -105,11 +105,16 @@ Each adapter shall:
 - **Preview** what the tool would do before it does it, using the tool's own dry run or
   report where it has one.
 - **Run** the tool with progress and Stop, passing arguments as a list, never as a shell string.
-- **Write only to an output folder** the user confirmed: new or empty, and outside the
-  library roots as the folders resolve on disk, so that a link can't lead back into the
-  library.
-- **Record the run** in the operation log before it starts, and complete the record when
-  it ends: the command, the tool and its version, the output folder, and how it ended.
+- **Write nothing into the library.** An action that makes files for the user, such as a
+  copy of the library, writes only to an output folder the user confirmed: new or empty,
+  and outside the library roots as the folders resolve on disk, so that a link can't lead
+  back into the library. An action that only reads, such as an audit, has no output
+  folder: what Romio keeps of it (the tool's report and cache) goes in Romio's own data
+  folder, which must be outside the library roots too.
+- **Record every run against a library** in the operation log before it starts, and
+  complete the record when it ends: the command, the tool and its version, the output
+  folder if there is one, and how it ended. Reading a tool's version when the user chooses
+  it is not a run against a library and is not recorded.
 - **Report failure plainly**, with the tool's own message.
 
 How each of these is met is for the adapter spec (`docs/specs/tool-adapters.md`) and the
@@ -146,8 +151,9 @@ Decided by the owner on 2026-11-13.
 
 1. **Finding tools.** Version 1 uses a tool the user installed and links to its official
    download. Installing for the user comes later, with a pinned version and a checked hash.
-   (Made more exact on 2026-11-16, after review: the user chooses the file. A copy found
-   by searching is suggested, never run unasked.)
+   **Amendment proposed on 2026-11-16, after review, and not yet confirmed by the owner:**
+   the user chooses the file, and a copy Romio finds by searching is suggested, never run
+   until the user accepts it. This adds a step the decision of 2026-11-13 did not require.
 2. **Playlists.** Romio builds its own writer on the write backbone (PR #54), since it is
    small and needs no tool. Neither exists yet: the backbone is a spec under review and
    `generate_m3u` is a stub. No further native writers are built.
