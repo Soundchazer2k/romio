@@ -111,5 +111,5 @@ removes existing files.
 
 - Which frontends Export supports at launch.
 - Scraping (metadata and artwork) is the one pipeline stage with no plan here.
-- Whether Romio should ever install a tool for the user. Version 1 finds an installed copy
-  and links to the official download.
+- Whether Romio should ever install a tool for the user. Version 1 uses an installed copy
+  the user points it to, and links to the official download.

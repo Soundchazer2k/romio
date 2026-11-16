@@ -88,19 +88,34 @@ An adapter is the piece of Romio that knows one tool. The first is for Igir, bec
 tool covers auditing, one-game-one-ROM selection, playlists, header stripping, patching
 and archiving.
 
+Igir doesn't scrape. Stage 5, metadata and artwork, has no adapter planned yet, and the
+roadmap lists it as open. Covering the whole pipeline is the direction this amendment
+sets, not a claim about version 1.
+
 Each adapter shall:
 
-- **Find the tool** on the machine, read its version, and refuse versions it doesn't know.
-  Reading a tool's output breaks when the format changes.
+- **Use the copy of the tool the user chose.** The user points Romio at the file. A copy
+  Romio finds by searching the machine is offered with its full path, and is not run until
+  the user accepts it: a program with the same name that is found first would otherwise
+  run as the user.
+- **Read the tool's version** and refuse versions it doesn't know. Reading a tool's output
+  breaks when the format changes.
 - **Offer a form** for the options that matter, in plain words, prefilled from the project:
   Romio already knows the target frontend and emulators.
 - **Preview** what the tool would do before it does it, using the tool's own dry run or
   report where it has one.
 - **Run** the tool with progress and Stop, passing arguments as a list, never as a shell string.
-- **Write only to an output folder** the user confirmed, outside the library roots.
-- **Record the run** in the operation log: the command, the tool and its version, the
-  output folder, and how it ended.
+- **Write only to an output folder** the user confirmed: new or empty, and outside the
+  library roots as the folders resolve on disk, so that a link can't lead back into the
+  library.
+- **Record the run** in the operation log before it starts, and complete the record when
+  it ends: the command, the tool and its version, the output folder, and how it ended.
 - **Report failure plainly**, with the tool's own message.
+
+How each of these is met is for the adapter spec (`docs/specs/tool-adapters.md`) and the
+later copy-out spec, not for this document: how a tool is stopped, what the log record
+holds, what is done about a half-written output folder, and what happens when the library
+changes between the preview and the run.
 
 There is no general plugin system in version 1. The second adapter is written by hand like
 the first, and only then is what they share pulled out.
@@ -129,10 +144,13 @@ each one at its source found; the first pass dropped three of the five.
 
 Decided by the owner on 2026-11-13.
 
-1. **Finding tools.** Version 1 finds a tool the user installed and links to its official
+1. **Finding tools.** Version 1 uses a tool the user installed and links to its official
    download. Installing for the user comes later, with a pinned version and a checked hash.
-2. **Playlists.** Romio keeps its own writer (write backbone, PR #54), since it is small and
-   needs no tool. No further native writers are built.
+   (Made more exact on 2026-11-16, after review: the user chooses the file. A copy found
+   by searching is suggested, never run unasked.)
+2. **Playlists.** Romio builds its own writer on the write backbone (PR #54), since it is
+   small and needs no tool. Neither exists yet: the backbone is a spec under review and
+   `generate_m3u` is a stub. No further native writers are built.
 3. **DAT auditing.** Igir's report, through the adapter. A native read-only audit is built
    only if Romio's own checks need verified-dump status and the adapter can't supply it.
 4. **Copies, not links.** The output folder holds copies in version 1. Hard links save
