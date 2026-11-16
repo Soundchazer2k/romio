@@ -35,34 +35,43 @@ only. What it listed as done is kept below so the numbering in old PRs still mak
 
 1. **Project switching** (PR 57): reviewed by Codex. Needs Gemini on the desktop: it is
    the first time per-project sessions can be reached without a restart.
-2. **Scan progress carries its scan's identity.** Progress events have no project or run
+2. **Scan progress carries its scan's identity** (PR 59, stacked on PR 57). Progress events have no project or run
    id, so an event that arrives late can show under the next scan's project. A small
    backend change to the event, and the listener drops events that don't match.
 
 ## Phase 1: More checks
 
 Read-only, and independent of everything below. Each is a rule in the data files, checked
-at its source first.
+at its source first. The first pass at checking them (2026-11-16) cut this list down:
 
-3. Formats that break RetroAchievements tracking.
-4. Copier headers where the emulator needs a headerless file.
-5. BIOS files in the wrong folder, or in the wrong letter case on a case-sensitive system.
-6. Formats that need a minimum emulator version, or that can't be restored to the original.
-7. Arcade sets: a set version that doesn't match the emulator core, and merge types a
-   folder-scanning frontend can't list. This one needs its own short design, since Romio
-   has no arcade model yet.
+3. **Arcade sets:** a set version that doesn't match the emulator core, and merge types a
+   folder-scanning frontend can't list. Needs its own short design, since Romio has no
+   arcade model yet.
+4. **BIOS letter case for a case-sensitive target.** Romio already reports a BIOS file in
+   the wrong folder (`PresentWrongPath`), and on a Linux host a wrong-case name counts as
+   wrong. The gap is a library prepared on Windows or macOS for a Linux frontend: the name
+   matches here and won't there. Romio doesn't know the target's filesystem, only its
+   frontend, so this needs a design decision first: ask for the target platform, or warn.
 
-   *Gemini batch: items 3 to 6 together.*
+Looked at and not built:
+
+- **Formats that break RetroAchievements.** The survey says `.cso` and `.pbp` do. That
+  didn't hold up: RetroAchievements' own identification page names no container formats,
+  and user reports differ by emulator and frontend. There is no source to encode a rule from.
+- **Copier headers.** No emulator in the format matrix rejects a headered file. Stripping
+  headers matters for patches and flashcarts, which is adapter work (phase 3).
+- **Minimum emulator versions.** Already there: rules carry `sinceVersion`, and PSP `.chd`
+  on PPSSPP 1.17 is encoded.
 
 ## Phase 2: Romio's own writes
 
 Create-only. Romio never changes, moves or removes an existing file here.
 
-8. **Write backbone** (spec in PR 54): one path for every write. Build a plan, show it in
+5. **Write backbone** (spec in PR 54): one path for every write. Build a plan, show it in
    the Change Preview modal, apply it, record it. No rollback in version 1.
-9. **History screen:** what Romio wrote, and whether each file is there now.
-10. **Playlist generation** (Multi-Disc), the first feature on the backbone.
-11. **Pointer files** (ScummVM) and **shortcut generation** (Installed Titles): each needs
+6. **History screen:** what Romio wrote, and whether each file is there now.
+7. **Playlist generation** (Multi-Disc), the first feature on the backbone.
+8. **Pointer files** (ScummVM) and **shortcut generation** (Installed Titles): each needs
     its own spec, which must show it only creates new files. If it can't, it moves to phase 4.
 
 No further native writers are planned. What else needs writing goes through an adapter.
@@ -72,16 +81,16 @@ No further native writers are planned. What else needs writing goes through an a
 Romio runs an established tool: a form in place of flags, a preview, output to a new
 folder outside the library. Igir is first.
 
-12. **Spike:** drive Igir from Romio against a generated library. Report only, then a
+9. **Spike:** drive Igir from Romio against a generated library. Report only, then a
     copy into an output folder. It answers whether finding the tool, preview, progress and
     Stop are workable on Windows, macOS and Linux. Throwaway code.
-13. **Adapter spec,** reviewed before any code.
-14. **Igir, report only:** audit a library against DAT files the user supplies, and show
+10. **Adapter spec,** reviewed before any code.
+11. **Igir, report only:** audit a library against DAT files the user supplies, and show
     what is verified, unknown and missing. Writes nothing.
-15. **Export Planner, through Igir:** a clean copy of the library for a frontend, in a new
+12. **Export Planner, through Igir:** a clean copy of the library for a frontend, in a new
     folder: one copy of each game, renamed, headers stripped and patches applied where
     asked. Copies, not links.
-16. **A second adapter,** chosen after item 15 ships. Disc compression is the likely
+13. **A second adapter,** chosen after item 12 ships. Disc compression is the likely
     candidate. Only then is what the two adapters share pulled out.
 
 ## Phase 4: Waiting on a rollback spec
@@ -90,12 +99,12 @@ Nothing here starts until a rollback spec is merged, because each changes, moves
 removes existing files.
 
 - **Save migration,** `execute_migration`.
-- **Format fixes in place.** Most of this need is met by item 15, which writes a fixed copy.
+- **Format fixes in place.** Most of this need is met by item 12, which writes a fixed copy.
 - **Hiding a playlist's discs** from frontends that list them.
 
 ## Phase 5: Release check
 
-17. One full Gemini journey through every screen on a throwaway library, with the real
+14. One full Gemini journey through every screen on a throwaway library, with the real
     tools installed, then fix what it finds.
 
 ## Open questions

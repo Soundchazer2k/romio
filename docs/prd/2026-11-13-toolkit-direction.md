@@ -122,7 +122,8 @@ Each needs checking at its source before it is encoded:
 - BIOS files in the wrong folder or the wrong letter case on a case-sensitive system.
 - Formats that need a minimum emulator version, or can't be restored to the original.
 
-These are in scope for the checker and need no adapter.
+These are in scope for the checker and need no adapter. The roadmap records what checking
+each one at its source found; the first pass dropped three of the five.
 
 ## Decisions
 
