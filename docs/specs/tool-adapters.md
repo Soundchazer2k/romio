@@ -250,8 +250,8 @@ nothing may write to a library or start a tool while that tool is alive.
   could take the freed writer lock and write while the tool was still reading. The same
   check runs at the end of every run: a run whose lock is still held after `wait()` is
   recorded with `left_running: true`, and blocks the same way.
-- **This adds a step to the write backbone's gate.** The backbone spec (PR 54) doesn't
-  have it yet, and gets it before any adapter code is written.
+- **This adds a step to the write backbone's gate.** The backbone spec (PR 54) states it
+  under "The writer lock", and points here for how a run is known to be alive.
 - **What happened and what is alive are kept apart.** The row's outcome is history and
   stays `interrupted`: the run was cut off, whatever became of the process. Whether
   something is alive is the lock file's answer alone. A settled run never blocks again,
