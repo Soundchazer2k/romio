@@ -49,6 +49,14 @@ export function DashboardScreen() {
     else if (scanFailure) setRomioState("error");
   }, [scanningHere, scanFailure, setRomioState]);
 
+  // Scans queued while offline all start together, and the store shows the last one started.
+  // A scan that ends clears the store only if it is still that one.
+  const endScan = (scanId: string) => {
+    if (useScanStore.getState().scanId !== scanId) return;
+    setScanning(null);
+    setProgress(null);
+  };
+
   // The project travels with the scan: you can switch to another one before it ends
   const scanMut = useMutation({
     // The backend puts the scan's id on every progress event, so that a late event from an
@@ -65,9 +73,8 @@ export function DashboardScreen() {
       latestScan.set(project.id, run);
       return { run };
     },
-    onSuccess: async (_, { project }, context) => {
-      setScanning(null);
-      setProgress(null);
+    onSuccess: async (_, { project, scanId }, context) => {
+      endScan(scanId);
       queryClient.invalidateQueries({ queryKey: ["projects"] });
       // Re-fetch project so scanStats and lastScannedAt reflect persisted data.
       // If you've switched away there's nothing to update: opening it again fetches it fresh.
@@ -87,9 +94,8 @@ export function DashboardScreen() {
         }
       }
     },
-    onError: (err, { project }) => {
-      setScanning(null);
-      setProgress(null);
+    onError: (err, { project, scanId }) => {
+      endScan(scanId);
       setScanError(project.id, `${String(err)}. The scan stopped${project.scanStats ? ", so these results may be out of date" : ""}.`);
     },
   });

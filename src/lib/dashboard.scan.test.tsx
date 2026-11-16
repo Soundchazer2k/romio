@@ -75,6 +75,28 @@ describe("Dashboard scan and the companion", () => {
     expect(second).not.toBe(first);
   });
 
+  it("keeps a queued scan's id and progress when the scan before it ends", async () => {
+    const finish: Array<() => void> = [];
+    mocks.scanLibrary.mockImplementation(() => new Promise<void>((res) => { finish.push(res); }));
+    onlineManager.setOnline(false);
+    try {
+      renderDashboard();
+      fireEvent.click(screen.getAllByRole("button", { name: /scan/i })[0]);
+      fireEvent.click(screen.getAllByRole("button", { name: /scan/i })[0]);
+    } finally {
+      onlineManager.setOnline(true);
+    }
+    await waitFor(() => expect(mocks.scanLibrary).toHaveBeenCalledTimes(2));
+    finish[0]();
+    await waitFor(() => expect(mocks.getProject).toHaveBeenCalled());
+    // The second scan is still running, so it is still the one on screen
+    expect(useScanStore.getState().scanId).toBe(mocks.scanLibrary.mock.calls[1][2]);
+    expect(useScanStore.getState().scanningProject).not.toBeNull();
+
+    finish[1]();
+    await waitFor(() => expect(useScanStore.getState().scanningProject).toBeNull());
+  });
+
   it("doesn't reuse a scan id after the webview reloads", async () => {
     mocks.scanLibrary.mockReturnValue(new Promise<void>(() => {}));
 
