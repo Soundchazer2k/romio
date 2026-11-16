@@ -91,7 +91,11 @@ interface ScanStore {
   progress:     ScanProgress | null;
   // Per project and kept here: a scan can fail after the Dashboard has unmounted
   scanErrors:   Record<string, string | null>;
-  setScanning:  (p: Pick<Project, "id" | "name"> | null, scanId?: string) => void;
+  // A project always comes with its scan's id: without one, every event would be dropped
+  setScanning:  {
+    (p: null): void;
+    (p: Pick<Project, "id" | "name">, scanId: string): void;
+  };
   setProgress:  (p: ScanProgress | null) => void;
   setScanError: (projectId: string, message: string | null) => void;
 }
@@ -101,7 +105,8 @@ export const useScanStore = create<ScanStore>((set) => ({
   scanId:      null,
   progress:    null,
   scanErrors:  {},
-  setScanning: (scanningProject, scanId) => set({ scanningProject, scanId: scanId ?? null }),
+  setScanning: (scanningProject: Pick<Project, "id" | "name"> | null, scanId?: string) =>
+    set({ scanningProject, scanId: scanId ?? null }),
   setProgress: (progress)   => set({ progress }),
   setScanError: (projectId, message) =>
     set((s) => ({ scanErrors: { ...s.scanErrors, [projectId]: message } })),

@@ -53,6 +53,14 @@ describe("scan progress events", () => {
     expect(useScanStore.getState().progress?.filesScanned).toBe(2);
   });
 
+  it("won't take a scanning project without its scan id", () => {
+    // Checked by tsc, not by this run: with no id, the listener would drop every event
+    // @ts-expect-error the scan id is required when a project is given
+    useScanStore.getState().setScanning({ id: "p", name: "Test" });
+    useScanStore.getState().setScanning(null);
+    expect(useScanStore.getState().scanningProject).toBeNull();
+  });
+
   it("drops an event that arrives after its scan has ended", async () => {
     useScanStore.setState({ scanningProject: null, scanId: null, progress: null });
     render(<QueryClientProvider client={new QueryClient()}><App /></QueryClientProvider>);
