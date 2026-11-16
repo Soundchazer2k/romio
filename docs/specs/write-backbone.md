@@ -137,6 +137,14 @@ Applying a plan and settling the journal both take one lock, and nothing else wr
   new is written. The call is refused with the reason: "an earlier write didn't finish and
   Romio can't read its record", or "a newer version of Romio left a write unfinished; open
   that version once to finish it".
+- **The gate also covers tools Romio started.** The tool adapter spec
+  (`docs/specs/tool-adapters.md`, PR 60) lets Romio run someone else's program against a
+  library, under this lock. If Romio crashes, that program can live on, still reading the
+  library, while the lock is free again. So whoever takes the lock also settles tool runs,
+  as that spec's "After a crash" defines, before its own work: if a process from an
+  earlier tool run is alive, the lock is released and the call is refused with "an audit
+  from before is still running". Nothing is written beside a running tool. Until an
+  adapter exists there are no tool runs, and this step finds nothing.
 - A call that finds the lock taken is refused with "Romio is already writing", not queued.
   Settling at start that finds it taken does nothing; the copy holding it is still working.
 - Editing a project's library roots, and deleting a project, take the same lock and pass
@@ -404,6 +412,8 @@ every op's final state and the row's status together:
     whitespace before `#` can't be selected;
   - after an interrupted apply, running the feature again offers only the missing playlists;
   - the gate blocks apply, root edits and project deletion alike;
+  - once an adapter exists: a live process from an earlier tool run blocks apply, root
+    edits and project deletion, and none of them is blocked after it has gone;
   - no test, in any outcome, finds a file removed, renamed or moved, or a file Romio
     didn't create changed.
 - **Failure injection.** The file and journal steps go through one seam that a test can
