@@ -2,7 +2,7 @@
 import { useEffect } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { useAppStore, useScanStore, type Screen } from "@/stores";
-import type { ScanProgress } from "@/types";
+import type { ScanProgressEvent } from "@/types";
 
 // Screens
 import { WelcomeScreen }    from "@/components/dashboard/WelcomeScreen";
@@ -54,7 +54,10 @@ export default function App() {
 
   // Listen for scan progress events from the Rust backend
   useEffect(() => {
-    const unlisten = listen<ScanProgress>("scan_progress", (event) => {
+    const unlisten = listen<ScanProgressEvent>("scan_progress", (event) => {
+      // Events travel apart from the command's reply, so one from a scan that has ended can
+      // arrive late. Shown, it would sit under the next scan's project.
+      if (event.payload.scanId !== useScanStore.getState().scanId) return;
       // "complete" only ends the walk. The Dashboard clears this once saving and the BIOS sweep finish.
       setProgress(event.payload);
     });

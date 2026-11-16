@@ -86,19 +86,22 @@ export const useAppStore = create<AppStore>()(persist((set) => ({
 interface ScanStore {
   // The backend runs one scan at a time, and it may not be the open project's
   scanningProject: Pick<Project, "id" | "name"> | null;
+  // The running scan's id. A progress event carrying another id belongs to an earlier scan.
+  scanId:       string | null;
   progress:     ScanProgress | null;
   // Per project and kept here: a scan can fail after the Dashboard has unmounted
   scanErrors:   Record<string, string | null>;
-  setScanning:  (p: Pick<Project, "id" | "name"> | null) => void;
+  setScanning:  (p: Pick<Project, "id" | "name"> | null, scanId?: string) => void;
   setProgress:  (p: ScanProgress | null) => void;
   setScanError: (projectId: string, message: string | null) => void;
 }
 
 export const useScanStore = create<ScanStore>((set) => ({
   scanningProject: null,
+  scanId:      null,
   progress:    null,
   scanErrors:  {},
-  setScanning: (scanningProject) => set({ scanningProject }),
+  setScanning: (scanningProject, scanId) => set({ scanningProject, scanId: scanId ?? null }),
   setProgress: (progress)   => set({ progress }),
   setScanError: (projectId, message) =>
     set((s) => ({ scanErrors: { ...s.scanErrors, [projectId]: message } })),

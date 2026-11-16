@@ -41,6 +41,22 @@ describe("Dashboard scan and the companion", () => {
   });
   afterEach(cleanup);
 
+  it("gives each scan its own id, sends it to the backend, and forgets it when the scan ends", async () => {
+    const first = startScan();
+    await waitFor(() => expect(useScanStore.getState().scanId).toBeTruthy());
+    const firstId = useScanStore.getState().scanId;
+    expect(mocks.scanLibrary).toHaveBeenLastCalledWith("p", ["/roms"], firstId);
+
+    first.finish();
+    await waitFor(() => expect(useScanStore.getState().scanningProject).toBeNull());
+    expect(useScanStore.getState().scanId).toBeNull();
+
+    mocks.scanLibrary.mockReturnValue(new Promise<void>(() => {}));
+    fireEvent.click(screen.getAllByRole("button", { name: /scan/i })[0]);
+    await waitFor(() => expect(useScanStore.getState().scanId).toBeTruthy());
+    expect(useScanStore.getState().scanId).not.toBe(firstId);
+  });
+
   it("shows processing during a scan and nothing left running when it ends", async () => {
     const { finish } = startScan();
     await waitFor(() => expect(useAppStore.getState().romioState).toBe("processing"));

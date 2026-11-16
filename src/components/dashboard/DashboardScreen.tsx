@@ -52,10 +52,13 @@ export function DashboardScreen() {
   // The project travels with the scan: you can switch to another one before it ends
   const scanMut = useMutation({
     mutationFn: async (project: Project) => {
+      // onMutate has just numbered this scan. The number makes its id, which the backend
+      // puts on every progress event so that a late one from an earlier scan can be dropped.
+      const scanId = `${project.id}:${latestScan.get(project.id)}`;
       setProgress(null);
-      setScanning(project);
+      setScanning(project, scanId);
       setScanError(project.id, null);
-      await ipc.scanLibrary(project.id, project.libraryRoots);
+      await ipc.scanLibrary(project.id, project.libraryRoots, scanId);
     },
     onMutate: (project) => {
       const run = (latestScan.get(project.id) ?? 0) + 1;

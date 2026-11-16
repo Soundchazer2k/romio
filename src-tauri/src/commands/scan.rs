@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 use std::sync::{Arc, OnceLock};
 use std::sync::atomic::{AtomicBool, Ordering};
+use serde::Serialize;
 use tauri::{AppHandle, Emitter};
 use crate::engine::scanner::{scan_roots, ScanPhase, ScanProgress};
 use crate::models::artifact::Artifact;
@@ -13,6 +14,17 @@ fn cancel_flag() -> &'static Arc<AtomicBool> {
 
 /// True while a scan is executing.
 static SCAN_RUNNING: AtomicBool = AtomicBool::new(false);
+
+/// What the frontend receives: progress, tagged with the scan it belongs to. Events are
+/// delivered apart from the command's own reply, so one can arrive after its scan has
+/// ended and the next has begun. The id lets the frontend drop it.
+#[derive(Clone, Copy, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ScanProgressEvent<'a> {
+    scan_id:  &'a str,
+    #[serde(flatten)]
+    progress: &'a ScanProgress,
+}
 
 /// Save a finished scan and stamp the project, announcing the save first because it takes a
 /// while on large libraries. A cancelled scan saves nothing and returns false.
@@ -52,6 +64,7 @@ pub async fn scan_library(
     app:        AppHandle,
     project_id: String,
     roots:      Vec<String>,
+    scan_id:    String,
 ) -> Result<(), String> {
     cancel_flag().store(false, Ordering::Relaxed);
     SCAN_RUNNING.store(true, Ordering::Relaxed);
@@ -61,9 +74,10 @@ pub async fn scan_library(
         roots.iter().map(std::path::PathBuf::from).collect();
 
     let walk_app = app.clone();
+    let walk_id  = scan_id.clone();
     let result = tokio::task::spawn_blocking(move || {
         scan_roots(&root_paths, cancel, |progress: ScanProgress| {
-            let _ = walk_app.emit("scan_progress", &progress);
+            let _ = walk_app.emit("scan_progress", ScanProgressEvent { scan_id: &walk_id, progress: &progress });
         })
     })
     .await;
@@ -75,7 +89,7 @@ pub async fn scan_library(
 
     // If the scan was cancelled, discard partial results — do not persist.
     let saved = persist_scan(&project_id, &artifacts, cancel_flag(), |progress| {
-        let _ = app.emit("scan_progress", &progress);
+        let _ = app.emit("scan_progress", ScanProgressEvent { scan_id: &scan_id, progress: &progress });
     })?;
     if !saved {
         return Ok(());
@@ -166,6 +180,17 @@ mod tests {
     use serial_test::serial;
     use std::cell::RefCell;
     use tempfile::TempDir;
+
+    #[test]
+    fn a_progress_event_carries_its_scan_id_beside_the_progress_fields() {
+        let progress = ScanProgress {
+            files_scanned: 3, files_total: Some(9), current_path: "a".into(), phase: ScanPhase::Hashing,
+        };
+        let json = serde_json::to_value(ScanProgressEvent { scan_id: "p:1", progress: &progress }).unwrap();
+        assert_eq!(json["scanId"], "p:1");
+        assert_eq!(json["filesScanned"], 3);
+        assert_eq!(json["phase"], "hashing");
+    }
 
     fn artifact() -> Artifact {
         Artifact {
