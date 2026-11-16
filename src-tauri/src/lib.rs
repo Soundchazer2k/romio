@@ -47,7 +47,7 @@ pub fn run() {
             commands::bios::set_bios_root,
 
             // Format compatibility
-            commands::format::check_format_compatibility,
+            commands::format::check_format_batch,
             commands::format::get_format_matrix,
             commands::format::list_library_folders,
 
@@ -68,7 +68,7 @@ pub fn run() {
             commands::scummvm::generate_pointer_files,
 
             // Installed titles
-            commands::installed::validate_installed_titles,
+            commands::installed::check_installed_titles,
             commands::installed::validate_shortcut_content,
             commands::installed::generate_shortcuts,
 
