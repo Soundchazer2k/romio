@@ -1,9 +1,9 @@
 # Tool Adapters — Design Spec
 
-**Status:** Draft, written before the spike. No code yet. Facts about Igir come from its
-own documentation (igir.io, read 2026-11-16) and are marked where the documentation is
-silent. "The spike must answer" lists what has to be seen on a real machine before this
-spec is final.
+**Status:** Draft. No code yet. Facts about Igir come from its own documentation (igir.io,
+read 2026-11-16) and from a spike on the same day: Igir 5.8.1, the official Windows x64
+executable, run against generated libraries. "What the spike found" has the results, and
+what is still unchecked on macOS and Linux.
 **Scope:** How Romio runs someone else's program against a user's library, and the first
 adapter: Igir, auditing a library against DAT files. Copying a library out through Igir
 (the Export Planner) is outlined, and gets its own spec.
@@ -86,8 +86,9 @@ second adapter has a shape to follow; it is revised when that adapter is written
 
 - Romio looks for the tool on `PATH`, then asks the user to pick the file. The chosen path
   is stored in app settings, not in a project: the tool belongs to the machine.
-- `probe` runs the tool with its version flag and reads the answer. A file that doesn't
-  answer like the tool is refused.
+- `probe` runs the tool and reads its version. A file that doesn't answer like the tool is
+  refused. Igir has no version flag: `--version` is an error. `igir --help` exits 0 and
+  prints a banner holding `v5.8.1 (Bun v1.4.4)`, which is what `probe` reads.
 - If nothing is found, the screen links to the tool's official download page and says
   what to pick afterwards. For Igir that is the releases page of its repository.
 - Igir publishes compiled executables (its documentation says they are built with Bun)
@@ -135,8 +136,13 @@ has, which are missing, and which library files match nothing.
 **The command**
 
 ```text
-igir report --dat <dat folder or file>... --input <library root>... --report-output <file>
+igir report --dat <dat folder or file>... --input <library root>...
+            --report-output <file> --cache-path <file>
 ```
+
+`--cache-path` is not optional for Romio. Without it Igir writes `igir.cache` into the
+user's home folder, which the spike saw happen. With it, the cache goes into Romio's data
+folder. `--temp-dir` is never passed: Igir removed the folder the spike gave it when it exited.
 
 From Igir's documentation:
 
@@ -178,7 +184,11 @@ run, so an audit puts nothing in the library and nothing beside the DATs.
 **DAT files** are the user's, like BIOS files. Romio doesn't ship, download or link to
 them. The screen says what a DAT is and names the preservation groups that publish them.
 
-**Reading the report.** `parse` reads the CSV by column name, not position. A report whose
+**Reading the report.** The columns in 5.8.1 are `DAT Name`, `Game Name`, `Status`,
+`ROM Files`, then fourteen true/false columns (`Patched`, `BIOS`, `Retail Release` and
+others). A `DUPLICATE` or `UNUSED` row has an empty DAT and game name, and the file in
+`ROM Files`. The file has one row per game and per unmatched file, so it is large: 25 MB
+for 100,000 files. `parse` reads it as a stream and by column name, not position. A report whose
 header lacks a column Romio needs is an error that names the column, not a guess. Unknown
 status values are counted and shown as "other", never dropped.
 
@@ -187,14 +197,19 @@ status values are counted and shown as "other", never dropped.
 - Per DAT: games found, games missing, with the lists behind each number.
 - Files that matched nothing, and files that are duplicates of a game already matched.
 - The command that ran, how long it took, and where the CSV is, with "Show in folder".
-- If the run failed: the exit code and the last lines Igir wrote.
+- If the run failed: the exit code and the last lines Igir wrote. Igir writes its errors
+  to stdout, as a line starting `ERROR:`; stderr stayed empty in every spike run.
+- **Progress is by step, not by percentage.** With its output piped, Igir prints one line
+  as each step finishes ("Parsing DATs", "Scanning for ROMs", one per DAT, "Generating
+  report") and nothing in between, wrapped in terminal control codes that the adapter
+  strips. The screen shows the step it is on and the time elapsed, with Stop.
 
 The audit is another read-only scan screen. It uses the shared scan session
 (`src/lib/tool-scan.ts`): results and inputs are kept per project, and Stop drops a run.
 
-**Cost.** An audit hashes every file in the library. On a large library that is minutes
-to hours. The screen says so before the first run. Igir's documentation describes a file cache
-that makes later runs faster; see the spike's questions.
+**Cost.** An audit hashes every file in the library. The spike's 100,000 files of 1 KB
+took 153 seconds, and 69 seconds on a second run with the cache. Real libraries hold far
+more bytes, so expect minutes to hours. The screen says so before the first run. The cache only helps a run that finished: a stopped audit starts again from nothing.
 
 ## Later: copying a library out (outline)
 
@@ -229,21 +244,36 @@ it; this is what already seems fixed:
 - Automated tests never run the real Igir. Gemini does, on the desktop, against a
   generated library and a hand-written DAT, on every adapter PR.
 
-## The spike must answer
+## What the spike found
 
-Igir's documentation doesn't say, and the design depends on it:
+Igir 5.8.1, official `igir-5.8.1-Windows-x64.zip` from the project's releases page, its
+SHA-256 checked against the one GitHub publishes. Run on Windows 11 against two generated
+libraries: seven small files with a hand-written DAT, and 100,000 files of 1 KB.
 
-1. Does the compiled executable run with no Node.js installed, on Windows, macOS and Linux?
-2. What does Igir write to stdout and stderr when they aren't a terminal? Its progress
-   bars are "live-updating". If nothing usable comes out when piped, the screen shows
-   elapsed time and Stop, and no percentage.
-3. The report's exact column names, and what `IGNORED` means.
-4. Its exit codes. None are documented.
-5. Where the version is printed, and in what form.
-6. What a Stop leaves behind: a partial CSV, a cache file, a temporary folder.
-7. Where Igir keeps its cache, and whether that can be pointed at Romio's data folder so
-   an audit writes nothing anywhere else.
-8. How long an audit of a library of 100,000 small files takes.
+| Question | Answer |
+|---|---|
+| Does the executable need Node.js? | It is one 121 MB file whose banner names its own Bun runtime. Node.js was installed on the test machine, so "runs without it" is likely, not shown. |
+| What does it print when piped? | A banner, then one line per finished step, in terminal control codes. No running count. 797 bytes over a 153 second run. |
+| The report's columns | As listed under "Reading the report". `IGNORED` did not appear. |
+| Exit codes | 0 on success. 1 for a usage error and for a DAT folder with no files. Being killed is the caller's code. |
+| The version | In the banner only. `--help` exits 0; `--version` exits 1. |
+| What Stop leaves | Killed after 20 seconds: no process left, no report, no cache file. The cache is written at the end, so a stopped audit keeps none of its hashing. |
+| The cache | `igir.cache` in the user's home folder by default. `--cache-path` moves it. 1.4 MB for 100,000 files. |
+| A large audit | 153 seconds for 100,000 files of 1 KB; 69 seconds cached. |
+
+Two things the spike found that nobody asked:
+
+- **Igir deletes the folder given as `--temp-dir`** when it exits. Romio never passes it.
+- **`clean` sends files to the recycle bin** by its own description, and has
+  `--clean-dry-run`. It stays off the allow-list.
+
+Still unchecked:
+
+- macOS and Linux. Everything above is Windows x64.
+- Stopping Igir when it has started helper processes. None were seen in an audit.
+- Real DAT files from the preservation groups, and archives as input.
+- Whether the report's columns are stable between Igir versions. The adapter supports
+  5.8.x until another version has been run.
 
 ## Decisions for the owner
 
@@ -253,8 +283,7 @@ Igir's documentation doesn't say, and the design depends on it:
 3. **Keeping reports.** Recommended: Romio keeps the CSV of the last audit per project and
    replaces it on the next. They are in Romio's own data folder, not the library.
 
-## Not verified
+## Licence
 
-- Igir's licence. The survey says GPLv3, which matches Romio's; Igir's installation page
-  doesn't state it.
-- Which Igir versions to support. That is decided after the spike, from the version it ran.
+Igir is GPL-3.0, read from its repository. Romio is GPL-3.0 and runs Igir as a separate
+program, without shipping it.
