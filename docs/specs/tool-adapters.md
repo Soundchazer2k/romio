@@ -310,6 +310,17 @@ it; this is what already seems fixed:
 - A copy that is stopped or fails leaves a partial output folder. Romio doesn't delete it;
   the entry says so.
 
+Questions that spec must answer, raised in review of the PRD amendment (PR 58):
+
+- **A half-written output folder.** How it is marked so that nobody takes it for a
+  finished copy. Removing it is a deletion, which waits for the rollback spec.
+- **The library changing between the preview and the run.** The tool reads the library
+  again when it runs, and a library can't be frozen. Whether the result screen compares
+  the run's own report with the preview, or only shows the report.
+- **Two runs into one folder.** Rule 8 allows one run at a time and the folder must be
+  empty at the start, so runs can't mix. The spec confirms that a retry needs a new or
+  emptied folder too.
+
 ## Testing
 
 - **`build`:** for every combination of form values, the argument list contains no verb
