@@ -49,22 +49,32 @@ export function DashboardScreen() {
     else if (scanFailure) setRomioState("error");
   }, [scanningHere, scanFailure, setRomioState]);
 
+  // Scans queued while offline all start together, and the store shows the last one started.
+  // A scan that ends clears the store only if it is still that one.
+  const endScan = (scanId: string) => {
+    if (useScanStore.getState().scanId !== scanId) return;
+    setScanning(null);
+    setProgress(null);
+  };
+
   // The project travels with the scan: you can switch to another one before it ends
   const scanMut = useMutation({
-    mutationFn: async (project: Project) => {
+    // The backend puts the scan's id on every progress event, so that a late event from an
+    // earlier scan can be dropped. The id arrives with the call: read from latestScan here,
+    // two scans queued while offline would both pick up the later number.
+    mutationFn: async ({ project, scanId }: { project: Project; scanId: string }) => {
       setProgress(null);
-      setScanning(project);
+      setScanning(project, scanId);
       setScanError(project.id, null);
-      await ipc.scanLibrary(project.id, project.libraryRoots);
+      await ipc.scanLibrary(project.id, project.libraryRoots, scanId);
     },
-    onMutate: (project) => {
+    onMutate: ({ project }) => {
       const run = (latestScan.get(project.id) ?? 0) + 1;
       latestScan.set(project.id, run);
       return { run };
     },
-    onSuccess: async (_, project, context) => {
-      setScanning(null);
-      setProgress(null);
+    onSuccess: async (_, { project, scanId }, context) => {
+      endScan(scanId);
       queryClient.invalidateQueries({ queryKey: ["projects"] });
       // Re-fetch project so scanStats and lastScannedAt reflect persisted data.
       // If you've switched away there's nothing to update: opening it again fetches it fresh.
@@ -84,9 +94,8 @@ export function DashboardScreen() {
         }
       }
     },
-    onError: (err, project) => {
-      setScanning(null);
-      setProgress(null);
+    onError: (err, { project, scanId }) => {
+      endScan(scanId);
       setScanError(project.id, `${String(err)}. The scan stopped${project.scanStats ? ", so these results may be out of date" : ""}.`);
     },
   });
@@ -98,6 +107,10 @@ export function DashboardScreen() {
       </div>
     );
   }
+
+  // A random id, not a counter: a counter restarts when the webview reloads, while the scan
+  // the backend was running keeps sending events under the old numbers.
+  const scan = () => scanMut.mutate({ project: activeProject, scanId: crypto.randomUUID() });
 
   const stats = activeProject.scanStats;
   const finishing = progress?.phase === "saving";
@@ -122,7 +135,7 @@ export function DashboardScreen() {
         </div>
 
         <button
-          onClick={() => scanMut.mutate(activeProject)}
+          onClick={scan}
           disabled={isScanning}
           className={cn(
             "flex items-center gap-2 px-5 py-2.5 rounded-lg font-semibold text-sm",
@@ -193,7 +206,7 @@ export function DashboardScreen() {
           />
         </div>
       ) : (
-        <NoScanState onScan={() => scanMut.mutate(activeProject)} disabled={isScanning} />
+        <NoScanState onScan={scan} disabled={isScanning} />
       )}
 
       {/* Quick-action cards, ordered for the person's situation */}

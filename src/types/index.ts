@@ -236,6 +236,9 @@ export interface ScanProgress {
   phase:        ScanPhase;
 }
 
+/** A `scan_progress` event: progress, tagged with the scan it belongs to */
+export type ScanProgressEvent = ScanProgress & { scanId: string };
+
 // ── Romio mascot states ───────────────────────────────────────────────────────
 
 export type RomioState =

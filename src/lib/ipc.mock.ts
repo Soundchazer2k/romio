@@ -209,7 +209,7 @@ export const ipc = {
     FIXTURE_PROJECT,
 
   // Scan
-  scanLibrary: async (_projectId: string, _roots: string[]): Promise<void> =>
+  scanLibrary: async (_projectId: string, _roots: string[], _scanId: string): Promise<void> =>
     undefined,
   getScanStatus: async (projectId: string) =>
     ({ isRunning: false, projectId }),

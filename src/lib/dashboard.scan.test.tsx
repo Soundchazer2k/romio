@@ -2,7 +2,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { act, render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, onlineManager } from "@tanstack/react-query";
 import { DashboardScreen } from "@/components/dashboard/DashboardScreen";
 import { useAppStore, useScanStore } from "@/stores";
 import type { Project, ScanProgress } from "@/types";
@@ -40,6 +40,92 @@ describe("Dashboard scan and the companion", () => {
     useScanStore.setState({ scanningProject: null, progress: null, scanErrors: {} });
   });
   afterEach(cleanup);
+
+  it("gives each scan its own id, sends it to the backend, and forgets it when the scan ends", async () => {
+    const first = startScan();
+    await waitFor(() => expect(useScanStore.getState().scanId).toBeTruthy());
+    const firstId = useScanStore.getState().scanId;
+    expect(mocks.scanLibrary).toHaveBeenLastCalledWith("p", ["/roms"], firstId);
+
+    first.finish();
+    await waitFor(() => expect(useScanStore.getState().scanningProject).toBeNull());
+    expect(useScanStore.getState().scanId).toBeNull();
+
+    mocks.scanLibrary.mockReturnValue(new Promise<void>(() => {}));
+    fireEvent.click(screen.getAllByRole("button", { name: /scan/i })[0]);
+    await waitFor(() => expect(useScanStore.getState().scanId).toBeTruthy());
+    expect(useScanStore.getState().scanId).not.toBe(firstId);
+  });
+
+  it("gives two scans that were queued while offline their own ids", async () => {
+    mocks.scanLibrary.mockResolvedValue(undefined);
+    onlineManager.setOnline(false);
+    try {
+      renderDashboard();
+      // Offline, a scan waits before it starts, so the button is still there to press again
+      fireEvent.click(screen.getAllByRole("button", { name: /scan/i })[0]);
+      fireEvent.click(screen.getAllByRole("button", { name: /scan/i })[0]);
+      expect(mocks.scanLibrary).not.toHaveBeenCalled();
+    } finally {
+      onlineManager.setOnline(true);
+    }
+    await waitFor(() => expect(mocks.scanLibrary).toHaveBeenCalledTimes(2));
+    const [first, second] = mocks.scanLibrary.mock.calls.map((call) => call[2]);
+    expect(first).toBeTruthy();
+    expect(second).not.toBe(first);
+  });
+
+  it("keeps a queued scan's id and progress when the scan before it ends", async () => {
+    const finish: Array<() => void> = [];
+    mocks.scanLibrary.mockImplementation(() => new Promise<void>((res) => { finish.push(res); }));
+    onlineManager.setOnline(false);
+    try {
+      renderDashboard();
+      fireEvent.click(screen.getAllByRole("button", { name: /scan/i })[0]);
+      fireEvent.click(screen.getAllByRole("button", { name: /scan/i })[0]);
+    } finally {
+      onlineManager.setOnline(true);
+    }
+    await waitFor(() => expect(mocks.scanLibrary).toHaveBeenCalledTimes(2));
+    finish[0]();
+    await waitFor(() => expect(mocks.getProject).toHaveBeenCalled());
+    // The second scan is still running, so it is still the one on screen
+    expect(useScanStore.getState().scanId).toBe(mocks.scanLibrary.mock.calls[1][2]);
+    expect(useScanStore.getState().scanningProject).not.toBeNull();
+
+    finish[1]();
+    await waitFor(() => expect(useScanStore.getState().scanningProject).toBeNull());
+  });
+
+  it("doesn't reuse a scan id after the webview reloads", async () => {
+    mocks.scanLibrary.mockReturnValue(new Promise<void>(() => {}));
+
+    // A reload starts every module again, and with them anything they were counting.
+    // Returns the id of the first scan started after one.
+    async function firstScanIdAfterReload() {
+      vi.resetModules();
+      mocks.scanLibrary.mockClear();
+      const rtl = await import("@testing-library/react");
+      const rq = await import("@tanstack/react-query");
+      const { DashboardScreen: Reloaded } = await import("@/components/dashboard/DashboardScreen");
+      const stores = await import("@/stores");
+      stores.useAppStore.setState({ screen: "dashboard", activeProject: PROJECT });
+      rtl.render(
+        <rq.QueryClientProvider client={new rq.QueryClient()}>
+          <Reloaded />
+        </rq.QueryClientProvider>
+      );
+      rtl.fireEvent.click(rtl.screen.getAllByRole("button", { name: /scan/i })[0]);
+      await rtl.waitFor(() => expect(mocks.scanLibrary).toHaveBeenCalledTimes(1));
+      rtl.cleanup();
+      return mocks.scanLibrary.mock.calls[0][2] as string;
+    }
+
+    const before = await firstScanIdAfterReload();
+    const after = await firstScanIdAfterReload();
+    expect(before).toBeTruthy();
+    expect(after).not.toBe(before);
+  });
 
   it("shows processing during a scan and nothing left running when it ends", async () => {
     const { finish } = startScan();
@@ -112,7 +198,7 @@ describe("Dashboard scan and the companion", () => {
     finish();
     await waitFor(() => expect(useScanStore.getState().scanningProject).toBeNull());
 
-    act(() => useScanStore.getState().setScanning(PROJECT));
+    act(() => useScanStore.getState().setScanning(PROJECT, "next"));
     loaded(PROJECT);
     await waitFor(() => expect(useAppStore.getState().activeProject).toBe(PROJECT));
     expect(useAppStore.getState().romioState).toBe("processing");

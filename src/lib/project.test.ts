@@ -40,7 +40,7 @@ describe("project IPC mock — load path", () => {
 
 describe("scan IPC mock — scan flow", () => {
   it("scanLibrary resolves without error", async () => {
-    await expect(ipc.scanLibrary("proj-1", ["/roms"])).resolves.toBeUndefined();
+    await expect(ipc.scanLibrary("proj-1", ["/roms"], "proj-1:1")).resolves.toBeUndefined();
   });
 
   it("getScanStatus returns the expected shape", async () => {

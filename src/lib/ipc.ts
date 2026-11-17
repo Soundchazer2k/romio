@@ -23,8 +23,8 @@ export const ipc = {
   getProject:       (id: string)                      => invoke<Project>("get_project", { id }),
 
   // Scan
-  scanLibrary:      (projectId: string, roots: string[]) =>
-                      invoke<void>("scan_library", { projectId, roots }),
+  scanLibrary:      (projectId: string, roots: string[], scanId: string) =>
+                      invoke<void>("scan_library", { projectId, roots, scanId }),
   getScanStatus:    (projectId: string)               => invoke<{ isRunning: boolean; projectId: string }>("get_scan_status", { projectId }),
   cancelScan:       ()                                => invoke<void>("cancel_scan"),
 
