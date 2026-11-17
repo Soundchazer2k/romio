@@ -427,11 +427,12 @@ every op's final state and the row's status together:
     whitespace before `#` can't be selected;
   - after an interrupted apply, running the feature again offers only the missing playlists;
   - the gate blocks apply, root edits and project deletion alike;
-  - once an adapter exists: a live process from an earlier tool run blocks apply, root
-    edits and project deletion, and none of them is blocked after it has gone; a tool
-    run whose record can't be read, or whose process the system won't report on, blocks
-    all three with the "can't tell" message; neither refusal writes a row, and settling
-    a tool run changes no file;
+  - once an adapter exists: a tool run that the adapter spec's gate finds alive blocks
+    apply, root edits and project deletion; one it can't tell about blocks all three with
+    the "can't tell" message; neither refusal writes a row, and settling a tool run
+    changes no file. None of the three goes through until that gate has settled the run.
+    When that is, the adapter spec decides and tests: a process that has gone is not
+    enough by itself;
   - no test, in any outcome, finds a file removed, renamed or moved, or a file Romio
     didn't create changed.
 - **Failure injection.** The file and journal steps go through one seam that a test can

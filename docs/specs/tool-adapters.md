@@ -550,8 +550,20 @@ Questions that spec must answer, raised in review of the PRD amendment (PR 58):
   A marker that can't be removed after settling leaves the run settled.
 
   Every refusal blocks a tool run and each of Romio's own writes, from a second process
-  as well, and leaves no row. Removing the marker, as a sign-out does, lets the next call
-  through, and a settled run is never looked at again.
+  as well, and leaves no row.
+
+  What ends a refusal is tested case by case, and nothing else ends it:
+  - a row that can be read, started by this user, whose marker is then removed as a
+    sign-out removes it, and whose settling commits: the next call goes through, and the
+    run is never looked at again;
+  - case 3, with the marker still there: the call is still refused after the stand-in
+    has gone, now with the sign-out reason of case 4;
+  - a row from another user: still refused after the marker is removed from this user's
+    registry, and after the stand-in has gone;
+  - a row that can't be read: still refused whatever is done to markers and processes;
+  - a registry that can't be read: refused until it can be;
+  - a settling that can't be committed: refused, with the marker absent, until the
+    commit succeeds.
 - **Closing Romio during a run** leaves the run settled and no marker.
 - **macOS and Linux:** starting a run is refused with the stated message.
 - **Reports:** two runs for one project write two files, and the first run's row still
