@@ -188,11 +188,12 @@ does anything Romio has no hold on:
    closes, and without the right to break away. Its handle can't be inherited, so no
    child ever holds the job open.
 2. **The pipes.** One for stdout and one for stderr. Romio's ends can't be inherited.
-   Stdin is the null device.
+   Stdin is the null device. If a pipe can't be made or the null device can't be opened,
+   nothing is started and the outcome is `FailedToStart`.
 3. **The process,** made with `CreateProcessW`, called directly. The standard library's
    `Command` can't do what this step needs. The call gets:
-   - the accepted path as the program, and the command line built from the argument list
-     (rule 3);
+   - the accepted path as the program, and the command line: the accepted path again as
+     its first word, then the argument list (rule 3);
    - the working directory, a folder Romio made for this run in its own data folder;
    - `CREATE_SUSPENDED`, so the tool does nothing yet;
    - the job, as a start-up attribute, so the process is in the job from the moment it
@@ -212,11 +213,25 @@ If step 3, 4 or 5 fails, the job is ended and the outcome is `FailedToStart`. If
 dies at any step, the job closes and ends the process, which had not run before step 5.
 Nothing the tool does happens outside the job or without a record.
 
-**The command line.** One function builds it, for programs that read their arguments the
-way Microsoft's C start-up code and `CommandLineToArgvW` do: an argument that is empty or
-holds a space, tab or quote is put in quotes, a quote inside is escaped, and backslashes
-are doubled only where they come before a quote. Igir's executable is such a program.
-Batch files are not, which is one reason they are refused.
+**The command line.** One function builds it, for programs that read their arguments by
+the rules Microsoft documents for its C start-up code ("Parsing C command-line
+arguments"):
+
+- **The first word is the program.** The program a process runs is chosen by the path
+  passed apart from the line, but the tool still reads the line's first word as its own
+  name. Without it the tool would take the verb for its name and lose it. So the line
+  starts with the accepted path, always in quotes. A Windows path can't hold a quote, and
+  the rules for the first word treat backslashes as plain characters, so it needs nothing
+  more.
+- **Each argument after it:** one that is empty, or holds a space, tab or quote, is put
+  in quotes. A quote inside is written as a backslash and a quote. Backslashes are
+  written as they are, except a run of them that comes right before a quote: that run is
+  doubled. This covers the closing quote Romio adds, so an argument in quotes that ends
+  in backslashes has them doubled.
+- Arguments are joined with one space. Nothing else is added.
+
+Igir's executable is taken to be such a program; a desktop check confirms it. Batch files
+are not, which is one reason they are refused.
 
 **Stop.** Stop ends the tool; it doesn't only stop listening to it. A tool that kept
 hashing after Stop would hold the library and the writer lock, and write a report nobody
@@ -248,15 +263,15 @@ asked for.
   "tool": "igir", "tool_version": "...", "tool_path": "...",
   "args": ["report", "--dat", "..."],
   "started_at": "...", "ended_at": "...",
-  "run_id": "...", "pid": 1234, "pid_started_at": "...",
+  "run_id": "...", "user_sid": "...", "pid": 1234, "pid_started_at": "...",
   "process_gone_at": "...",
   "outcome": "finished | failed | stopped | failed_to_start | interrupted",
   "exit_code": 0, "error": null,
   "output_dir": null, "report_path": "..." }
 ```
 
-The row is written before the process is made, with outcome `interrupted`, no `pid` and
-no `process_gone_at`. The `pid` and `pid_started_at` (the system's start time for that
+The row is written before the process is made, with outcome `interrupted`, the `user_sid`
+of the Windows user Romio is running as, no `pid` and no `process_gone_at`. The `pid` and `pid_started_at` (the system's start time for that
 process) are written in step 4, before the tool is resumed. The outcome and `ended_at`
 are written when the run ends. `Exited` with code 0 is `finished`, any other code is
 `failed`. `FailedToStart` is `failed_to_start`, with the system's message in `error` and
@@ -286,38 +301,53 @@ to be gone.
   again. Scans and the read-only checks are not affected.
 - **The session marker.** In step 4 Romio makes a registry key for the run, named by its
   `run_id`, under its own key in the user's part of the registry, as a volatile key.
-  Windows keeps a volatile key in memory only and drops it when the user's registry is
-  unloaded, which happens at sign-out and at shutdown. It does not depend on the clock or
-  on how long Windows has been up, and a shutdown with Fast Startup, which does not reset
-  the up time, still signs the user out. When a run ends normally, Romio removes the key
-  after it has written `process_gone_at`.
+  Windows keeps a volatile key in memory only and drops it when that user's registry is
+  unloaded. It does not depend on the clock or on how long Windows has been up. A sign-out
+  normally unloads the user's registry, but not always: Windows keeps it loaded while
+  something still holds it open. A restart always unloads it, and so does a shutdown with
+  Fast Startup, which signs every user out. When a run ends normally, Romio removes the
+  key after it has written `process_gone_at`.
+- **The marker belongs to one Windows user.** It is in the registry of the user who
+  started the run, and another user's copy of Romio looks in another registry, where the
+  key was never made. If two users share one data folder, a missing key would then prove
+  nothing. So the row records the `user_sid`, and only a copy of Romio running as that
+  user may read anything from the marker's absence.
 - **The gate.** Whoever takes the writer lock first settles tool runs, beside the
   backbone's settling of `applying` rows: at start, before a tool run, and before each of
   Romio's own writes, root edits and project deletions. It goes by the journal: every
   `tool_run` row that is unsettled is looked at, in this order.
   1. *No `pid`.* The tool was never resumed: the `pid` is committed before step 5. Gone.
-  2. *The run's marker is not there.* Romio could read its own registry key, and the
-     run's key is not in it. The session that ran the tool has ended. Gone.
+  2. *The run's marker is not there.* The run's `user_sid` is the user Romio is running
+     as, Romio could read its own registry key, and the run's key is not in it. That
+     user's registry has been unloaded since the run started, so the session that ran the
+     tool has ended. Gone.
   3. *The marker is there, and the tool's own process is still running:* a process with
      that `pid` whose start time is `pid_started_at`, not yet exited. Alive. Refused with
      "a tool Romio started earlier is still ending. Try again in a moment."
   4. *The marker is there, and the tool's own process is gone,* or its `pid` now belongs
      to another process. The helpers can't be checked. Refused with "Romio can't tell
      whether a tool it started earlier is still running", and the reason: "Romio stopped
-     while that tool was running. Sign out of Windows and sign in again, or restart, and
-     Romio will be sure."
-  5. *Anything else:* the row can't be read or understood, the registry can't be read,
+     while that tool was running. Sign out of Windows and sign in again. If Romio still
+     says this afterwards, restart Windows."
+  5. *Anything else:* the run was started by another Windows user (the reason says so,
+     and that this user must open Romio, or Windows be restarted and that user open
+     Romio), the row can't be read or understood, the registry can't be read,
      or the system refuses to say whether the process exists (it can't be opened, for a
      reason other than there being no such process). Refused with the same "can't tell"
      message, and the error.
 
-  A run found gone is settled: `process_gone_at` is written, and then its marker, if
-  there is one, is removed. If that write can't be committed, the call is refused as in
-  case 5 and the run is looked at again next time.
+  A run found gone is settled: `process_gone_at` is written and committed. If that
+  can't be committed, the call is refused as in case 5 and the run is looked at again
+  next time. Only after the commit is the run's marker removed, if there is one. If the
+  marker can't be removed, nothing follows from it: the row is settled and is never
+  looked at again, and a marker without an unsettled row means nothing. Windows drops it
+  at the next unload.
 - **A refusal releases the writer lock and writes no row.** Settling touches no file: it
   writes one field in the journal and removes one registry key of Romio's own.
-- **Ways out.** For cases 3 and 4, signing out and in again always works: the marker is
-  gone, and case 2 applies. For a row that can't be read there is no such way, because
+- **Ways out.** For cases 3 and 4, signing out and in again is usually enough, and a
+  restart of Windows always is: the marker is gone, and case 2 applies. A run started by
+  another Windows user is settled when that user opens Romio after such a sign-out or
+  restart. For a row that can't be read there is no such way, because
   the run's id, and so its marker, can't be found. That is the write backbone's case of a
   record Romio can't read, with the same message and the same remedy: open the version of
   Romio that wrote it, or keep a copy of the database and get help. The refusal carries
@@ -489,14 +519,16 @@ Questions that spec must answer, raised in review of the PRD amendment (PR 58):
   The stand-in records whether it was in a job at its first instruction, and it always
   was.
 - **Each step of the start,** made to fail through a seam: the job can't be made or
-  set up, the process can't be made, the journal commit fails, the marker can't be made,
-  the resume fails. In every case no process is left, the outcome is `failed_to_start`,
+  set up, a pipe can't be made, the null device can't be opened, the process can't be
+  made, the journal commit fails, the marker can't be made, the resume fails. In every case no process is left, the outcome is `failed_to_start`,
   and the stand-in never ran.
 - **Handles:** a second launch made while a run is going holds none of the run's pipe
   ends and not its job, and the run's readers still end when its job is empty.
-- **The command line:** every argument reaches the stand-in exactly as given: an empty
-  one, ones with spaces, tabs and quotes, one ending in a backslash, one ending in
-  backslashes before a quote, and one with characters outside ASCII. A `.cmd` file, a
+- **The command line:** the stand-in sees its own path as its name and every argument
+  exactly as given: an empty one, ones with spaces, tabs and quotes, one ending in a
+  backslash, one ending in backslashes before a quote, and one with characters outside
+  ASCII. One case has the stand-in at a path with spaces and an argument with a space
+  that ends in a backslash, together. A `.cmd` file, a
   `.bat` file and a file named `.exe` that isn't a program are refused before anything
   runs.
 - **The version check:** it runs with no project, writes no row, runs beside a tool run,
@@ -511,8 +543,11 @@ Questions that spec must answer, raised in review of the PRD amendment (PR 58):
      held open by the test, a marker and a `pid` that now belongs to another process, and
      a marker with the tool gone but a helper still alive, each refuse with the sign-out
      reason;
-  5. a row that can't be read, a registry that can't be read, a process that can't be
-     opened, and a settling that can't be committed, each refuse with the error.
+  5. a row whose `user_sid` is another user's, with and without a marker in this user's
+     registry, a row that can't be read, a registry that can't be read, a process that
+     can't be opened, and a settling that can't be committed, each refuse with the error.
+
+  A marker that can't be removed after settling leaves the run settled.
 
   Every refusal blocks a tool run and each of Romio's own writes, from a second process
   as well, and leaves no row. Removing the marker, as a sign-out does, lets the next call
@@ -525,6 +560,11 @@ Questions that spec must answer, raised in review of the PRD amendment (PR 58):
   file whose size or modified time changed is asked about again.
 - **Output folder rule:** a library root, a folder inside one, a folder containing one,
   and a folder that doesn't exist yet under a root are refused. A project whose root contains Romio's data folder is refused an audit.
+- **Not automated:** that Windows itself drops the marker. A test that deletes the marker
+  only exercises case 2. On the desktop, by hand, on every adapter PR: a run is cut off
+  by ending Romio, and the marker is looked for after a sign-out, after a restart and
+  after a shutdown with Fast Startup. The real Igir is also given a path with spaces and
+  an argument that ends in a backslash, and its report is checked for both.
 - Automated tests never run the real Igir. Gemini does, on the desktop, against a
   generated library and a hand-written DAT, on every adapter PR.
 
@@ -559,8 +599,9 @@ Still unchecked:
   something the spike ran. The spike killed one Igir process on Windows. The job object,
   the start-up attributes, the command-line function and the gate are untested until the
   runner exists.
-- That a volatile key in the user's registry is gone after a sign-out, after a restart
-  and after a shutdown with Fast Startup, and never while the session lives. The design
+- That a volatile key in the user's registry is gone after a restart and after a
+  shutdown with Fast Startup, how often it survives a sign-out, and that it is never
+  dropped while the session lives. The design
   rests on Microsoft's description of volatile keys; it has not been tried.
 - That Igir reads its command line the way the command-line function assumes.
 - Real DAT files from the preservation groups, and archives as input.

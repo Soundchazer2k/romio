@@ -330,9 +330,12 @@ every op's final state and the row's status together:
 
 - **When.** At start, under the writer lock. And again by whoever takes the writer lock,
   before it writes, subject to the gate.
-- **Settling a tool run** (see "The writer lock") is done in the journal alone. It
-  writes one field in that run's row, reads no path in a library, and creates, changes
+- **Settling a tool run** (see "The writer lock") is decided and recorded in the journal.
+  It writes one field in that run's row, reads no path in a library, and creates, changes
   and removes no file anywhere. The rule below therefore holds for both kinds of settling.
+  Once that field is committed, an adapter may clear a marker of its own that is not a
+  file; the tool adapter spec keeps one in the registry on Windows. Failing to clear it
+  changes nothing: the row is settled and is not looked at again.
 - **It touches no file.** It reads `path` to write the note, and that is all. A file with
   the planned contents is not claimed as Romio's: something else could have written it.
 - **Run twice.** The transaction either commits or it doesn't. If the app stops before the
