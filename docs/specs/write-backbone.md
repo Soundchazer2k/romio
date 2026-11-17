@@ -141,10 +141,19 @@ Applying a plan and settling the journal both take one lock, and nothing else wr
   (`docs/specs/tool-adapters.md`, PR 60) lets Romio run someone else's program against a
   library, under this lock. If Romio crashes, that program can live on, still reading the
   library, while the lock is free again. So whoever takes the lock also settles tool runs,
-  as that spec's "After a crash" defines, before its own work: if a process from an
-  earlier tool run is alive, the lock is released and the call is refused with "an audit
-  from before is still running". Nothing is written beside a running tool. Until an
-  adapter exists there are no tool runs, and this step finds nothing.
+  as that spec's "After a crash" defines, before its own work. Every tool run in the
+  journal that is not yet settled must be shown to be gone:
+  - all are gone: the caller goes on;
+  - a process from one of them is alive: the call is refused with "a tool Romio started
+    earlier is still ending. Try again in a moment.";
+  - Romio can't tell (the run's row can't be read or understood, or the system won't
+    answer): the call is refused with "Romio can't tell whether a tool it started earlier
+    is still running", and the error. This is the same fail-closed rule as for a row
+    marked `applying` that can't be read.
+
+  In both refusals the lock is released, and no new row is written. Nothing is written
+  beside a running tool. Until an adapter exists there are no tool runs, and this step
+  finds nothing.
 - A call that finds the lock taken is refused with "Romio is already writing", not queued.
   Settling at start that finds it taken does nothing; the copy holding it is still working.
 - Editing a project's library roots, and deleting a project, take the same lock and pass
@@ -321,6 +330,9 @@ every op's final state and the row's status together:
 
 - **When.** At start, under the writer lock. And again by whoever takes the writer lock,
   before it writes, subject to the gate.
+- **Settling a tool run** (see "The writer lock") is done in the journal alone. It
+  writes one field in that run's row, reads no path in a library, and creates, changes
+  and removes no file anywhere. The rule below therefore holds for both kinds of settling.
 - **It touches no file.** It reads `path` to write the note, and that is all. A file with
   the planned contents is not claimed as Romio's: something else could have written it.
 - **Run twice.** The transaction either commits or it doesn't. If the app stops before the
@@ -413,7 +425,10 @@ every op's final state and the row's status together:
   - after an interrupted apply, running the feature again offers only the missing playlists;
   - the gate blocks apply, root edits and project deletion alike;
   - once an adapter exists: a live process from an earlier tool run blocks apply, root
-    edits and project deletion, and none of them is blocked after it has gone;
+    edits and project deletion, and none of them is blocked after it has gone; a tool
+    run whose record can't be read, or whose process the system won't report on, blocks
+    all three with the "can't tell" message; neither refusal writes a row, and settling
+    a tool run changes no file;
   - no test, in any outcome, finds a file removed, renamed or moved, or a file Romio
     didn't create changed.
 - **Failure injection.** The file and journal steps go through one seam that a test can
