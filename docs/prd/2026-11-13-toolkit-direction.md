@@ -122,6 +122,11 @@ later copy-out spec, not for this document: how a tool is stopped, what the log 
 holds, what is done about a half-written output folder, and what happens when the library
 changes between the preview and the run.
 
+**Version 1 runs tools on Windows only,** decided by the owner on 2026-11-17. A tool is
+run only where Romio can be sure it ends when Romio does, and review of the adapter spec
+found no design for macOS and Linux that holds. On those systems the adapter screens say
+so, and Romio's own checks are unaffected. Running tools there needs its own spec.
+
 There is no general plugin system in version 1. The second adapter is written by hand like
 the first, and only then is what they share pulled out.
 
@@ -151,8 +156,8 @@ Decided by the owner on 2026-11-13.
 
 1. **Finding tools.** Version 1 uses a tool the user installed and links to its official
    download. Installing for the user comes later, with a pinned version and a checked hash.
-   **Amendment proposed on 2026-11-16, after review, and not yet confirmed by the owner:**
-   the user chooses the file, and a copy Romio finds by searching is suggested, never run
+   **Amended on 2026-11-16 after review, and approved by the owner on 2026-11-17:** the
+   user chooses the file, and a copy Romio finds by searching is suggested, never run
    until the user accepts it. This adds a step the decision of 2026-11-13 did not require.
 2. **Playlists.** Romio builds its own writer on the write backbone (PR #54), since it is
    small and needs no tool. Neither exists yet: the backbone is a spec under review and

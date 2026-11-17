@@ -78,9 +78,13 @@ No further native writers are planned. What else needs writing goes through an a
 
 ## Phase 3: Tool adapters
 
-Romio runs an established tool: a form in place of flags, a preview, output to a new or
-empty folder outside the library. Every run against a library is recorded before it
-starts; reading a tool's version when the user chooses it is not. Igir is first.
+Romio runs an established tool: a form in place of flags and a preview. An action that
+makes files for the user writes them to a new or empty folder outside the library; an
+audit has no such folder. Every run against a library is recorded before it starts;
+reading a tool's version when the user chooses it is not. Igir is first.
+
+Version 1 runs tools on Windows only (owner's decision, 2026-11-17). macOS and Linux
+need their own spec: see the adapter spec.
 
 9. **Spike:** drive Igir from Romio against a generated library. Report only, then a
     copy into an output folder. It answers whether finding the tool, preview, progress and
