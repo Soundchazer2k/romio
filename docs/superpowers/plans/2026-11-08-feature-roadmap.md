@@ -86,9 +86,11 @@ reading a tool's version when the user chooses it is not. Igir is first.
 Version 1 runs tools on Windows only (owner's decision, 2026-11-17). macOS and Linux
 need their own spec: see the adapter spec.
 
-9. **Spike:** drive Igir from Romio against a generated library. Report only, then a
-    copy into an output folder. It answers whether finding the tool, preview, progress and
-    Stop are workable on Windows, macOS and Linux. Throwaway code.
+9. **Spike,** on Windows: drive Igir against a generated library, to learn whether
+    finding the tool, preview, progress and Stop are workable. The report part was run on
+    2026-11-16; its findings are in the adapter spec. A copy into an output folder is
+    still to be tried, with the copy-out spec. macOS and Linux get a spike of their own
+    with their spec. Throwaway code.
 10. **Adapter spec,** reviewed before any code.
 11. **Igir, report only:** audit a library against DAT files the user supplies, and show
     what is verified, unknown and missing. Writes nothing to the library: the tool's
