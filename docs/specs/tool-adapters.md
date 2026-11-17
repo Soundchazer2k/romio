@@ -7,6 +7,8 @@ what is still unchecked on macOS and Linux.
 **Scope:** How Romio runs someone else's program against a user's library, and the first
 adapter: Igir, auditing a library against DAT files. Copying a library out through Igir
 (the Export Planner) is outlined, and gets its own spec.
+**Platforms:** Version 1 runs tools on Windows only, decided by the owner on 2026-11-17.
+See "macOS and Linux: not in version 1".
 **Depends on:** the PRD amendment (`docs/prd/2026-11-13-toolkit-direction.md`) and the
 write backbone (`docs/specs/write-backbone.md`), whose journal this uses.
 
@@ -43,8 +45,10 @@ program; Romio chooses what to ask it, not how it behaves."
 2. **Arguments come from a typed form.** Every option the adapter can emit is a field with
    a type (a path chosen with the folder picker, a region from a fixed list). The command
    is built from the form as a list of arguments. There is no free-text options field.
-3. **No shell.** The tool is started directly with its argument list. Nothing is joined
-   into a command string and nothing is interpreted by a shell.
+3. **No shell.** The tool is started directly with its argument list. Nothing is
+   interpreted by a shell, and Romio never builds a command string itself. Windows takes
+   one command line for a new process; the standard library builds it from the list, with
+   the quoting that the tool's runtime undoes.
 4. **Inputs are the project's library roots,** and only those.
 5. **Output goes outside the library.** An output folder must not be one of the project's
    library roots, sit inside one, or contain one. Folders are told apart the way the write
@@ -69,6 +73,9 @@ program; Romio chooses what to ask it, not how it behaves."
 9. **Romio installs nothing.** Version 1 finds a copy the user installed. It never
    downloads a tool and never runs one through a package runner that downloads code
    (`npx`, `bunx`).
+10. **Windows only in version 1.** A tool is run only where Romio can be sure the tool
+    ends when Romio does. Today that is Windows. On macOS and Linux the adapter refuses to
+    run and says so.
 
 ## The adapter contract
 
@@ -117,9 +124,10 @@ second adapter has a shape to follow; it is revised when that adapter is written
   and the check belongs to none. It is a fixed command (`<tool> --help` for Igir), is given
   no library path, and runs in an empty folder in Romio's data folder. It goes through
   `spawn_tracked`, the runner's lower layer, which needs no project, no version and no
-  journal row. It takes no writer lock, since it is handed nothing to read or write, but
-  it is not started while a tool run is active. After ten seconds it is ended as Stop ends
-  a run, and the path is refused. The screen shows the command beside the path before the
+  journal row. It takes no writer lock and may run beside anything else, a tool run or
+  another check included: it is handed nothing to read or write, so there is nothing to
+  keep it apart from. It has a job object of its own, like any run, so it ends with
+  Romio. After ten seconds it is ended as Stop ends a run, and the path is refused. The screen shows the command beside the path before the
   user accepts.
 - If nothing is found, the screen links to the tool's official download page and says
   what to pick afterwards. For Igir that is the releases page of its repository.
@@ -129,11 +137,11 @@ second adapter has a shape to follow; it is revised when that adapter is written
 
 ## The runner
 
-Two layers, shared by every adapter:
+Two layers, shared by every adapter. Windows only in version 1.
 
 ```text
-spawn_tracked(tool_path, args, work_dir, stdin, on_line, deadline) -> Tracked
-Tracked.stop()                   asks the processes to end, and returns at once
+spawn_tracked(tool_path, args, work_dir, on_line, deadline) -> Tracked
+Tracked.stop()                   ends the processes, and returns at once
 Tracked.wait() -> RunOutcome     returns when the tracked processes are gone
 
 start(context, tool_path, args, on_line) -> RunHandle
@@ -146,21 +154,14 @@ RunOutcome = Exited { exit_code, output_tail }
            | FailedToStart { error }
 ```
 
-- `spawn_tracked` owns the process: starting it, the job object or process group, the
-  pipes, Stop and the deadline. It knows nothing about projects or the journal. The
-  version check uses it directly.
-- `start` is `spawn_tracked` with no deadline, plus the journal row and the run's lock
-  file. Every run against a library goes through `start`.
+- `spawn_tracked` owns the process: starting it, its job object, the pipes, Stop and the
+  deadline. It knows nothing about projects or the journal. The version check uses it
+  directly.
+- `start` is `spawn_tracked` with no deadline, plus the journal row. Every run against a
+  library goes through `start`.
 - `context` is what `start` needs to write the journal row. The operation log is read
   per project, so the project id travels with the run. `run_id` is made by the caller and
   names the run everywhere: the row, the working folder, the report file.
-- Started with the tool path and the argument list, the working directory set to a folder
-  Romio made for this run in its own data folder. On macOS and Linux that is
-  `std::process::Command` with `process_group(0)`. On Windows the runner calls
-  `CreateProcessW` itself: the tool has to be started suspended (see "Stop"), and
-  `Command` can set that flag but doesn't hand back the thread handle that resumes it.
-- Stdin is closed for the version check. For a run it is closed on Windows and is the
-  run's lock file on macOS and Linux (see "After a crash").
 - Runs in `spawn_blocking`. Stdout and stderr are each read by their own thread, at the
   same time, line by line, and passed to `on_line`, which an adapter uses to report
   progress. Reading one to its end before the other would hang the run: a tool that fills
@@ -173,33 +174,41 @@ RunOutcome = Exited { exit_code, output_tail }
 - The Tauri shell plugin is not used for this. The process is started by the backend, so
   the webview never holds the ability to start programs.
 
+**Starting the tool.** The order matters, and each step is there so that the tool never
+does anything Romio has no hold on:
+
+1. A job object is made, set to end its processes when its last handle closes, and
+   without the right to break away.
+2. The tool is started suspended: `std::process::Command` with the tool path, the
+   argument list, stdin closed, the working directory set to a folder Romio made for this
+   run in its own data folder, and the `CREATE_SUSPENDED` flag. The standard library does
+   the quoting of the command line, which is why Romio doesn't call `CreateProcessW`
+   itself.
+3. The process is put in the job.
+4. For a run against a library, its `pid` and start time are written to the journal row.
+5. The process is resumed. `Command` doesn't hand back the thread that has to be
+   resumed, so the runner looks it up: a process that was created suspended and has not
+   run has exactly one thread. If the system shows none or more than one, the process is
+   ended and the outcome is `FailedToStart`.
+
+If step 3, 4 or 5 fails, the process is ended before the error is returned. Nothing the
+tool does happens before step 5, so nothing happens outside the job or without a record.
+
 **Stop.** Stop ends the tool; it doesn't only stop listening to it. A tool that kept
 hashing after Stop would hold the library and the writer lock, and write a report nobody
 asked for.
 
 - The backend keeps the `RunHandle` of the running tool. A `stop_tool_run(run_id)` command
   calls `stop()` on it.
-- Stop ends the tool and every process it started, on every system. A compiled tool may
-  start helpers, and a helper left alive keeps reading the library.
-  - **Windows:** the tool is created suspended, put in a job object, and only then
-    resumed, so nothing the tool does happens outside the job. Stop ends the job.
-  - **macOS and Linux:** the tool is started as the leader of its own process group, and
-    Stop signals the group: a request to end first, then a kill after five seconds.
-- **Which processes are tracked.** On Windows, every process in the job. The job doesn't
-  allow breakaway, so a descendant can't leave it. On macOS and Linux, every process in
-  the tool's process group. A descendant that moves itself to another group or session is
-  not tracked: Stop doesn't reach it, and `wait()` doesn't wait for it.
-- **When `wait()` returns.** On Windows, when the job reports no active process. On macOS
-  and Linux, the runner reaps the tool, then asks the system whether the group still has
-  a member (`kill` with the negative group id and signal 0) until it has none. Waiting for
-  the tool alone would not show that. If the tool ended by itself and left group members
-  behind, they are ended as Stop ends them: the run is over.
-- **The output pipes.** Each reader thread ends when its pipe closes, and that happens
-  when the last tracked process is gone, unless an untracked descendant holds the pipe.
-  The runner waits two seconds for the readers after the processes are gone. A reader
-  still blocked then is left behind: a blocking pipe read can't be cancelled with the
-  standard library. It keeps one thread and one pipe until that descendant exits, and
-  nothing it reads after `wait()` has returned is passed to `on_line`.
+- **What Stop ends:** every process in the job. That is the tool and everything it
+  started, and everything those started: the job doesn't allow breakaway, so a descendant
+  can't leave it. Stop ends the job at once. Windows has no polite request to send to a
+  program without a window, and the spike found nothing lost by ending Igir outright.
+- **When `wait()` returns:** when the job reports no active process. Waiting for the tool
+  alone would not show that its helpers are gone.
+- **The output pipes.** Only processes in the job can hold the other end of the pipes,
+  so the readers reach the end of both once the job is empty. `wait()` joins both reader
+  threads before it returns, and nothing is passed to `on_line` after that.
 - Between Stop and the end the screen says "Stopping…". The run is still the one run
   allowed; another can start only after `wait()` has returned.
 
@@ -211,61 +220,91 @@ asked for.
   "args": ["report", "--dat", "..."],
   "started_at": "...", "ended_at": "...",
   "run_id": "...", "pid": 1234, "pid_started_at": "...",
+  "process_gone_at": "...",
   "outcome": "finished | failed | stopped | failed_to_start | interrupted",
-  "exit_code": 0, "error": null, "left_running": false,
+  "exit_code": 0, "error": null,
   "output_dir": null, "report_path": "..." }
 ```
 
-The row is written before the process starts, with outcome `interrupted` and no `pid`. The
-`pid` and `pid_started_at` (the system's start time for that process) are added once the
-process exists, and the outcome when it ends. Whether a run is still alive is never read
-from the `pid`: the lock file answers that, and it is named by the `run_id` the row has
-from the start. `Exited` with code 0
-is `finished`, any other code is `failed`. `FailedToStart` is `failed_to_start`, with the
-system's message in `error` and no `exit_code`: nothing was cut off, so the row must not
-stay `interrupted`. A tool run is never resumed or repeated automatically.
+The row is written before the process starts, with outcome `interrupted`, no `pid` and no
+`process_gone_at`. The `pid` and `pid_started_at` (the system's start time for that
+process) are written before the tool is resumed. The outcome and `ended_at` are written
+when the run ends. `Exited` with code 0 is `finished`, any other code is `failed`.
+`FailedToStart` is `failed_to_start`, with the system's message in `error` and no
+`exit_code`: nothing was cut off, so the row must not stay `interrupted`. A tool run is
+never resumed or repeated automatically.
+
+`process_gone_at` is the moment Romio established that the run's processes were gone:
+when `wait()` returned, or, after a crash, when the gate below found it so. A run without
+it is **unsettled**.
 
 **After a crash.** If Romio dies while a tool runs, the row stays `interrupted`, and
 nothing may write to a library or start a tool while that tool is alive.
 
-- **Windows:** the job object is set to end its processes when its last handle closes.
-  Romio holds the only handle, so the tool ends with Romio, however Romio ends. A crash
-  between creating the tool and putting it in the job leaves a suspended process that
-  never ran. It reads nothing.
-- **macOS and Linux: a lock file per run.** Nothing ends the tool for Romio there. Before
-  the tool starts, Romio makes `run.lock` in the run's folder, takes an exclusive lock on
-  it (`File::try_lock`, as the writer lock does) and gives the open file to the tool as
-  its stdin. The file is empty, so the tool reads the end of input at once, as it would
-  from a closed stdin. The lock belongs to the open file, not to Romio, so it lasts as
-  long as any process holds that stdin: the tool, and any helper that inherited it. The
-  row and the folder carry the `run_id` before the tool exists, so there is no moment at
-  which a running tool has no record.
+- **The job ends the tool.** The job object ends its processes when its last handle
+  closes. Romio holds the only handle, so the tool ends with Romio, however Romio ends.
+- **Not at the same instant.** The system ends those processes shortly after Romio is
+  gone, and the writer lock is free by then. A second copy of Romio that was already open
+  could take the lock and write while the tool was still reading. So the next writer
+  checks.
 - **The gate.** Whoever takes the writer lock first settles tool runs, beside the
-  backbone's settling of `applying` rows. That is at start, before a tool run, and before
-  each of Romio's own writes, root edits and project deletions. For each run folder that
-  still has a lock file, it tries the lock. If the lock is free the file is removed, and
-  that run is settled for good. If it is held, a process from that run is alive: the
-  writer lock is released and the call is refused with "an audit from before is still
-  running". Without this, a second copy of Romio that was open when the first one crashed
-  could take the freed writer lock and write while the tool was still reading. The same
-  check runs at the end of every run: a run whose lock is still held after `wait()` is
-  recorded with `left_running: true`, and blocks the same way.
-- **This adds a step to the write backbone's gate.** The backbone spec (PR 54) states it
-  under "The writer lock", and points here for how a run is known to be alive.
+  backbone's settling of `applying` rows: at start, before a tool run, and before each of
+  Romio's own writes, root edits and project deletions. It goes by the journal, not by
+  anything on disk: every `tool_run` row that is unsettled is looked at.
+  - *No `pid`.* The tool never ran: the `pid` is written before the tool is resumed. The
+    run is settled.
+  - *A `pid`, and the system has no such process.* Gone. Settled.
+  - *A process with that `pid` whose start time is not `pid_started_at`.* The number has
+    been given to another process. Gone. Settled, and that process is not touched.
+  - *`pid_started_at` is earlier than the last start of Windows.* Gone, without asking
+    about any process. Settled.
+  - *The same process, and it has exited.* Gone. Settled.
+  - *The same process, still running.* Alive. The writer lock is released and the call is
+    refused with "a tool Romio started earlier is still ending. Try again in a moment."
+  - *Anything else:* the row can't be read or understood, or the system refuses to say
+    (the process can't be opened for a reason other than not existing). Unknown. The
+    writer lock is released and the call is refused with "Romio can't tell whether a tool
+    it started earlier is still running", and the error. This is the backbone's
+    fail-closed rule: what can't be shown to be gone is treated as alive.
+- **Settling writes `process_gone_at` in the row and nothing else.** It touches no file.
+  A refused call writes no row. The process is held open while its start time and state
+  are read, so the answer is about one process and not about a number.
+- **The way out of "unknown" and of a tool that won't end:** restart Windows. Every run
+  started before that is then settled by its start time. The refusal says so.
 - **What happened and what is alive are kept apart.** The row's outcome is history and
   stays `interrupted`: the run was cut off, whatever became of the process. Whether
-  something is alive is the lock file's answer alone. A settled run never blocks again,
-  and a refused call leaves no row.
-- **Stopping what is left.** The refusal offers Stop only where Romio can show which
-  process it would signal: the row has a `pid`, a process with that `pid` is running, its
-  start time is the recorded `pid_started_at`, and it leads its own process group. A `pid`
-  the system has since given to another process fails the start time, even if that
-  process is another copy of the same tool. Stop then signals that group. In every other
-  case (Romio died before the `pid` was recorded, or only a helper is left) Romio signals
-  nothing. The screen shows the command and the run's folder, says that the process has to
-  finish or be ended by the user, and checks again when asked.
-- Not covered: a helper that left the tool's process group and was also given a stdin of
-  its own. Nothing finds it.
+  something is alive is decided by the checks above and recorded in `process_gone_at`.
+- **Romio never ends a process it finds after a crash.** It has no handle on that
+  process's job any more, and a `pid` alone is not enough to act on. It waits, and tells
+  the user.
+- A crash between steps 2 and 3 of the start leaves a suspended process outside any job.
+  It never ran and never will, it holds nothing in the library, and it has no `pid` in
+  the journal. It stays until Windows restarts.
+- Not covered: after a crash the gate looks at the tool, not at its helpers. Romio's
+  handle on the job died with it, so it can't ask whether the job is empty. The system
+  ends the helpers together with the tool. A helper that takes longer to end than the
+  tool does is not seen.
+
+## macOS and Linux: not in version 1
+
+On Windows the system itself ends the tool when Romio is gone. macOS and Linux have
+nothing equivalent, and three rounds of review found no design for them that holds. The
+owner decided on 2026-11-17 that version 1 runs tools on Windows only.
+
+- On macOS and Linux the adapter's screen says "Running tools is available on Windows in
+  this version", and the backend refuses to start a run. `build` and `parse` are not
+  tied to a system and are tested on all three.
+- A design for these systems has to answer what the rejected ones could not:
+  - **Ending the tool when Romio dies.** A process group is not ended with the process
+    that made it.
+  - **Knowing that a run is alive** by something the tool can't undo. A lock on a file
+    handed to the tool as its stdin was tried on paper and rejected: the tool can close
+    its stdin, and a helper can be given another.
+  - **Signalling a process group** without the group's number being given to someone else
+    between the check and the signal.
+  - **Knowing that a group is empty,** including a helper that left it.
+- That design gets its own spec and its own spike on each system. Nothing in this spec is
+  written to be ready for it.
 
 ## First action: audit with Igir
 
@@ -397,19 +436,24 @@ Questions that spec must answer, raised in review of the PRD amendment (PR 58):
   writes a CSV, can be told to hang, to fail, to start a child, and to fill one output
   stream while holding the other open. Tests cover a normal run, a failing run, a path
   that can't be started (the row ends `failed_to_start`), Stop while hung, Stop with a
-  child process (the child is gone afterwards, on each system CI runs), a tool that exits
-  and leaves a child in its group (`wait()` ends the child before it returns), a child
-  outside the group that holds the pipes open (`wait()` still returns, and `on_line` is
-  not called afterwards), more than a pipe's worth of output on stderr with stdout silent,
-  and a crash mid-run leaving an `interrupted` row. On Windows the stand-in records
-  whether it was in a job at its first instruction, and it always was.
-- **The version check:** it runs with no project, writes no row, and a stand-in that hangs
-  is ended at the deadline and its path refused.
-- **After a crash,** on macOS and Linux: a run whose lock file is held by a live stand-in
-  blocks a tool run and one of Romio's own writes, from a second process as well. With a
-  matching `pid` and start time it can be stopped. With a `pid` that now belongs to
-  another process, or with no `pid` recorded, the call is still refused and nothing is
-  signalled. A lock that is free is removed, and the run never blocks again.
+  child process (the child is gone afterwards), a tool that exits and leaves a child
+  running (`wait()` returns only when the child is gone too), more than a pipe's worth of
+  output on stderr with stdout silent, a failure after the suspended start (no process is
+  left), and a crash mid-run leaving an `interrupted` row. The stand-in records whether
+  it was in a job at its first instruction, and it always was. Arguments with spaces,
+  quotes and backslashes reach the stand-in exactly as given.
+- **The version check:** it runs with no project, writes no row, runs beside a tool run,
+  and a stand-in that hangs is ended at the deadline and its path refused.
+- **After a crash:** the process that held the job is killed, and the stand-in is gone
+  soon after. For the gate, each case in the list above: an unsettled row with no `pid`
+  is settled; with the `pid` of a live stand-in and its start time it blocks a tool run
+  and each of Romio's own writes, from a second process as well, and stops blocking when
+  the stand-in has gone; with a `pid` that now belongs to another process it is settled
+  and that process is still running afterwards; with a start time before the last start
+  of Windows it is settled; a row that can't be read, and a process that can't be
+  opened, refuse as unknown. A refused call leaves no row, and a settled run is never
+  looked at again.
+- **macOS and Linux:** starting a run is refused with the stated message.
 - **Reports:** two runs for one project write two files, and the first run's row still
   points at the first file.
 - **Finding the tool:** nothing is run for a path the user hasn't accepted, and a stored
@@ -446,11 +490,11 @@ Still unchecked:
 
 - macOS and Linux. Everything above is Windows x64.
 - Stopping Igir when it has started helper processes. None were seen in an audit.
-- Everything under "Stop" and "After a crash" is design, not something the spike ran. The
-  spike killed one Igir process on Windows. Job objects, the suspended start, process
-  groups, the lock file and the gate are untested until the runner exists.
-- Whether Igir accepts an empty file as its stdin, and whether any helper it starts keeps
-  the tool's process group and stdin.
+- Everything under "Starting the tool", "Stop" and "After a crash" is design, not
+  something the spike ran. The spike killed one Igir process on Windows. The job object,
+  the suspended start and its resume, and the gate are untested until the runner exists.
+- How long Windows takes to end a job's processes after the process holding the job is
+  gone.
 - Real DAT files from the preservation groups, and archives as input.
 - Whether the report's columns are stable between Igir versions. The adapter supports
   5.8.x until another version has been run.
