@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0
 import { motion } from "framer-motion";
-import { Home, Shield, Save, Cpu, FileCode2, Disc3, MousePointerClick, HardDrive } from "lucide-react";
+import { Home, Shield, Save, Cpu, FileCode2, FolderOpen, Disc3, MousePointerClick, HardDrive } from "lucide-react";
 import { useAppStore, type Screen } from "@/stores";
 import { RomioCompanion } from "@/components/romio/RomioCompanion";
 import { cn } from "@/lib/utils";
@@ -15,7 +15,8 @@ interface NavItem {
 // Only finished screens. Export, Change Preview and Rollback stay out until they're
 // built (DESIGN.md: no sidebar items to "Coming soon").
 const NAV: NavItem[] = [
-  { id: "dashboard",  label: "Dashboard",     icon: Home },
+  { id: "projects",   label: "Projects",      icon: FolderOpen },
+  { id: "dashboard",  label: "Dashboard",     icon: Home,       divider: true },
   { id: "preflight",  label: "Pre-flight",    icon: Cpu,        divider: true },
   { id: "bios",       label: "BIOS",          icon: Shield },
   { id: "format",     label: "Format Check",  icon: FileCode2 },
@@ -95,6 +96,7 @@ function NavButton({
   return (
     <button
       onClick={onClick}
+      aria-current={active ? "page" : undefined}
       className={cn(
         "w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors",
         "text-left focus:outline-hidden focus-visible:ring-1 focus-visible:ring-romio-green",

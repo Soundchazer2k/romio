@@ -13,7 +13,7 @@ import { cn, biosStateColor, biosStateBg, biosEntryLabel, biosIssueLabel, trunca
 
 export function BiosScreen() {
   const queryClient = useQueryClient();
-  const { activeProject, setActiveProject } = useAppStore();
+  const { activeProject, refreshActiveProject } = useAppStore();
   const [editingPath, setEditingPath] = useState(false);
   const [pathInput, setPathInput] = useState("");
   const [expandedSystem, setExpandedSystem] = useState<string | null>(null);
@@ -37,7 +37,7 @@ export function BiosScreen() {
     mutationFn: () => ipc.revalidateBios(projectId),
     onSuccess: async () => {
       const updated = await ipc.getProject(projectId);
-      setActiveProject(updated);
+      refreshActiveProject(updated);
       queryClient.invalidateQueries({ queryKey: ["bios_status", projectId] });
     },
   });
@@ -46,7 +46,7 @@ export function BiosScreen() {
     const trimmed = pathInput.trim();
     await ipc.setBiosRoot(projectId, trimmed || null);
     const updated = await ipc.getProject(projectId);
-    setActiveProject(updated);
+    refreshActiveProject(updated);
     queryClient.invalidateQueries({ queryKey: ["bios_status", projectId] });
     setEditingPath(false);
     setPathInput("");
