@@ -45,14 +45,14 @@ fn persist_scan(
         phase:         ScanPhase::Saving,
     });
 
-    // Persist artifacts (replaces any prior scan for this project)
-    crate::db::artifacts::save_batch(project_id, artifacts)
-        .map_err(|e| format!("Failed to persist artifacts: {e}"))?;
-
-    // Derive stats and stamp last_scanned_at
+    // The inventory and the totals are saved together, or neither is: a failure leaves the
+    // previous scan whole, never new rows under old totals.
     let stats = crate::engine::scanner::derive_scan_stats(artifacts);
-    crate::db::projects::update_scan_completion(project_id, stats)
-        .map_err(|e| format!("Failed to update scan stats: {e}"))?;
+    crate::db::with_transaction(|tx| {
+        crate::db::artifacts::replace(tx, project_id, artifacts)?;
+        crate::db::projects::update_scan_completion(tx, project_id, stats)
+    })
+    .map_err(|e| format!("Failed to persist artifacts: {e}"))?;
 
     Ok(true)
 }
@@ -298,6 +298,31 @@ mod tests {
             )?)
         }).unwrap();
         assert_eq!(surviving_id, original.id.to_string());
+        assert!(crate::db::projects::get(&project).unwrap().last_scanned_at.is_none());
+    }
+
+    #[test]
+    #[serial]
+    fn failed_totals_keep_the_previous_scan_too() {
+        let dir = TempDir::new().unwrap();
+        let project = new_project(&dir);
+        let original = artifact();
+        crate::db::artifacts::save_batch(&project, std::slice::from_ref(&original)).unwrap();
+        // The new rows go in; stamping the project's totals then fails
+        crate::db::with_conn(|conn| {
+            conn.execute_batch(
+                "CREATE TEMP TRIGGER fail_totals BEFORE UPDATE ON projects
+                 BEGIN SELECT RAISE(ABORT, 'totals refused'); END;",
+            )?;
+            Ok(())
+        }).unwrap();
+
+        let result = persist_scan(&project, &[artifact(), artifact()], &AtomicBool::new(false), |_| {});
+        crate::db::with_conn(|conn| { conn.execute_batch("DROP TRIGGER fail_totals;")?; Ok(()) }).unwrap();
+
+        assert!(result.unwrap_err().contains("totals refused"));
+        // The inventory and the totals are one save: the earlier scan stands whole
+        assert_eq!(saved_rows(&project), 1);
         assert!(crate::db::projects::get(&project).unwrap().last_scanned_at.is_none());
     }
 }

@@ -38,16 +38,15 @@ pub fn create(req: CreateProjectRequest) -> Result<Project> {
 }
 
 /// Called after a successful scan. Persists `last_scanned_at` and `scan_stats`.
-pub fn update_scan_completion(id: &str, stats: ScanStats) -> Result<()> {
+/// Stamp a scan's totals and date on the project, inside the caller's transaction.
+pub fn update_scan_completion(conn: &rusqlite::Connection, id: &str, stats: ScanStats) -> Result<()> {
     let stats_json = serde_json::to_string(&stats)?;
     let now = Utc::now().to_rfc3339();
-    crate::db::with_conn(|conn| {
-        conn.execute(
-            "UPDATE projects SET last_scanned_at = ?1, scan_stats = ?2 WHERE id = ?3",
-            rusqlite::params![now, stats_json, id],
-        )?;
-        Ok(())
-    })
+    conn.execute(
+        "UPDATE projects SET last_scanned_at = ?1, scan_stats = ?2 WHERE id = ?3",
+        rusqlite::params![now, stats_json, id],
+    )?;
+    Ok(())
 }
 
 pub fn get(id: &str) -> Result<Project> {
