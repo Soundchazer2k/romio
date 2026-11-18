@@ -51,6 +51,7 @@ root-level `tauri.conf.json`; the CLI finds it first and fails with "No package 
 
 Implemented: `welcome`, `projects`, `dashboard`, `preflight`, `bios`, `format`, `saves`, `multidisc`, `scummvm`, `installed` (these three report only; their write actions wait for the write backbone)
 Placeholder (backend stubs exist, UI TODO): `export`, `preview`, `rollback`.
+`smoketest` is also a placeholder, but has only a model (`SmokeTestResult`) and no commands yet.
 These are hidden from the sidebar until built; add each back to `NAV` in `Sidebar.tsx` when it ships.
 
 ## Type Sync

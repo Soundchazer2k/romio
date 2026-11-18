@@ -46,7 +46,7 @@ Read these files before dispatching the subagent:
 
 ## Step 3: Dispatch the `test-writer` subagent
 
-Dispatch the `test-writer` subagent (defined in `.Codex/agents/test-writer.md`), providing the full context bundle from Step 2.
+Dispatch the `test-writer` subagent (defined in `.claude/agents/test-writer.md`), providing the full context bundle from Step 2.
 
 Wait for the subagent to complete and return its structured summary.
 

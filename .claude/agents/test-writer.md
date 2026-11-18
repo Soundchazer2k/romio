@@ -27,7 +27,7 @@ Verify the screen mounts without crashing and key structural elements are visibl
 
 ### Category 2 — Interaction
 Verify the primary action works end-to-end through the mocked IPC. Examples:
-- BIOS screen: changing the Frontend dropdown updates the entries list
+- BIOS screen: with a BIOS directory set, clicking Validate Now renders the results list
 - Format screen: entering a path and clicking Scan triggers the scan flow and results appear
 - Preflight screen: the check host environment results render
 
