@@ -69,7 +69,7 @@ No dependencies to install. No terminal required. Just download and run.
 ## Building from Source
 
 ```bash
-# Prerequisites: Rust 1.75+, Node 20+, pnpm
+# Prerequisites: Rust 1.89+, Node 20+, pnpm
 git clone https://github.com/Soundchazer2k/romio
 cd romio
 pnpm install
