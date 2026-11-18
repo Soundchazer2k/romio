@@ -122,8 +122,8 @@ checks that the confirm button is the only caller of `apply_plan`.
 Applying a plan and settling the journal both take one lock, and nothing else writes to a library.
 
 - Inside the app it is a mutex. Across copies of Romio it is an exclusive OS lock on one
-  fixed file in the app data folder (`File::try_lock`, which needs Rust 1.89; the manifest
-  says 1.75). Romio has no single-instance guard today, so two copies can run.
+  fixed file in the app data folder (`File::try_lock`, which needs Rust 1.89, the version
+  the manifest requires). Romio has no single-instance guard today, so two copies can run.
 - It is one lock for the whole app, not one per project: two projects can share a root.
 - **Held for the whole of it.** The lock is taken before the plan's project and roots are
   checked and released only after the row's final status is saved. It is never dropped
@@ -457,7 +457,7 @@ Details that can be settled in code review, not here:
 - The folder-sync call actually used on each platform.
 - WAL's effect on the whole app database: the `-wal` and `-shm` files, checkpointing, and
   checking the effective mode before a write is allowed.
-- `File::try_lock` against the manifest's Rust 1.75, and lock behaviour on a network home.
+- How `File::try_lock` behaves on a network home folder.
 - Which root spellings (mapped drive, `subst`, UNC, mount point) can be compared by
   identity, and the refusal message where they can't.
 - Playlists read by ES-DE, Batocera and RetroBat themselves. The round trip proves the
